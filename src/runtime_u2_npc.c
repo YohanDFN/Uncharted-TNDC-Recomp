@@ -284,19 +284,8 @@ static int64_t ABI detour_DcNpcGroupAliveCount(int32_t argc, uint64_t *argv, uin
     return fn ? fn(argc, argv, status) : 0;
 }
 
-static int64_t ABI detour_DcNpcGroupDeadCount(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x002DAEE0: (npc-group-dead-count group-id) */
-    if (status) *status = 0;
-    if (!g_u2_image_base || argc < 1 || !argv) return 0;
-    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, uint32_t *);
-    CountFn fn = (CountFn)(uintptr_t)(g_u2_image_base + 0x002DAEE0ull);
-    return fn ? fn(argc, argv, status) : 0;
-}
-
-static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x002E0050: (npc-in-melee-with-player? [npc-id]) */
-    if (status) *status = 0;
-    if (!g_u2_image_base) return 0;
+static void *u2_resolve_npc(int32_t argc, uint64_t *argv) {
+    if (!g_u2_image_base) return NULL;
     uint32_t npc_id = 0;
     if (argc > 0 && argv) {
         npc_id = (uint32_t)argv[0];
@@ -305,7 +294,8 @@ static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, 
         self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
         if (get_self) npc_id = get_self(0, 0, 1);
     }
-    if (npc_id == 0) return 0;
+    if (npc_id == 0) return NULL;
+
     typedef void * (ABI *GetNpcFn)(void *, uint32_t);
     GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
     void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
@@ -315,8 +305,24 @@ static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, 
         GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
         npc = get_ent ? get_ent(npc_id) : NULL;
     }
+    return npc;
+}
+
+static int64_t ABI detour_DcNpcGroupDeadCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DAEE0: (npc-group-dead-count group-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, uint32_t *);
+    CountFn fn = (CountFn)(uintptr_t)(g_u2_image_base + 0x002DAF00ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E0050: (npc-in-melee-with-player? [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
     if (!npc) return 0;
-    const uint8_t *melee_comp = *(const uint8_t **)((const uint8_t *)npc + 0x2208);
+    const uint8_t *melee_comp = *(const uint8_t **)(npc + 0x2208);
     if (!melee_comp) return 0;
     const uint8_t *sub = *(const uint8_t **)(melee_comp + 0x18);
     if (!sub) return 0;
@@ -325,6 +331,133 @@ static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, 
     typedef uint8_t (ABI *MeleeFn)(const void *);
     MeleeFn fn = *(MeleeFn *)((const uint8_t *)vtable + 0x30);
     return fn ? (fn(sub) ? 1 : 0) : 0;
+}
+
+static int64_t ABI detour_DcNpcFiredRecentlyP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DEAB0: (npc-fired-recently? [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t flags = ((uint32_t)*(const uint8_t *)(npc + 0x36)) << 16;
+    if (flags & 0x40000) {
+        const uint8_t *time_ctx = *(const uint8_t **)(npc + 0x70);
+        if (time_ctx) {
+            uint32_t cur_time = *(const uint32_t *)(time_ctx + 0x0C);
+            uint32_t last_fire = *(const uint32_t *)(npc + 0x29C);
+            return (cur_time - last_fire < 0x4B) ? 1 : 0;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcReloadWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DBDA0: (npc-reload-weapon [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    const uint8_t *comp = *(const uint8_t **)(npc + 0x2208);
+    if (!comp) return 0;
+    const uint8_t *sub = *(const uint8_t **)(comp + 0x28);
+    if (!sub) return 0;
+    const void *vtable = *(const void **)sub;
+    if (!vtable) return 0;
+    typedef uint8_t (ABI *ReloadFn)(const void *);
+    ReloadFn fn = *(ReloadFn *)((const uint8_t *)vtable + 0x30);
+    return fn ? (fn(sub) ? 1 : 0) : 0;
+}
+
+static int64_t ABI detour_DcNpcLowerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DBD00: (npc-lower-weapon [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    const uint8_t *comp = *(const uint8_t **)(npc + 0x2208);
+    if (!comp) return 0;
+    const uint8_t *sub = *(const uint8_t **)(comp + 0x28);
+    if (!sub) return 0;
+    const void *vtable = *(const void **)sub;
+    if (!vtable) return 0;
+    typedef void (ABI *LowerFn)(const void *);
+    LowerFn fn = *(LowerFn *)((const uint8_t *)vtable + 0x88);
+    if (fn) fn(sub);
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetInCombat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DA720: (npc-set-in-combat [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    void *combat_mgr = *(void **)(npc + 0x3FA8);
+    if (combat_mgr) {
+        typedef void (ABI *CombatStateFn)(void *, int32_t);
+        CombatStateFn set_state = (CombatStateFn)(uintptr_t)(g_u2_image_base + 0x00277320ull);
+        if (set_state) set_state(combat_mgr, 1);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcStop(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DBF50: (npc-stop [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    void *nav = *(void **)(npc + 0x21E0);
+    if (nav) {
+        typedef void (ABI *StopFn)(void *);
+        StopFn stop_fn = (StopFn)(uintptr_t)(g_u2_image_base + 0x0023C9A0ull);
+        if (stop_fn) stop_fn(nav);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetWeaponVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DB170: (npc-set-weapon-visible [npc-id] [visible]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t visible = (argc > 1 && argv) ? (int32_t)argv[1] : 1;
+    void **vtable = *(void ***)npc;
+    if (vtable && vtable[0x260 / 8]) {
+        typedef void * (ABI *GetWeaponDrawableFn)(void *);
+        GetWeaponDrawableFn get_draw = (GetWeaponDrawableFn)vtable[0x260 / 8];
+        uint8_t *draw = (uint8_t *)get_draw(npc);
+        if (draw) {
+            *(uint8_t *)(draw + 0x180) = visible ? 1 : 0;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcFireWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DBE80: (npc-fire-weapon [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    const uint8_t *comp = *(const uint8_t **)(npc + 0x2208);
+    if (!comp) return 0;
+    const uint8_t *sub = *(const uint8_t **)(comp + 0x28);
+    if (!sub) return 0;
+    const void *vtable = *(const void **)sub;
+    if (!vtable) return 0;
+    typedef void (ABI *FireFn)(const void *);
+    FireFn fn = *(FireFn *)((const uint8_t *)vtable + 0x28);
+    if (fn) fn(sub);
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcCanSeeP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DA420: (npc-can-see? [npc-id] [target-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t target_id = (argc > 1 && argv) ? (uint32_t)argv[1] : 0;
+    if (target_id == 0) return 0;
+    void *vision = *(void **)(npc + 0x21F8);
+    if (!vision) return 0;
+    typedef uint8_t (ABI *CanSeeFn)(void *, uint32_t);
+    CanSeeFn can_see = (CanSeeFn)(uintptr_t)(g_u2_image_base + 0x0025D890ull);
+    return can_see ? (can_see(vision, target_id) ? 1 : 0) : 0;
 }
 
 /* Table of detours provided by this module */
@@ -346,6 +479,14 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcGroupAliveCount", 0x002DB160, (uintptr_t)detour_DcNpcGroupAliveCount },
     { "DcNpcGroupDeadCount", 0x002DAEE0, (uintptr_t)detour_DcNpcGroupDeadCount },
     { "DcNpcInMeleeWithPlayerP", 0x002E0050, (uintptr_t)detour_DcNpcInMeleeWithPlayerP },
+    { "DcNpcFiredRecentlyP", 0x002DEAB0, (uintptr_t)detour_DcNpcFiredRecentlyP },
+    { "DcNpcReloadWeapon", 0x002DBDA0, (uintptr_t)detour_DcNpcReloadWeapon },
+    { "DcNpcLowerWeapon", 0x002DBD00, (uintptr_t)detour_DcNpcLowerWeapon },
+    { "DcNpcSetInCombat", 0x002DA720, (uintptr_t)detour_DcNpcSetInCombat },
+    { "DcNpcStop", 0x002DBF50, (uintptr_t)detour_DcNpcStop },
+    { "DcNpcSetWeaponVisible", 0x002DB170, (uintptr_t)detour_DcNpcSetWeaponVisible },
+    { "DcNpcFireWeapon", 0x002DBE80, (uintptr_t)detour_DcNpcFireWeapon },
+    { "DcNpcCanSeeP", 0x002DA420, (uintptr_t)detour_DcNpcCanSeeP },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {
