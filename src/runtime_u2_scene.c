@@ -1922,6 +1922,431 @@ static int64_t ABI detour_DcRailGetSpline(int32_t argc, uint64_t *argv, uint32_t
     return 0;
 }
 
+
+static int64_t ABI detour_DcFmaRequestPartModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00050: (fma-request-part-module [symbol-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!sym) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) sym = get_self(0, 0, 1);
+    }
+    if (!sym) return 0;
+    uint8_t *fx_mgr = (uint8_t *)(g_u2_image_base + 0x013D1E70ull);
+    typedef void (ABI *ReqFn)(void *, uint32_t);
+    ReqFn req = (ReqFn)(uintptr_t)(g_u2_image_base + 0x00C54ED0ull);
+    if (req) req(fx_mgr + 0x50, sym);
+    return 0;
+}
+
+static int64_t ABI detour_DcKillParticles(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00140: (kill-particles handle [immediate-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    uint32_t idx = handle & 0x3FF;
+    uint8_t *fx_mgr = (uint8_t *)(g_u2_image_base + 0x013D1E70ull);
+    uint32_t max_count = *(uint32_t *)(fx_mgr + 0x9D8);
+    if (idx >= max_count) return 0;
+    uint8_t *pool = *(uint8_t **)(fx_mgr + 0x9D0);
+    if (!pool) return 0;
+    uint32_t cap = *(uint32_t *)(pool + 0x9C);
+    if (idx >= cap) return 0;
+    uint8_t *elem = (*(uint8_t **)(pool + 0x90)) + (size_t)idx * 40;
+    uint32_t gen = handle >> 10;
+    bool immediate = (argc >= 2 && argv[1] != 0);
+    uint8_t *ptr = *(uint8_t **)elem;
+    if (ptr && *(uint32_t *)ptr == gen) {
+        uint16_t flag = immediate ? 2 : 1;
+        *(uint16_t *)(ptr + 4) |= flag;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSpawnParticlesAtLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A002D0: (spawn-particles-at-locator fx-name locator [entity-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t fx_sym = (uint32_t)argv[0];
+    uint8_t *loc = (uint8_t *)argv[1];
+    uint32_t ent_handle = (argc >= 3) ? (uint32_t)argv[2] : 0;
+    if (!loc || !fx_sym) return 0;
+    if (!ent_handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) ent_handle = get_self(0, 0, 1);
+    }
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = ent_handle ? get_ent(0, ent_handle) : NULL;
+    (void)ent;
+
+    /* Build spawn descriptor (0x220 bytes) */
+    uint8_t desc[0x220];
+    memset(desc, 0, sizeof(desc));
+    *(uint32_t *)(desc + 0x00) = 0xF6725C04; /* magic header */
+    *(uint64_t *)(desc + 0x08) = *(uint64_t *)(g_u2_image_base + 0x0115F1A0ull + 0xC98);
+    *(uint64_t *)(desc + 0x18) = (uintptr_t)(desc + 0x60);
+
+    /* FX parameters at offset 0x60 */
+    *(uint32_t *)(desc + 0x60) = 0x68A84033;
+    *(uint32_t *)(desc + 0x64) = fx_sym;
+    *(float *)(desc + 0x94) = 1.0f;
+    *(uint8_t *)(desc + 0xAC) = 1;
+    *(uint8_t *)(desc + 0xAD) = 1;
+
+    /* Copy transform matrix from locator */
+    memcpy(desc + 0xF0, loc, sizeof(float) * 16);
+    *(uint32_t *)(desc + 0x1B8) = 0;
+
+    typedef uint8_t * (ABI *SpawnFxFn)(void *, uint32_t);
+    SpawnFxFn spawn_fn = (SpawnFxFn)(uintptr_t)(g_u2_image_base + 0x009B5C20ull);
+    uint8_t *pfx = spawn_fn ? spawn_fn(desc, 0) : NULL;
+    if (pfx) {
+        uint8_t *inst = *(uint8_t **)(pfx + 0xA8);
+        uint32_t gen = *(uint32_t *)(pfx + 0xB0);
+        if (inst && gen) {
+            uint8_t *fx_mgr = (uint8_t *)(g_u2_image_base + 0x013D1E70ull);
+            uint8_t *pool = *(uint8_t **)(fx_mgr + 0x9D0);
+            if (pool) {
+                uint8_t *base = *(uint8_t **)(pool + 0x90);
+                if (inst >= base) {
+                    uint32_t idx = (uint32_t)((inst - base) / 40);
+                    return (int64_t)((idx & 0x3FF) | (gen << 10));
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSpawnParticlesAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00950: (spawn-particles-at-joint ...) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *SpawnPartFn)(int32_t, uint64_t *, uint32_t);
+    SpawnPartFn fn = (SpawnPartFn)(uintptr_t)(g_u2_image_base + 0x009F2E80ull);
+    return fn ? fn(argc, argv, 2) : 0;
+}
+
+static int64_t ABI detour_DcSpawnParticlesAttached(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00960: (spawn-particles-attached ...) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *SpawnPartFn)(int32_t, uint64_t *, uint32_t);
+    SpawnPartFn fn = (SpawnPartFn)(uintptr_t)(g_u2_image_base + 0x009F2E80ull);
+    return fn ? fn(argc, argv, 1) : 0;
+}
+
+static int64_t ABI detour_DcPartModuleLoadedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00970: (part-module-loaded? [symbol-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!sym) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) sym = get_self(0, 0, 1);
+    }
+    if (!sym) return 0;
+    uint8_t *fx_mgr = (uint8_t *)(g_u2_image_base + 0x013D1E70ull);
+    uint32_t count = *(uint32_t *)(fx_mgr + 0x8C8);
+    if (!count) return 0;
+    uint8_t *entry = fx_mgr + 0x298;
+    for (uint32_t i = 0; i < count; ++i) {
+        if (*(uint32_t *)entry == sym) {
+            return 1;
+        }
+        entry += 0x30;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSpawnSnowDisturb(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01BB0: (spawn-snow-disturb locator-or-pos [radius]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint8_t *loc = (uint8_t *)argv[0];
+    float radius = 1.0f;
+    if (argc >= 2) {
+        union { uint64_t u; float f; } conv;
+        conv.u = argv[1];
+        radius = conv.f;
+    }
+    (void)loc;
+    (void)radius;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroundPrintsType(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01F00: (ground-prints-type) */
+    (void)argv;
+    if (status) *status = 0;
+    return (argc > 0) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcRailDisableCareen(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8B80: (rail-disable-careen [vehicle-id] [disabled-bool]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    bool disable = (argc >= 2 && argv && argv[1] != 0);
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh) {
+        typedef void (ABI *CareenFn)(void *, bool);
+        CareenFn fn = (CareenFn)(uintptr_t)(g_u2_image_base + 0x00004EE0ull);
+        if (fn) fn(veh, disable);
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailForceCareen(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8C40: (rail-force-careen [vehicle-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh) {
+        typedef void (ABI *ForceCareenFn)(void *);
+        ForceCareenFn fn = (ForceCareenFn)(uintptr_t)(g_u2_image_base + 0x00004EB0ull);
+        if (fn) fn(veh);
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailFireTurretGrenade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8CD0: (rail-fire-turret-grenade [turret-id] [target-id] [param]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t turret_id = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    uint32_t target_id = (argc > 1 && argv && argv[1]) ? (uint32_t)argv[1] : 0;
+    uint32_t param = (argc > 2 && argv && argv[2]) ? (uint32_t)argv[2] : 0;
+    typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+    GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+    if (!turret_id && get_self) turret_id = get_self(0, 0, 1);
+    if (!target_id && get_self) target_id = get_self(0, 0, 1);
+    if (!param && get_self) param = get_self(0, 0, 1);
+    if (!turret_id || !target_id) return 0;
+
+    typedef uint8_t * (ABI *FindActorFn)(void *, uint32_t);
+    FindActorFn find_actor = (FindActorFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    uint8_t *turret = find_actor ? find_actor((void *)(g_u2_image_base + 0x0110DCB8ull), turret_id) : NULL;
+    if (!turret) return 0;
+
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *target = get_ent ? get_ent(0, target_id) : NULL;
+    if (!target) return 0;
+
+    uint8_t *sub = *(uint8_t **)(turret + 0x4020);
+    if (sub && *(uint32_t *)(sub + 0x10) == 0xCC3BC266) {
+        typedef void (ABI *FireGrenadeFn)(void *, void *, uint32_t);
+        FireGrenadeFn fn = (FireGrenadeFn)(uintptr_t)(g_u2_image_base + 0x00A7D320ull);
+        if (fn) fn(turret, target, param);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailEnableCollideWithObjects(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8EA0: (rail-enable-collide-with-objects [vehicle-id] [enabled-bool]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    bool enable = (argc >= 2 && argv && argv[1] != 0);
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh) {
+        typedef void (ABI *CollideFn)(void *, bool);
+        CollideFn fn = (CollideFn)(uintptr_t)(g_u2_image_base + 0x00003590ull);
+        if (fn) fn(veh, enable);
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailScrub(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8F90: (rail-scrub vehicle-id scrub-pos) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    if (!handle) return 0;
+    union { uint64_t u; float f; } conv;
+    conv.u = argv[1];
+    float scrub_pos = conv.f;
+
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh) {
+        typedef uint8_t (ABI *GetActiveFn)(void *);
+        typedef void (ABI *SetActiveFn)(void *, uint32_t);
+        typedef void (ABI *SetPosFn)(void *, float);
+        GetActiveFn get_act = (GetActiveFn)(uintptr_t)(g_u2_image_base + 0x000054C0ull);
+        SetActiveFn set_act = (SetActiveFn)(uintptr_t)(g_u2_image_base + 0x00005480ull);
+        SetPosFn set_pos = (SetPosFn)(uintptr_t)(g_u2_image_base + 0x000057F0ull);
+        uint8_t was_active = get_act ? get_act(veh) : 0;
+        if (set_act) set_act(veh, 1);
+        if (set_pos) set_pos(veh, scrub_pos);
+        if (set_act) set_act(veh, was_active);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailOverrideSfxState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9070: (rail-override-sfx-state [vehicle-id] [sfx-state]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    uint32_t sfx_state = (argc >= 2 && argv && argv[1]) ? (uint32_t)argv[1] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh && *(uint32_t *)(veh + 0x30) == 0xDC984A89) {
+        typedef void (ABI *OverrideSfxFn)(void *, uint32_t);
+        OverrideSfxFn fn = (OverrideSfxFn)(uintptr_t)(g_u2_image_base + 0x00013170ull);
+        if (fn) fn(veh, sfx_state);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailSetSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9230: (rail-set-speed vehicle-id speed [immediate-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    if (!handle) return 0;
+    union { uint64_t u; float f; } conv;
+    conv.u = argv[1];
+    float speed = conv.f;
+    bool immediate = (argc >= 3 && argv[2] != 0);
+
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh) {
+        typedef float (ABI *GetScaleFn)(void *);
+        GetScaleFn get_scale = (GetScaleFn)(uintptr_t)(g_u2_image_base + 0x00004A70ull);
+        float scale = get_scale ? get_scale(veh) : 1.0f;
+        float final_speed = speed * scale;
+        if (immediate) {
+            typedef void (ABI *SetSpdImmFn)(void *, float);
+            SetSpdImmFn fn = (SetSpdImmFn)(uintptr_t)(g_u2_image_base + 0x000053C0ull);
+            if (fn) fn(veh, final_speed);
+        } else {
+            typedef void (ABI *SetSpdFn)(void *, float);
+            SetSpdFn fn = (SetSpdFn)(uintptr_t)(g_u2_image_base + 0x00005240ull);
+            if (fn) fn(veh, final_speed);
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailShutdown(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9340: (rail-shutdown) */
+    (void)argc;
+    (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *mgr = (uint8_t *)(g_u2_image_base + 0x0115F1A0ull);
+    uint8_t *head = *(uint8_t **)(mgr + 0xC50);
+    typedef uint8_t * (ABI *NextMoverFn)(void *, uint32_t);
+    NextMoverFn next_fn = (NextMoverFn)(uintptr_t)(g_u2_image_base + 0x009BCDF0ull);
+    typedef void (ABI *ShutdownMoverFn)(void *);
+    ShutdownMoverFn shut_fn = (ShutdownMoverFn)(uintptr_t)(g_u2_image_base + 0x009BE760ull);
+    typedef uint8_t (ABI *CheckMoverFn)(void *);
+    CheckMoverFn check_fn = (CheckMoverFn)(uintptr_t)(g_u2_image_base + 0x000011D0ull);
+
+    uint8_t *mover = head;
+    while (mover && next_fn) {
+        mover = next_fn(mover, 0);
+        if (!mover) break;
+        uint16_t flags = *(uint16_t *)(mover + 0x34);
+        if ((flags & 1) && check_fn && check_fn(mover) && shut_fn) {
+            shut_fn(mover);
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailUseFixedAprefInIgc(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9410: (rail-use-fixed-apref-in-igc [vehicle-id] [enabled-bool]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    bool enable = (argc < 2 || (argv && argv[1] != 0));
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh) {
+        typedef void (ABI *SetFixedFn)(void *, bool);
+        SetFixedFn fn = (SetFixedFn)(uintptr_t)(g_u2_image_base + 0x00005590ull);
+        if (fn) fn(veh, enable);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailHasVehicle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB94B0: (rail-has-vehicle? vehicle-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    typedef int32_t (ABI *FindSlotFn)(uint32_t, uint32_t);
+    FindSlotFn find_slot = (FindSlotFn)(uintptr_t)(g_u2_image_base + 0x00A91D00ull);
+    int32_t slot = find_slot ? find_slot(handle, 0) : -1;
+    if (slot >= 0) {
+        uint8_t *table = (uint8_t *)(g_u2_image_base + 0x0153EFA8ull);
+        size_t off = (size_t)slot * 96;
+        uint8_t **veh_slot = *(uint8_t ***)(table + off + 0x118);
+        uint32_t gen = *(uint32_t *)(table + off + 0x120);
+        if (veh_slot && gen) {
+            uint8_t *veh = *veh_slot;
+            if (veh && *(uint32_t *)(veh + 0x44) == gen) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -2072,6 +2497,24 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcRailActivateMover", 0x00AB8340, (uintptr_t)detour_DcRailActivateMover },
     { "DcRailEnableGroundHug", 0x00AB8430, (uintptr_t)detour_DcRailEnableGroundHug },
     { "DcRailGetSpline", 0x00AB84E0, (uintptr_t)detour_DcRailGetSpline },
+    { "DcFmaRequestPartModule", 0x00A00050, (uintptr_t)detour_DcFmaRequestPartModule },
+    { "DcKillParticles", 0x00A00140, (uintptr_t)detour_DcKillParticles },
+    { "DcSpawnParticlesAtLocator", 0x00A002D0, (uintptr_t)detour_DcSpawnParticlesAtLocator },
+    { "DcSpawnParticlesAtJoint", 0x00A00950, (uintptr_t)detour_DcSpawnParticlesAtJoint },
+    { "DcSpawnParticlesAttached", 0x00A00960, (uintptr_t)detour_DcSpawnParticlesAttached },
+    { "DcPartModuleLoadedP", 0x00A00970, (uintptr_t)detour_DcPartModuleLoadedP },
+    { "DcSpawnSnowDisturb", 0x00A01BB0, (uintptr_t)detour_DcSpawnSnowDisturb },
+    { "DcGroundPrintsType", 0x00A01F00, (uintptr_t)detour_DcGroundPrintsType },
+    { "DcRailDisableCareen", 0x00AB8B80, (uintptr_t)detour_DcRailDisableCareen },
+    { "DcRailForceCareen", 0x00AB8C40, (uintptr_t)detour_DcRailForceCareen },
+    { "DcRailFireTurretGrenade", 0x00AB8CD0, (uintptr_t)detour_DcRailFireTurretGrenade },
+    { "DcRailEnableCollideWithObjects", 0x00AB8EA0, (uintptr_t)detour_DcRailEnableCollideWithObjects },
+    { "DcRailScrub", 0x00AB8F90, (uintptr_t)detour_DcRailScrub },
+    { "DcRailOverrideSfxState", 0x00AB9070, (uintptr_t)detour_DcRailOverrideSfxState },
+    { "DcRailSetSpeed", 0x00AB9230, (uintptr_t)detour_DcRailSetSpeed },
+    { "DcRailShutdown", 0x00AB9340, (uintptr_t)detour_DcRailShutdown },
+    { "DcRailUseFixedAprefInIgc", 0x00AB9410, (uintptr_t)detour_DcRailUseFixedAprefInIgc },
+    { "DcRailHasVehicle", 0x00AB94B0, (uintptr_t)detour_DcRailHasVehicle },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
