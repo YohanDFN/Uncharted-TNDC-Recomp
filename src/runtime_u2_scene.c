@@ -4341,6 +4341,129 @@ static int64_t ABI detour_DcDropRope(int32_t argc, uint64_t *argv, uint32_t *sta
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 23 (Part 4): Scene Camera, Pad, Animation, Renders & HUD (16 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcStopAnimating(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00397AB0: (stop-animating [anim]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcHasAnimP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00397A20: (has-anim? [entity] [anim-id]) -> bool */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUpdateApRef(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00397520: (update-ap-ref [ap-ref]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRenderSettingsApplyDefaults(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10760: (render-settings-apply-defaults) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDoRumblePtr(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A105F0: (do-rumble-ptr [rumble-desc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcJournalDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10510: (journal-disable) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPrintf(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10110: (printf [fmt] ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFacingPointP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F6D0: (facing-point? [entity] [pt-vec]) -> bool */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSlowMoEffect(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EE10: (slow-mo-effect [speed] [duration]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcCameraDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E500: (camera-disable [cam-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcIsStickPressedTowards(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0D6B0: (is-stick-pressed-towards [stick-id] [dir-deg]) -> bool */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPadGetInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0D210: (pad-get-info [pad-id] [out-info]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPadGetButtonPressInterval(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0D060: (pad-get-button-press-interval [btn-id]) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    float dt = 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &dt, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcPadGetGestureInterval(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0CEF0: (pad-get-gesture-interval [gesture-id]) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    float dt = 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &dt, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcDisplayButtonHud(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0CD20: (display-button-hud [btn-id] [action-str]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcShowBinoculars(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0CB90: (show-binoculars [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -4695,6 +4818,23 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcRenameObject", 0x00A04D10, (uintptr_t)detour_DcRenameObject },
     { "DcGrabRope", 0x00A04740, (uintptr_t)detour_DcGrabRope },
     { "DcDropRope", 0x00A045E0, (uintptr_t)detour_DcDropRope },
+    /* Lot 23 (Part 4): Scene Camera, Pad, Animation, Renders & HUD (16 funcs) */
+    { "DcStopAnimating", 0x00397AB0, (uintptr_t)detour_DcStopAnimating },
+    { "DcHasAnimP", 0x00397A20, (uintptr_t)detour_DcHasAnimP },
+    { "DcUpdateApRef", 0x00397520, (uintptr_t)detour_DcUpdateApRef },
+    { "DcRenderSettingsApplyDefaults", 0x00A10760, (uintptr_t)detour_DcRenderSettingsApplyDefaults },
+    { "DcDoRumblePtr", 0x00A105F0, (uintptr_t)detour_DcDoRumblePtr },
+    { "DcJournalDisable", 0x00A10510, (uintptr_t)detour_DcJournalDisable },
+    { "DcPrintf", 0x00A10110, (uintptr_t)detour_DcPrintf },
+    { "DcFacingPointP", 0x00A0F6D0, (uintptr_t)detour_DcFacingPointP },
+    { "DcSlowMoEffect", 0x00A0EE10, (uintptr_t)detour_DcSlowMoEffect },
+    { "DcCameraDisable", 0x00A0E500, (uintptr_t)detour_DcCameraDisable },
+    { "DcIsStickPressedTowards", 0x00A0D6B0, (uintptr_t)detour_DcIsStickPressedTowards },
+    { "DcPadGetInfo", 0x00A0D210, (uintptr_t)detour_DcPadGetInfo },
+    { "DcPadGetButtonPressInterval", 0x00A0D060, (uintptr_t)detour_DcPadGetButtonPressInterval },
+    { "DcPadGetGestureInterval", 0x00A0CEF0, (uintptr_t)detour_DcPadGetGestureInterval },
+    { "DcDisplayButtonHud", 0x00A0CD20, (uintptr_t)detour_DcDisplayButtonHud },
+    { "DcShowBinoculars", 0x00A0CB90, (uintptr_t)detour_DcShowBinoculars },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

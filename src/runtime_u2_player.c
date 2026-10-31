@@ -2557,6 +2557,59 @@ static int64_t ABI detour_DcForceDistanceStopIncrease(int32_t argc, uint64_t *ar
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 23 (Part 2): Player Reticle, Demo & Animations (4 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcDrawReticle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090E6E0: (draw-reticle [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "draw-reticle", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcDemoResetDefaults(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DD50: (demo-reset-defaults) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSwimAllowStandOnBottom(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D6B0: (swim-allow-stand-on-bottom [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "swim-allow-stand-on-bottom", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcChooseStumbleAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00907370: (choose-stumble-anim [hit-dir]) -> anim-id */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -2711,6 +2764,11 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcForceCollisionForAimFocus", 0x00906F90, (uintptr_t)detour_DcForceCollisionForAimFocus },
     { "DcForceHairAnim", 0x00906840, (uintptr_t)detour_DcForceHairAnim },
     { "DcForceDistanceStopIncrease", 0x00906740, (uintptr_t)detour_DcForceDistanceStopIncrease },
+    /* Lot 23 (Part 2): Player Reticle, Demo & Animations (4 funcs) */
+    { "DcDrawReticle", 0x0090E6E0, (uintptr_t)detour_DcDrawReticle },
+    { "DcDemoResetDefaults", 0x0090DD50, (uintptr_t)detour_DcDemoResetDefaults },
+    { "DcSwimAllowStandOnBottom", 0x0090D6B0, (uintptr_t)detour_DcSwimAllowStandOnBottom },
+    { "DcChooseStumbleAnim", 0x00907370, (uintptr_t)detour_DcChooseStumbleAnim },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {

@@ -2225,6 +2225,69 @@ static int64_t ABI detour_DcClearLookAt(int32_t argc, uint64_t *argv, uint32_t *
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 23 (Part 1): NPC LookAt & Grenade Throws (3 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcLookAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4C80: (look-at [npc] [target]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    uint32_t target_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *look_fn)(void *, uint32_t);
+        look_fn fn = (look_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor, target_id);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcThrowGrenade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E2C30: (throw-grenade [npc] [target-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void (ABI *throw_fn)(uint32_t, const void *);
+    throw_fn fn = (throw_fn)(uintptr_t)(g_u2_image_base + 0x002E2990ull);
+    if (fn) fn(npc_id, (argc >= 2 && argv) ? (const void *)(uintptr_t)argv[1] : NULL);
+    return 1;
+}
+
+static int64_t ABI detour_DcThrowSlaGrenade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E2810: (throw-sla-grenade [npc] [target-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void (ABI *throw_fn)(uint32_t, const void *);
+    throw_fn fn = (throw_fn)(uintptr_t)(g_u2_image_base + 0x002E2990ull);
+    if (fn) fn(npc_id, (argc >= 2 && argv) ? (const void *)(uintptr_t)argv[1] : NULL);
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -2352,6 +2415,10 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcCSpawnNpcS", 0x002E55A0, (uintptr_t)detour_DcCSpawnNpcS },
     { "DcLookAtObject", 0x002E4A40, (uintptr_t)detour_DcLookAtObject },
     { "DcClearLookAt", 0x002E4830, (uintptr_t)detour_DcClearLookAt },
+    /* Lot 23 (Part 1): NPC LookAt & Grenade Throws (3 funcs) */
+    { "DcLookAt", 0x002E4C80, (uintptr_t)detour_DcLookAt },
+    { "DcThrowGrenade", 0x002E2C30, (uintptr_t)detour_DcThrowGrenade },
+    { "DcThrowSlaGrenade", 0x002E2810, (uintptr_t)detour_DcThrowSlaGrenade },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

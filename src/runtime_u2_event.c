@@ -715,6 +715,130 @@ static int64_t ABI detour_DcDespawnMessage(int32_t argc, uint64_t *argv, uint32_
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 23 (Part 3): Events, Groups, Network & Stats (17 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcNetSendEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C3B60: (net-send-event ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcBroadcastEventToNpcs(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C3A00: (broadcast-event-to-npcs [event-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEventMyLevelP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C32D0: (event-my-level? [event]) -> bool */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEventArgBoundFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C28F0: (event-arg-bound-frame [event]) -> frame */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcSendSimpleEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C1CF0: (send-simple-event [event-name]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSendEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C18F0: (send-event [event-obj]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPrintEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C1800: (print-event [event-obj]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcForGroup(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0054B830: (for-group [group-id] [lambda]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcHideMessageDeprecated(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DC650: (hide-message-deprecated [msg-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUnhideMessageDeprecated(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DC700: (unhide-message-deprecated [msg-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcHideMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DCA40: (hide-message [msg-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUnhideMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DCAF0: (unhide-message [msg-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUpdateFightRef(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667F80: (update-fight-ref) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPauseCoopCombo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667F60: (pause-coop-combo [pause-p]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetRevivePlayer(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667D40: (net-revive-player [player-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcIncrementStatDifficulty(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0097C010: (increment-stat-difficulty [stat-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcResetStat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0097BE50: (reset-stat [stat-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -792,6 +916,24 @@ static const U2NativeDetour s_event_detours[] = {
     /* Lot 22 (Part 2): Event Spawn Messages (2 funcs) */
     { "DcSpawnMessage", 0x005DC7B0, (uintptr_t)detour_DcSpawnMessage },
     { "DcDespawnMessage", 0x005DC8C0, (uintptr_t)detour_DcDespawnMessage },
+    /* Lot 23 (Part 3): Events, Groups, Network & Stats (17 funcs) */
+    { "DcNetSendEvent", 0x004C3B60, (uintptr_t)detour_DcNetSendEvent },
+    { "DcBroadcastEventToNpcs", 0x004C3A00, (uintptr_t)detour_DcBroadcastEventToNpcs },
+    { "DcEventMyLevelP", 0x004C32D0, (uintptr_t)detour_DcEventMyLevelP },
+    { "DcEventArgBoundFrame", 0x004C28F0, (uintptr_t)detour_DcEventArgBoundFrame },
+    { "DcSendSimpleEvent", 0x004C1CF0, (uintptr_t)detour_DcSendSimpleEvent },
+    { "DcSendEvent", 0x004C18F0, (uintptr_t)detour_DcSendEvent },
+    { "DcPrintEvent", 0x004C1800, (uintptr_t)detour_DcPrintEvent },
+    { "DcForGroup", 0x0054B830, (uintptr_t)detour_DcForGroup },
+    { "DcHideMessageDeprecated", 0x005DC650, (uintptr_t)detour_DcHideMessageDeprecated },
+    { "DcUnhideMessageDeprecated", 0x005DC700, (uintptr_t)detour_DcUnhideMessageDeprecated },
+    { "DcHideMessage", 0x005DCA40, (uintptr_t)detour_DcHideMessage },
+    { "DcUnhideMessage", 0x005DCAF0, (uintptr_t)detour_DcUnhideMessage },
+    { "DcUpdateFightRef", 0x00667F80, (uintptr_t)detour_DcUpdateFightRef },
+    { "DcPauseCoopCombo", 0x00667F60, (uintptr_t)detour_DcPauseCoopCombo },
+    { "DcNetRevivePlayer", 0x00667D40, (uintptr_t)detour_DcNetRevivePlayer },
+    { "DcIncrementStatDifficulty", 0x0097C010, (uintptr_t)detour_DcIncrementStatDifficulty },
+    { "DcResetStat", 0x0097BE50, (uintptr_t)detour_DcResetStat },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
