@@ -1989,6 +1989,94 @@ static int64_t ABI detour_DcCacheMusicPlaylist(int32_t argc, uint64_t *argv, uin
 }
 
 /* ============================================================================
+ * Wave 10 Detours: Entity Self ID, NPC Group Queries & Scene Actor Reset
+ * ============================================================================ */
+
+static int64_t ABI detour_DcGetSelfId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04A00: (get-self-id) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void * (ABI *GetSelfFn)(uint32_t);
+    GetSelfFn get_self = (GetSelfFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    const uint8_t *obj = get_self ? (const uint8_t *)get_self(0xFFB75566u) : NULL;
+    if (!obj) return 0;
+    return (int64_t)*(const uint32_t *)(obj + 0x68);
+}
+
+static int64_t ABI detour_DcNpcInCombatP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD830: (npc-in-combat? [npc-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) {
+        npc_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    if (npc_id == 0) return 0;
+    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
+    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
+    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
+    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+        typedef void * (ABI *GetEntityFn)(uint32_t);
+        GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        npc = get_ent ? get_ent(npc_id) : NULL;
+    }
+    if (!npc) return 0;
+    const uint8_t *alert_comp = *(const uint8_t **)((const uint8_t *)npc + 0x3FA8);
+    if (!alert_comp) return 0;
+    int32_t alert_state = *(const int32_t *)(alert_comp + 0x64);
+    return (alert_state >= 3) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcNpcGroupAliveCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DB160: (npc-group-alive-count group-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, uint32_t *);
+    CountFn fn = (CountFn)(uintptr_t)(g_u2_image_base + 0x002DAF00ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcNpcGroupDeadCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DAEE0: (npc-group-dead-count group-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, uint32_t *);
+    CountFn fn = (CountFn)(uintptr_t)(g_u2_image_base + 0x002DAEE0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcClearHarvestedBodies(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01A90: (clear-harvested-bodies) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void (ABI *ClearFn)(void *);
+    ClearFn fn = (ClearFn)(uintptr_t)(g_u2_image_base + 0x00212680ull);
+    void *mgr = (void *)(g_u2_image_base + 0x0110DCA0ull);
+    if (fn) fn(mgr);
+    return 0;
+}
+
+static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD690: (reset-actors) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void (ABI *VoidFn)(void);
+    VoidFn f1 = (VoidFn)(uintptr_t)(g_u2_image_base + 0x009691D0ull);
+    VoidFn f2 = (VoidFn)(uintptr_t)(g_u2_image_base + 0x003F4CA0ull);
+    if (f1) f1();
+    if (f2) f2();
+    return 0;
+}
+
+/* ============================================================================
  * 3. Opcode Table (80 opcodes: 0x00 .. 0x4F at jump table 0x00A14DA4)
  * ============================================================================ */
 
@@ -3111,6 +3199,21 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         { "DcCacheSoundStream", 0x009FD510, (uintptr_t)detour_DcCacheSoundStream },
         { "DcCacheSpeechStream", 0x009FD4E0, (uintptr_t)detour_DcCacheSpeechStream },
         { "DcCacheMusicPlaylist", 0x009FD460, (uintptr_t)detour_DcCacheMusicPlaylist },
+
+        /* Wave 10: Entity Self ID, NPC Group Queries & Scene Actor Reset */
+        { "DcGetSelfId", 0x00A04A00, (uintptr_t)detour_DcGetSelfId },
+        { "DcNpcInCombatP", 0x002DD830, (uintptr_t)detour_DcNpcInCombatP },
+        { "DcNpcGroupAliveCount", 0x002DB160, (uintptr_t)detour_DcNpcGroupAliveCount },
+        { "DcNpcGroupDeadCount", 0x002DAEE0, (uintptr_t)detour_DcNpcGroupDeadCount },
+        { "DcClearHarvestedBodies", 0x00A01A90, (uintptr_t)detour_DcClearHarvestedBodies },
+        { "DcResetActors", 0x009FD690, (uintptr_t)detour_DcResetActors },
+        { "DcSetBarrelFlowMultiplier", 0x00A01EF0, (uintptr_t)detour_DcNoOp0 },
+        { "DcSetJetskiFlowMultiplier", 0x00A01B70, (uintptr_t)detour_DcNoOp0 },
+        { "DcSetJetskiMaxThrottle", 0x00A01B60, (uintptr_t)detour_DcNoOp0 },
+        { "DcSetJetskiNearStupidRampInRuins2", 0x00A01B50, (uintptr_t)detour_DcNoOp0 },
+        { "DcSetE3LoadingScreen", 0x009FD5B0, (uintptr_t)detour_DcNoOp0 },
+        { "DcEntitySetLevelB", 0x00A64C30, (uintptr_t)detour_DcNoOp0 },
+        { "DcFmaResetPartModules", 0x00A00130, (uintptr_t)detour_DcNoOp0 },
     };
 
     size_t installed = 0;
