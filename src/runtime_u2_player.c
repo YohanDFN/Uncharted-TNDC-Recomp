@@ -580,6 +580,200 @@ static int64_t ABI detour_DcSetPlayerInfiniteAmmo(int32_t argc, uint64_t *argv, 
     return 0;
 }
 
+static int64_t ABI detour_DcWeaponSetReset(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090AD00: (weapon-set-reset) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    typedef void * (ABI *GetWeaponSetFn)(uint32_t hash);
+    GetWeaponSetFn get_ws = (GetWeaponSetFn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
+    void *src = get_ws ? get_ws(0x459D0E4Eu) : NULL;
+    if (src) {
+        void *dst = (void *)(uintptr_t)(g_u2_image_base + 0x0153E1A0ull);
+        memcpy(dst, src, 120);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHolsterPlayerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D7C0: (holster-player-weapon [mode]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    int32_t holster_mode = 1;
+    if (argc > 0 && argv) {
+        holster_mode = (int32_t)argv[0];
+    }
+
+    void *drake = u2_get_active_player();
+    if (!drake) return 0;
+
+    /* Build DC event payload for 0x2E0A4317 ('holster-weapon') */
+    struct {
+        int32_t mode_type;
+        int32_t pad1;
+        int32_t mode_val;
+        int32_t pad2;
+    } arg1 = { 2, 0, holster_mode, 0 };
+
+    struct {
+        int32_t obj_type;
+        int32_t pad1;
+        void *obj;
+    } arg2 = { 10, 0, NULL };
+
+    struct {
+        int32_t count_type;
+        int32_t pad1;
+        int32_t count;
+        int32_t pad2;
+    } arg3 = { 3, 0, 0, 0 };
+
+    struct {
+        int32_t zero_type;
+        int32_t pad1;
+        int32_t zero_val;
+        int32_t pad2;
+    } arg4 = { 0, 0, 0, 0 };
+
+    typedef void * (ABI *SendEventFn)(void *out_res, uint32_t event_id, void *target, void *a1, void *a2, void *a3, void *a4);
+    SendEventFn send_evt = (SendEventFn)(uintptr_t)(g_u2_image_base + 0x004C4090ull);
+    uint8_t out_res[32] = {0};
+    if (send_evt) {
+        send_evt(out_res, 0x2E0A4317u, drake, &arg1, &arg2, &arg3, &arg4);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerHideWeapons(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090E4A0: (player-hide-weapons) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104AD78ull + 0x172);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x15B08523u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerNoReload(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090EC40: (player-no-reload) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    const uint8_t *drake = (const uint8_t *)u2_get_active_player();
+    if (!drake) return 0;
+
+    uint8_t *inv = *(uint8_t **)(drake + 0x2768);
+    if (!inv) return 0;
+
+    void **vtable = *(void ***)inv;
+    if (!vtable) return 0;
+
+    typedef int32_t (ABI *GetActiveWeaponIdxFn)(void *);
+    GetActiveWeaponIdxFn get_active = (GetActiveWeaponIdxFn)vtable[0x58 / 8];
+    int32_t cur_slot = get_active ? get_active(inv) : -1;
+    if (cur_slot >= 0) {
+        const uint8_t *slot = inv + 0x130 + (uint64_t)cur_slot * 16u;
+        const uint8_t *weapon_ptr = *(const uint8_t **)slot;
+        uint32_t tag = *(const uint32_t *)(slot + 8);
+        if (weapon_ptr && tag != 0) {
+            uint8_t *weapon = *(uint8_t **)weapon_ptr;
+            if (weapon && *(const uint32_t *)(weapon + 0x44) == tag) {
+                int16_t clip = *(const int16_t *)(weapon + 0x620);
+                int16_t reserve = *(const int16_t *)(weapon + 0x622);
+                if (clip == 0) {
+                    if (reserve == 0) {
+                        typedef void (ABI *NoAmmoFn)(void *, int32_t, int32_t);
+                        NoAmmoFn no_ammo = (NoAmmoFn)(uintptr_t)(g_u2_image_base + 0x00AE4930ull);
+                        if (no_ammo) no_ammo(weapon, 1, 0);
+                    }
+                    typedef void (ABI *DisableReloadFn)(void *, int32_t);
+                    DisableReloadFn dis_reload = (DisableReloadFn)(uintptr_t)(g_u2_image_base + 0x00AE98B0ull);
+                    if (dis_reload) dis_reload(weapon, 0);
+                }
+            }
+        }
+    }
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104F810ull + 0x3C);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0xEBFE460Du, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGivePlayerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00906B20: (give-player-weapon [weapon-type] [ammo]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc <= 0 || !argv) return 0;
+
+    uint32_t target_weapon_type = (uint32_t)argv[0];
+    int32_t ammo = (argc > 1) ? (int32_t)argv[1] : -1;
+
+    const uint8_t *drake = (const uint8_t *)u2_get_active_player();
+    if (!drake) return 0;
+
+    /* Check if player already possesses this weapon */
+    int32_t weapon_count = *(const int32_t *)(drake + 0x4BC);
+    for (int32_t i = 0; i < weapon_count; ++i) {
+        const uint8_t *slot = drake + 0x4C8 + (uint64_t)i * 16u;
+        const uint8_t *weapon_ptr = *(const uint8_t **)slot;
+        uint32_t tag = *(const uint32_t *)(slot + 8);
+        if (!weapon_ptr || tag == 0) continue;
+
+        uint8_t *weapon = *(uint8_t **)weapon_ptr;
+        if (!weapon || *(const uint32_t *)(weapon + 0x44) != tag) continue;
+
+        if (*(const uint32_t *)(weapon + 0x550) == target_weapon_type) {
+            /* Weapon already equipped: replenish ammo if requested */
+            if (ammo >= 0) {
+                typedef void (ABI *AddAmmoFn)(void *, int32_t, int32_t);
+                AddAmmoFn add_ammo = (AddAmmoFn)(uintptr_t)(g_u2_image_base + 0x00AE4670ull);
+                if (add_ammo) add_ammo(weapon, ammo, 0);
+            }
+            return 0;
+        }
+    }
+
+    /* Spawn new weapon entity via engine spawner (0x00ADA780) */
+    uint8_t spawn_params[176] = {0};
+    *(uint32_t *)(spawn_params + 0x70) = target_weapon_type;
+    *(uint32_t *)(spawn_params + 0x6C) = 0xFFFFFFFFu;
+    *(const void **)(spawn_params + 0x40) = *(const void **)(drake + 0x38);
+    *(uint32_t *)(spawn_params + 0x48) = *(const uint32_t *)(drake + 0x44);
+    *(void **)(spawn_params + 0x58) = (void *)(uintptr_t)(g_u2_image_base + 0x00EABE0Aull);
+
+    typedef void * (ABI *SpawnWeaponFn)(void *);
+    SpawnWeaponFn spawn_fn = (SpawnWeaponFn)(uintptr_t)(g_u2_image_base + 0x00ADA780ull);
+    if (spawn_fn) {
+        spawn_fn(spawn_params);
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -616,6 +810,11 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcRemovePlayerWeapon", 0x00906E10, (uintptr_t)detour_DcRemovePlayerWeapon },
     { "DcPlayerInstantDrawWeapon", 0x0090DDE0, (uintptr_t)detour_DcPlayerInstantDrawWeapon },
     { "DcSetPlayerInfiniteAmmo", 0x0090BA80, (uintptr_t)detour_DcSetPlayerInfiniteAmmo },
+    { "DcWeaponSetReset", 0x0090AD00, (uintptr_t)detour_DcWeaponSetReset },
+    { "DcHolsterPlayerWeapon", 0x0090D7C0, (uintptr_t)detour_DcHolsterPlayerWeapon },
+    { "DcPlayerHideWeapons", 0x0090E4A0, (uintptr_t)detour_DcPlayerHideWeapons },
+    { "DcPlayerNoReload", 0x0090EC40, (uintptr_t)detour_DcPlayerNoReload },
+    { "DcGivePlayerWeapon", 0x00906B20, (uintptr_t)detour_DcGivePlayerWeapon },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {
