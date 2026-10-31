@@ -2288,6 +2288,32 @@ static int64_t ABI detour_DcThrowSlaGrenade(int32_t argc, uint64_t *argv, uint32
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 24: Sullivan Flashlight Attachments & State (3 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcGiveSullivanFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0ABC0: (give-sullivan-flashlight [enable] [slot]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSullivanFlashlightToHand(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A6A0: (sullivan-flashlight-to-hand) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSullivanFlashlightToWaist(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A5F0: (sullivan-flashlight-to-waist) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -2419,6 +2445,10 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcLookAt", 0x002E4C80, (uintptr_t)detour_DcLookAt },
     { "DcThrowGrenade", 0x002E2C30, (uintptr_t)detour_DcThrowGrenade },
     { "DcThrowSlaGrenade", 0x002E2810, (uintptr_t)detour_DcThrowSlaGrenade },
+    /* Lot 24: Sullivan Flashlight Attachments & State (3 funcs) */
+    { "DcGiveSullivanFlashlight", 0x00A0ABC0, (uintptr_t)detour_DcGiveSullivanFlashlight },
+    { "DcSullivanFlashlightToHand", 0x00A0A6A0, (uintptr_t)detour_DcSullivanFlashlightToHand },
+    { "DcSullivanFlashlightToWaist", 0x00A0A5F0, (uintptr_t)detour_DcSullivanFlashlightToWaist },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

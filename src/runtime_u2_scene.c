@@ -4464,6 +4464,228 @@ static int64_t ABI detour_DcShowBinoculars(int32_t argc, uint64_t *argv, uint32_
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 24: Locators, Ropes, Physics, Reflections, Blurs, Letterbox & Explosions (31 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcReverseLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A05CB0: (reverse-locator locator) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRotateLocatorLookat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A05620: (rotate-locator-lookat locator target) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRotateLocatorAngle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A05090: (rotate-locator-angle locator angle axis) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDumpEntityInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04970: (dump-entity-info entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDumpLevelsInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04900: (dump-levels-info) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDetachRope(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04530: (detach-rope rope) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcConstrainRopeAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04430: (constrain-rope-at-joint rope joint) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRopeDisableCharacterCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04340: (rope-disable-character-collision rope) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRopeEnableCharacterCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04270: (rope-enable-character-collision rope) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcObjectOnObjectP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04040: (object-on-object? obj1 obj2) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcSpawnFloatingBarrelAtPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03E20: (spawn-floating-barrel-at-phase pos phase) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcApplyExplosionImpulse(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03B20: (apply-explosion-impulse pos force radius) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUnparent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03940: (unparent entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPredictOnPhysicsDriven(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A037C0: (predict-on-physics-driven [enable]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFreezeBindingWhenNonPhysical(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03700: (freeze-binding-when-non-physical [enable]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUseVisibleWaterUnitForReflectionWithTolerance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02B70: (use-visible-water-unit-for-reflection-with-tolerance unit tol) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLerpReflectionPlaneOfWaterUnits(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02B10: (lerp-reflection-plane-of-water-units u1 u2 t) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLerpReflectionPlanes(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02AA0: (lerp-reflection-planes p1 p2 t) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLerpReflectionPlanesByRotation(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02A20: (lerp-reflection-planes-by-rotation p1 p2 t) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUseReflectionPlane(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A029A0: (use-reflection-plane plane) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcForceReflections(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02960: (force-reflections [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUseMaterialFromWaterUnit(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02020: (use-material-from-water-unit unit mat) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDeactivateBlur(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFF50: (deactivate-blur) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRestoreBlur(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFF20: (restore-blur) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLetterboxOn(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFE00: (letterbox-on [time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLetterboxOff(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFD60: (letterbox-off [time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFadeToBlack(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFBA0: (fade-to-black [time] [hold]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFadeToWhite(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFAC0: (fade-to-white [time] [hold]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFadeToBlackPers(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFA40: (fade-to-black-pers [time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSpawnExplosion(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF610: (spawn-explosion pos type radius damage) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSpawnExplosionNpcOnly(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF410: (spawn-explosion-npc-only pos type radius damage) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -4835,6 +5057,38 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcPadGetGestureInterval", 0x00A0CEF0, (uintptr_t)detour_DcPadGetGestureInterval },
     { "DcDisplayButtonHud", 0x00A0CD20, (uintptr_t)detour_DcDisplayButtonHud },
     { "DcShowBinoculars", 0x00A0CB90, (uintptr_t)detour_DcShowBinoculars },
+    /* Lot 24: Locators, Ropes, Physics, Reflections, Blurs, Letterbox & Explosions (31 funcs) */
+    { "DcReverseLocator", 0x00A05CB0, (uintptr_t)detour_DcReverseLocator },
+    { "DcRotateLocatorLookat", 0x00A05620, (uintptr_t)detour_DcRotateLocatorLookat },
+    { "DcRotateLocatorAngle", 0x00A05090, (uintptr_t)detour_DcRotateLocatorAngle },
+    { "DcDumpEntityInfo", 0x00A04970, (uintptr_t)detour_DcDumpEntityInfo },
+    { "DcDumpLevelsInfo", 0x00A04900, (uintptr_t)detour_DcDumpLevelsInfo },
+    { "DcDetachRope", 0x00A04530, (uintptr_t)detour_DcDetachRope },
+    { "DcConstrainRopeAtJoint", 0x00A04430, (uintptr_t)detour_DcConstrainRopeAtJoint },
+    { "DcRopeDisableCharacterCollision", 0x00A04340, (uintptr_t)detour_DcRopeDisableCharacterCollision },
+    { "DcRopeEnableCharacterCollision", 0x00A04270, (uintptr_t)detour_DcRopeEnableCharacterCollision },
+    { "DcObjectOnObjectP", 0x00A04040, (uintptr_t)detour_DcObjectOnObjectP },
+    { "DcSpawnFloatingBarrelAtPhase", 0x00A03E20, (uintptr_t)detour_DcSpawnFloatingBarrelAtPhase },
+    { "DcApplyExplosionImpulse", 0x00A03B20, (uintptr_t)detour_DcApplyExplosionImpulse },
+    { "DcUnparent", 0x00A03940, (uintptr_t)detour_DcUnparent },
+    { "DcPredictOnPhysicsDriven", 0x00A037C0, (uintptr_t)detour_DcPredictOnPhysicsDriven },
+    { "DcFreezeBindingWhenNonPhysical", 0x00A03700, (uintptr_t)detour_DcFreezeBindingWhenNonPhysical },
+    { "DcUseVisibleWaterUnitForReflectionWithTolerance", 0x00A02B70, (uintptr_t)detour_DcUseVisibleWaterUnitForReflectionWithTolerance },
+    { "DcLerpReflectionPlaneOfWaterUnits", 0x00A02B10, (uintptr_t)detour_DcLerpReflectionPlaneOfWaterUnits },
+    { "DcLerpReflectionPlanes", 0x00A02AA0, (uintptr_t)detour_DcLerpReflectionPlanes },
+    { "DcLerpReflectionPlanesByRotation", 0x00A02A20, (uintptr_t)detour_DcLerpReflectionPlanesByRotation },
+    { "DcUseReflectionPlane", 0x00A029A0, (uintptr_t)detour_DcUseReflectionPlane },
+    { "DcForceReflections", 0x00A02960, (uintptr_t)detour_DcForceReflections },
+    { "DcUseMaterialFromWaterUnit", 0x00A02020, (uintptr_t)detour_DcUseMaterialFromWaterUnit },
+    { "DcDeactivateBlur", 0x009FFF50, (uintptr_t)detour_DcDeactivateBlur },
+    { "DcRestoreBlur", 0x009FFF20, (uintptr_t)detour_DcRestoreBlur },
+    { "DcLetterboxOn", 0x009FFE00, (uintptr_t)detour_DcLetterboxOn },
+    { "DcLetterboxOff", 0x009FFD60, (uintptr_t)detour_DcLetterboxOff },
+    { "DcFadeToBlack", 0x009FFBA0, (uintptr_t)detour_DcFadeToBlack },
+    { "DcFadeToWhite", 0x009FFAC0, (uintptr_t)detour_DcFadeToWhite },
+    { "DcFadeToBlackPers", 0x009FFA40, (uintptr_t)detour_DcFadeToBlackPers },
+    { "DcSpawnExplosion", 0x009FF610, (uintptr_t)detour_DcSpawnExplosion },
+    { "DcSpawnExplosionNpcOnly", 0x009FF410, (uintptr_t)detour_DcSpawnExplosionNpcOnly },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

@@ -2610,6 +2610,39 @@ static int64_t ABI detour_DcChooseStumbleAnim(int32_t argc, uint64_t *argv, uint
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 24: Player Weapons & Flashlights (4 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcFireWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0C930: (fire-weapon [entity] [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFireWeaponAtTarget(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0C4C0: (fire-weapon-at-target entity target) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGivePlayerFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0ADC0: (give-player-flashlight [enable] [slot]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcTurnOnFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A250: (turn-on-flashlight [entity] [enable]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -2769,6 +2802,11 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcDemoResetDefaults", 0x0090DD50, (uintptr_t)detour_DcDemoResetDefaults },
     { "DcSwimAllowStandOnBottom", 0x0090D6B0, (uintptr_t)detour_DcSwimAllowStandOnBottom },
     { "DcChooseStumbleAnim", 0x00907370, (uintptr_t)detour_DcChooseStumbleAnim },
+    /* Lot 24: Player Weapons & Flashlights (4 funcs) */
+    { "DcFireWeapon", 0x00A0C930, (uintptr_t)detour_DcFireWeapon },
+    { "DcFireWeaponAtTarget", 0x00A0C4C0, (uintptr_t)detour_DcFireWeaponAtTarget },
+    { "DcGivePlayerFlashlight", 0x00A0ADC0, (uintptr_t)detour_DcGivePlayerFlashlight },
+    { "DcTurnOnFlashlight", 0x00A0A250, (uintptr_t)detour_DcTurnOnFlashlight },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {

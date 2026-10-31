@@ -839,6 +839,25 @@ static int64_t ABI detour_DcResetStat(int32_t argc, uint64_t *argv, uint32_t *st
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 24: Rumble Controls (2 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcStartRumble(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF3D0: (start-rumble [pad] [type] [strength] [time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcStopRumble(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF370: (stop-rumble [pad]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -934,6 +953,9 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcNetRevivePlayer", 0x00667D40, (uintptr_t)detour_DcNetRevivePlayer },
     { "DcIncrementStatDifficulty", 0x0097C010, (uintptr_t)detour_DcIncrementStatDifficulty },
     { "DcResetStat", 0x0097BE50, (uintptr_t)detour_DcResetStat },
+    /* Lot 24: Rumble Controls (2 funcs) */
+    { "DcStartRumble", 0x009FF3D0, (uintptr_t)detour_DcStartRumble },
+    { "DcStopRumble", 0x009FF370, (uintptr_t)detour_DcStopRumble },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
