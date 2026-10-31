@@ -2936,6 +2936,342 @@ static int64_t ABI detour_DcAddDynamicLight(int32_t argc, uint64_t *argv, uint32
     return 0;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 18: Tank & Rail Vehicle Combat Systems (26 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcTankMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA33E0: (tank-move-to [tank] [dest-vec] [speed]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA3010ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankReverseTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2F80: (tank-reverse-to [tank] [dest-vec] [speed]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA3010ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankFireAtPos(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2F30: (tank-fire-at-pos [tank] [pos-vec] [lead]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA2B60ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankFireAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2EE0: (tank-fire-at-obj [tank] [target] [lead]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankAimAtPos(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2E90: (tank-aim-at-pos [tank] [pos-vec]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA2B60ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankAimAtPosInstant(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2B10: (tank-aim-at-pos-instant [tank] [pos-vec]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA2B60ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankAimAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2AC0: (tank-aim-at-obj [tank] [target]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankAimForward(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2A70: (tank-aim-forward [tank]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankFire(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2930: (tank-fire [tank]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    typedef uint8_t * (ABI *GetEntityFn)(uint32_t, int32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    uint8_t *tank = get_ent ? get_ent(handle, 0) : NULL;
+    if (tank) {
+        typedef void (ABI *fire_fn)(void *);
+        fire_fn fn = (fire_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(tank);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcTankMgFireAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2680: (tank-mg-fire-at-obj [tank] [target]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA21C0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankMgFireAtLoc(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2120: (tank-mg-fire-at-loc [tank] [loc-vec]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA21C0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankMgCeaseFire(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2000: (tank-mg-cease-fire [tank]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA20A0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankTeleport(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA1BA0: (tank-teleport [tank] [locator]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA1C40ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankMoveTrackingObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA1550: (tank-move-tracking-object [tank] [target]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA1600ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankDistToPoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA1300: (tank-dist-to-point [tank] [pos-vec]) -> float */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    typedef uint8_t * (ABI *GetEntityFn)(uint32_t, int32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    uint8_t *tank = get_ent ? get_ent(handle, 0) : NULL;
+    if (tank && argc >= 2 && argv && argv[1]) {
+        const float *target_pt = (const float *)(uintptr_t)argv[1];
+        const float *tank_pos = (const float *)(tank + 0x30);
+        float dx = tank_pos[0] - target_pt[0];
+        float dy = tank_pos[1] - target_pt[1];
+        float dz = tank_pos[2] - target_pt[2];
+        float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+        uint32_t bits;
+        memcpy(&bits, &dist, sizeof(bits));
+        return (int64_t)bits;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailEnableTruckJump(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9BB0: (rail-enable-truck-jump [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "enable-truck-jump", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRailSpawn(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9920: (rail-spawn [rail] [spawner-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t spawner_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *rail = lookup ? lookup(rail_id, 0) : NULL;
+    if (rail) {
+        typedef void (ABI *spawn_fn)(void *, uint32_t);
+        spawn_fn fn = (spawn_fn)(uintptr_t)(g_u2_image_base + 0x00A34240ull);
+        if (fn) fn(rail, spawner_id);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRailDeactivate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB97D0: (rail-deactivate [rail]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *rail = lookup ? lookup(rail_id, 0) : NULL;
+    if (rail) {
+        typedef void (ABI *deact_fn)(void *);
+        deact_fn fn = (deact_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(rail);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRailEnableTributary(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB96B0: (rail-enable-tributary [rail] [tributary-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t trib_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *rail = lookup ? lookup(rail_id, 0) : NULL;
+    if (rail) {
+        typedef void (ABI *trib_fn)(void *, uint32_t);
+        trib_fn fn = (trib_fn)(uintptr_t)(g_u2_image_base + 0x00A35970ull);
+        if (fn) fn(rail, trib_id);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRailSetNpcArchetype(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9660: (rail-set-npc-archetype [rail] [archetype]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t arch = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *rail = lookup ? lookup(rail_id, 0) : NULL;
+    if (rail) {
+        typedef void (ABI *arch_fn)(void *, uint32_t);
+        arch_fn fn = (arch_fn)(uintptr_t)(g_u2_image_base + 0x00A904E0ull);
+        if (fn) fn(rail, arch);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRailSetAcceleration(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9590: (rail-set-acceleration [rail] [accel]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    float accel = 0.0f;
+    if (argc >= 2 && argv) accel = *(const float *)&argv[1];
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *rail = lookup ? lookup(rail_id, 0) : NULL;
+    if (rail) {
+        typedef void (ABI *accel_fn)(void *, float);
+        accel_fn fn = (accel_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(rail, accel);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRailSetFollowDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8560: (rail-set-follow-distance [rail] [min-dist] [max-dist]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    float min_dist = (argc >= 2 && argv) ? *(const float *)&argv[1] : 0.0f;
+    float max_dist = (argc >= 3 && argv) ? *(const float *)&argv[2] : min_dist;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *rail = lookup ? lookup(rail_id, 0) : NULL;
+    if (rail) {
+        typedef void (ABI *dist_fn)(void *, float, float);
+        dist_fn fn = (dist_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(rail, min_dist, max_dist);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRailSetMoverFollowDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB7FD0: (rail-set-mover-follow-distance [distance]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float dist = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *mover_dist = (float *)(uintptr_t)(g_u2_image_base + 0x0156DF78ull);
+    if (mover_dist) *mover_dist = dist;
+    return 1;
+}
+
+static int64_t ABI detour_DcRailSetMoverIntialDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB7E80: (rail-set-mover-initial-distance [distance]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float dist = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *mover_init = (float *)(uintptr_t)(g_u2_image_base + 0x0156DF7Cull);
+    if (mover_init) *mover_init = dist;
+    return 1;
+}
+
+static int64_t ABI detour_DcRailGetMoverLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB7D00: (rail-get-mover-locator [out-loc]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argv && argv[0]) {
+        float *out_loc = (float *)(uintptr_t)argv[0];
+        const float *src_loc = (const float *)(uintptr_t)(g_u2_image_base + 0x01540FF0ull);
+        if (src_loc) {
+            memcpy(out_loc, src_loc, 16 * sizeof(float));
+            return (int64_t)(uintptr_t)out_loc;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailSetAllVehiclesToMoverSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB7BF0: (rail-set-all-vehicles-to-mover-speed [speed]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float speed = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *target_speed = (float *)(uintptr_t)(g_u2_image_base + 0x0156DF80ull);
+    if (target_speed) *target_speed = speed;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -3150,6 +3486,33 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcAddImportModule", 0x00A0FF10, (uintptr_t)detour_DcAddImportModule },
     { "DcAddLoadModule", 0x00A0FE90, (uintptr_t)detour_DcAddLoadModule },
     { "DcAddDynamicLight", 0x009FF2C0, (uintptr_t)detour_DcAddDynamicLight },
+    /* Lot 18: Tank & Rail Vehicle Combat Systems (26 funcs) */
+    { "DcTankMoveTo", 0x00AA33E0, (uintptr_t)detour_DcTankMoveTo },
+    { "DcTankReverseTo", 0x00AA2F80, (uintptr_t)detour_DcTankReverseTo },
+    { "DcTankFireAtPos", 0x00AA2F30, (uintptr_t)detour_DcTankFireAtPos },
+    { "DcTankFireAtObj", 0x00AA2EE0, (uintptr_t)detour_DcTankFireAtObj },
+    { "DcTankAimAtPos", 0x00AA2E90, (uintptr_t)detour_DcTankAimAtPos },
+    { "DcTankAimAtPosInstant", 0x00AA2B10, (uintptr_t)detour_DcTankAimAtPosInstant },
+    { "DcTankAimAtObj", 0x00AA2AC0, (uintptr_t)detour_DcTankAimAtObj },
+    { "DcTankAimForward", 0x00AA2A70, (uintptr_t)detour_DcTankAimForward },
+    { "DcTankFire", 0x00AA2930, (uintptr_t)detour_DcTankFire },
+    { "DcTankMgFireAtObj", 0x00AA2680, (uintptr_t)detour_DcTankMgFireAtObj },
+    { "DcTankMgFireAtLoc", 0x00AA2120, (uintptr_t)detour_DcTankMgFireAtLoc },
+    { "DcTankMgCeaseFire", 0x00AA2000, (uintptr_t)detour_DcTankMgCeaseFire },
+    { "DcTankTeleport", 0x00AA1BA0, (uintptr_t)detour_DcTankTeleport },
+    { "DcTankMoveTrackingObject", 0x00AA1550, (uintptr_t)detour_DcTankMoveTrackingObject },
+    { "DcTankDistToPoint", 0x00AA1300, (uintptr_t)detour_DcTankDistToPoint },
+    { "DcRailEnableTruckJump", 0x00AB9BB0, (uintptr_t)detour_DcRailEnableTruckJump },
+    { "DcRailSpawn", 0x00AB9920, (uintptr_t)detour_DcRailSpawn },
+    { "DcRailDeactivate", 0x00AB97D0, (uintptr_t)detour_DcRailDeactivate },
+    { "DcRailEnableTributary", 0x00AB96B0, (uintptr_t)detour_DcRailEnableTributary },
+    { "DcRailSetNpcArchetype", 0x00AB9660, (uintptr_t)detour_DcRailSetNpcArchetype },
+    { "DcRailSetAcceleration", 0x00AB9590, (uintptr_t)detour_DcRailSetAcceleration },
+    { "DcRailSetFollowDistance", 0x00AB8560, (uintptr_t)detour_DcRailSetFollowDistance },
+    { "DcRailSetMoverFollowDistance", 0x00AB7FD0, (uintptr_t)detour_DcRailSetMoverFollowDistance },
+    { "DcRailSetMoverIntialDistance", 0x00AB7E80, (uintptr_t)detour_DcRailSetMoverIntialDistance },
+    { "DcRailGetMoverLocator", 0x00AB7D00, (uintptr_t)detour_DcRailGetMoverLocator },
+    { "DcRailSetAllVehiclesToMoverSpeed", 0x00AB7BF0, (uintptr_t)detour_DcRailSetAllVehiclesToMoverSpeed },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
