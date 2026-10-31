@@ -162,6 +162,214 @@ static int64_t ABI detour_DcEventReturnSymbol(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+
+static int64_t ABI detour_DcNetIsHost(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669C80: (net-is-host) -> 1 (host in offline / single player) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetIsCinema(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669C50: (net-is-cinema) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *net = g_u2_image_base + 0x0113B760ull;
+    return (net[0x209c] != 0) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcNetCoopHostScriptId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669C40: (net-coop-host-script-id) -> 0 */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetCoopScriptId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669C30: (net-coop-script-id) -> 0 */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetIsGameTypeP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667E60: (net-is-game-type? [type]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetCaptureFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669960: (net-capture-flag ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetRespawnFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006698E0: (net-respawn-flag [flag-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetSpawnFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006698C0: (net-spawn-flag ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void (ABI *spawn_flag_fn)(void *, void *);
+    spawn_flag_fn fn = (spawn_flag_fn)(uintptr_t)(g_u2_image_base + 0x0063E1B0ull);
+    if (fn) fn((void *)(g_u2_image_base + 0x0113B760ull), NULL);
+    return 0;
+}
+
+static int64_t ABI detour_DcNetSpawnTerritory(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669840: (net-spawn-territory ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetKillTerritory(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669800: (net-kill-territory ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetCoopTask(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006697E0: (net-coop-task) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *net = g_u2_image_base + 0x0113B760ull;
+    return (int64_t)*(const uint32_t *)(net + 0x1cfc);
+}
+
+static int64_t ABI detour_DcNetCurrentNetTask(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669780: (net-current-net-task) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *net = g_u2_image_base + 0x0113B760ull;
+    return (int64_t)*(const uint32_t *)(net + 0x1cf8);
+}
+
+static int64_t ABI detour_DcNetKillEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006696A0: (net-kill-entity [ent-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetAllPlayersInRegionP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669500: (net-all-players-in-region? [region-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetAllPlayersDeadP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006694B0: (net-all-players-dead?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetDrawObjectiveIcon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669250: (net-draw-objective-icon ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669240: (net-plyaer-coop-id) -> 0 */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetNpcConfirmCoopPlayersContact(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006690C0: (net-npc-confirm-coop-players-contact [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetHudSetGrappleIndicator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668980: (net-hud-set-grapple-indicator ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetShowWaveScreen(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668890: (net-show-wave-screen wave) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t wave = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint8_t *net = g_u2_image_base + 0x0113B760ull;
+    *(uint32_t *)(net + 0x1c90) = wave;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetHideWaveScreen(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668850: (net-hide-wave-screen) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *net = g_u2_image_base + 0x0104F544ull;
+    net[0x1c] = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetGetBoosterAmount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668820: (net-get-booster-amount booster-idx) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t idx = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef float (ABI *booster_fn)(void *, uint32_t);
+    booster_fn fn = (booster_fn)(uintptr_t)(g_u2_image_base + 0x005F6410ull);
+    float val = fn ? fn((void *)(g_u2_image_base + 0x0113A788ull), idx) : 0.0f;
+    return (int64_t)u2_f32_to_reg(val);
+}
+
+static int64_t ABI detour_DcNetGetBoosterEnabled(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668810: (net-get-booster-enabled booster-idx) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t idx = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint8_t (ABI *booster_fn)(uint32_t);
+    booster_fn fn = (booster_fn)(uintptr_t)(g_u2_image_base + 0x005F6080ull);
+    return fn ? (int64_t)fn(idx) : 0;
+}
+
+static int64_t ABI detour_DcNetGetGrappleTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006687F0: (net-get-grapple-time) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void *(ABI *prop_fn)(uint32_t);
+    prop_fn fn = (prop_fn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
+    void *ptr = fn ? fn(0x9D87D2DBu) : NULL;
+    float val = ptr ? *(const float *)ptr : 0.0f;
+    return (int64_t)u2_f32_to_reg(val);
+}
+
+static int64_t ABI detour_DcNetEndWave(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006687E0: (net-end-wave) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void (ABI *end_fn)(void);
+    end_fn fn = (end_fn)(uintptr_t)(g_u2_image_base + 0x00617D50ull);
+    if (fn) fn();
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -174,6 +382,31 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcEventReturnUint32", 0x004C21D0, (uintptr_t)detour_DcEventReturnUint32 },
     { "DcEventReturnFloat", 0x004C2550, (uintptr_t)detour_DcEventReturnFloat },
     { "DcEventReturnSymbol", 0x004C2720, (uintptr_t)detour_DcEventReturnSymbol },
+    { "DcNetIsHost", 0x00669C80, (uintptr_t)detour_DcNetIsHost },
+    { "DcNetIsCinema", 0x00669C50, (uintptr_t)detour_DcNetIsCinema },
+    { "DcNetCoopHostScriptId", 0x00669C40, (uintptr_t)detour_DcNetCoopHostScriptId },
+    { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
+    { "DcNetIsGameTypeP", 0x00667E60, (uintptr_t)detour_DcNetIsGameTypeP },
+    { "DcNetCaptureFlag", 0x00669960, (uintptr_t)detour_DcNetCaptureFlag },
+    { "DcNetRespawnFlag", 0x006698E0, (uintptr_t)detour_DcNetRespawnFlag },
+    { "DcNetSpawnFlag", 0x006698C0, (uintptr_t)detour_DcNetSpawnFlag },
+    { "DcNetSpawnTerritory", 0x00669840, (uintptr_t)detour_DcNetSpawnTerritory },
+    { "DcNetKillTerritory", 0x00669800, (uintptr_t)detour_DcNetKillTerritory },
+    { "DcNetCoopTask", 0x006697E0, (uintptr_t)detour_DcNetCoopTask },
+    { "DcNetCurrentNetTask", 0x00669780, (uintptr_t)detour_DcNetCurrentNetTask },
+    { "DcNetKillEntity", 0x006696A0, (uintptr_t)detour_DcNetKillEntity },
+    { "DcNetAllPlayersInRegionP", 0x00669500, (uintptr_t)detour_DcNetAllPlayersInRegionP },
+    { "DcNetAllPlayersDeadP", 0x006694B0, (uintptr_t)detour_DcNetAllPlayersDeadP },
+    { "DcNetDrawObjectiveIcon", 0x00669250, (uintptr_t)detour_DcNetDrawObjectiveIcon },
+    { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
+    { "DcNetNpcConfirmCoopPlayersContact", 0x006690C0, (uintptr_t)detour_DcNetNpcConfirmCoopPlayersContact },
+    { "DcNetHudSetGrappleIndicator", 0x00668980, (uintptr_t)detour_DcNetHudSetGrappleIndicator },
+    { "DcNetShowWaveScreen", 0x00668890, (uintptr_t)detour_DcNetShowWaveScreen },
+    { "DcNetHideWaveScreen", 0x00668850, (uintptr_t)detour_DcNetHideWaveScreen },
+    { "DcNetGetBoosterAmount", 0x00668820, (uintptr_t)detour_DcNetGetBoosterAmount },
+    { "DcNetGetBoosterEnabled", 0x00668810, (uintptr_t)detour_DcNetGetBoosterEnabled },
+    { "DcNetGetGrappleTime", 0x006687F0, (uintptr_t)detour_DcNetGetGrappleTime },
+    { "DcNetEndWave", 0x006687E0, (uintptr_t)detour_DcNetEndWave },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
