@@ -2077,6 +2077,44 @@ static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 /* ============================================================================
+ * Wave 11 Detours: NPC Melee Query
+ * ============================================================================ */
+
+static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E0050: (npc-in-melee-with-player? [npc-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) {
+        npc_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    if (npc_id == 0) return 0;
+    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
+    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
+    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
+    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+        typedef void * (ABI *GetEntityFn)(uint32_t);
+        GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        npc = get_ent ? get_ent(npc_id) : NULL;
+    }
+    if (!npc) return 0;
+    const uint8_t *melee_comp = *(const uint8_t **)((const uint8_t *)npc + 0x2208);
+    if (!melee_comp) return 0;
+    const uint8_t *sub = *(const uint8_t **)(melee_comp + 0x18);
+    if (!sub) return 0;
+    const void *vtable = *(const void **)sub;
+    if (!vtable) return 0;
+    typedef uint8_t (ABI *MeleeFn)(const void *);
+    MeleeFn fn = *(MeleeFn *)((const uint8_t *)vtable + 0x30);
+    return fn ? (fn(sub) ? 1 : 0) : 0;
+}
+
+/* ============================================================================
  * 3. Opcode Table (80 opcodes: 0x00 .. 0x4F at jump table 0x00A14DA4)
  * ============================================================================ */
 
@@ -3214,6 +3252,8 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         { "DcSetE3LoadingScreen", 0x009FD5B0, (uintptr_t)detour_DcNoOp0 },
         { "DcEntitySetLevelB", 0x00A64C30, (uintptr_t)detour_DcNoOp0 },
         { "DcFmaResetPartModules", 0x00A00130, (uintptr_t)detour_DcNoOp0 },
+        /* Wave 11: NPC Melee Query */
+        { "DcNpcInMeleeWithPlayerP", 0x002E0050, (uintptr_t)detour_DcNpcInMeleeWithPlayerP },
     };
 
     size_t installed = 0;
