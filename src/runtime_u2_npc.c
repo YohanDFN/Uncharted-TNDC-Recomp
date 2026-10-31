@@ -2013,6 +2013,116 @@ static int64_t ABI detour_DcNpcCollectOne(int32_t argc, uint64_t *argv, uint32_t
     return fn ? (int64_t)fn() : 0;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 19 (Part 1): NPC Wait & Synchronization Functions (6 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcWaitNpcMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E15F0: (wait-npc-move-to ...) */
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x002E1600ull);
+    return fn ? fn(argc, argv, 1, status) : 0;
+}
+
+static int64_t ABI detour_DcWaitNpcMoveToSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E0F10: (wait-npc-move-to-spawner ...) */
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x002E0F20ull);
+    return fn ? fn(argc, argv, 1, status) : 0;
+}
+
+static int64_t ABI detour_DcWaitNpcTurnTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DF9A0: (wait-npc-turn-to ...) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *turn_fn)(void *, uint64_t);
+        turn_fn fn = (turn_fn)(uintptr_t)(g_u2_image_base + 0x002DFC00ull);
+        if (fn) fn(actor, (argc >= 2 && argv) ? argv[1] : 0);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitForNpcNotBusy(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DF6A0: (wait-for-npc-not-busy [npc]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (!actor) return 0;
+    typedef int32_t (ABI *check_busy_fn)(void *);
+    check_busy_fn fn = (check_busy_fn)(uintptr_t)(g_u2_image_base + 0x00A35970ull);
+    return fn ? (fn(actor) != 0 ? 0 : 1) : 1;
+}
+
+static int64_t ABI detour_DcWaitNpcUseScriptedAp(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DDF20: (wait-npc-use-scripted-ap [npc] [ap-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    uint32_t ap_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *ap_fn)(void *, uint32_t);
+        ap_fn fn = (ap_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor, ap_id);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitNpcLeaveScriptedAp(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DDD20: (wait-npc-leave-scripted-ap [npc]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *leave_fn)(void *);
+        leave_fn fn = (leave_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor);
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -2126,6 +2236,13 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcIsNavMapPositionBlockedP", 0x002E07A0, (uintptr_t)detour_DcNpcIsNavMapPositionBlockedP },
     { "DcNpcAimAt", 0x002E0A50, (uintptr_t)detour_DcNpcAimAt },
     { "DcNpcCollectOne", 0x002E4FB0, (uintptr_t)detour_DcNpcCollectOne },
+    /* Lot 19 (Part 1): NPC Wait & Synchronization Functions (6 funcs) */
+    { "DcWaitNpcMoveTo", 0x002E15F0, (uintptr_t)detour_DcWaitNpcMoveTo },
+    { "DcWaitNpcMoveToSpawner", 0x002E0F10, (uintptr_t)detour_DcWaitNpcMoveToSpawner },
+    { "DcWaitNpcTurnTo", 0x002DF9A0, (uintptr_t)detour_DcWaitNpcTurnTo },
+    { "DcWaitForNpcNotBusy", 0x002DF6A0, (uintptr_t)detour_DcWaitForNpcNotBusy },
+    { "DcWaitNpcUseScriptedAp", 0x002DDF20, (uintptr_t)detour_DcWaitNpcUseScriptedAp },
+    { "DcWaitNpcLeaveScriptedAp", 0x002DDD20, (uintptr_t)detour_DcWaitNpcLeaveScriptedAp },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

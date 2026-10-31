@@ -3272,6 +3272,211 @@ static int64_t ABI detour_DcRailSetAllVehiclesToMoverSpeed(int32_t argc, uint64_
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 19 (Part 3): Engine Wait Scheduler, Coroutines & System Enables (23 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcWaitAnimate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x003969A0: (wait-animate [anim-track]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEnableMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DC8E0: (enable-message [msg-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *msg_fn)(uint32_t, int32_t);
+    msg_fn fn = (msg_fn)(uintptr_t)(g_u2_image_base + 0x005DC800ull);
+    if (fn) fn(msg_id, 1);
+    return 1;
+}
+
+static int64_t ABI detour_DcDisableMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DC990: (disable-message [msg-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *msg_fn)(uint32_t, int32_t);
+    msg_fn fn = (msg_fn)(uintptr_t)(g_u2_image_base + 0x005DC800ull);
+    if (fn) fn(msg_id, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcEnableActionPack(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A060: (enable-action-pack [ap-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ap_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *ap_fn)(uint32_t);
+    ap_fn fn = (ap_fn)(uintptr_t)(g_u2_image_base + 0x00A09F80ull);
+    if (fn) fn(ap_id);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitSpawnEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09E90: (wait-spawn-entity [archetype] [name]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitSpawnEntityAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09DC0: (wait-spawn-entity-at [archetype] [pos]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEnableNavBlockerObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04F60: (enable-nav-blocker-object [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t obj_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *nav_fn)(uint32_t, int32_t);
+    nav_fn fn = (nav_fn)(uintptr_t)(g_u2_image_base + 0x00A04D00ull);
+    if (fn) fn(obj_id, 1);
+    return 1;
+}
+
+static int64_t ABI detour_DcDisableNavBlockerObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04EF0: (disable-nav-blocker-object [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t obj_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *nav_fn)(uint32_t, int32_t);
+    nav_fn fn = (nav_fn)(uintptr_t)(g_u2_image_base + 0x00A04D00ull);
+    if (fn) fn(obj_id, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcDisablePlatformControlOnObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04E80: (disable-platform-control-on-object [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t obj_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *plat_fn)(uint32_t);
+    plat_fn fn = (plat_fn)(uintptr_t)(g_u2_image_base + 0x00A04D80ull);
+    if (fn) fn(obj_id);
+    return 1;
+}
+
+static int64_t ABI detour_DcDisableGadgetry(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03A70: (disable-gadgetry [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t obj_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *gadget_fn)(uint32_t, int32_t);
+    gadget_fn fn = (gadget_fn)(uintptr_t)(g_u2_image_base + 0x00A03900ull);
+    if (fn) fn(obj_id, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcEnableGadgetry(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A039C0: (enable-gadgetry [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t obj_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *gadget_fn)(uint32_t, int32_t);
+    gadget_fn fn = (gadget_fn)(uintptr_t)(g_u2_image_base + 0x00A03900ull);
+    if (fn) fn(obj_id, 1);
+    return 1;
+}
+
+static int64_t ABI detour_DcDisableFrameForward(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A038A0: (disable-frame-forward) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *flag = (uint8_t *)(uintptr_t)(g_u2_image_base + 0x01161EEAull);
+    if (flag) *flag = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A41D40: (wait-int32 [target-val]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A41610: (wait-boolean [condition]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWait(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3E690: (wait [seconds]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitFrames(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A41270: (wait-frames [num-frames]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitOneFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40F70: (wait-one-frame) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitUntil(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40E60: (wait-until [predicate]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitUntilFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40D40: (wait-until-frame [target-frame]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitUntilNetTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40870: (wait-until-net-time [target-time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitFor(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3FC50: (wait-for [coroutine-task]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitTankAimAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3A40: (wait-tank-aim-at-obj [tank] [target]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcWaitTankAimForward(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3430: (wait-tank-aim-forward [tank]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -3513,6 +3718,30 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcRailSetMoverIntialDistance", 0x00AB7E80, (uintptr_t)detour_DcRailSetMoverIntialDistance },
     { "DcRailGetMoverLocator", 0x00AB7D00, (uintptr_t)detour_DcRailGetMoverLocator },
     { "DcRailSetAllVehiclesToMoverSpeed", 0x00AB7BF0, (uintptr_t)detour_DcRailSetAllVehiclesToMoverSpeed },
+    /* Lot 19 (Part 3): Engine Wait Scheduler & System Enables (23 funcs) */
+    { "DcWaitAnimate", 0x003969A0, (uintptr_t)detour_DcWaitAnimate },
+    { "DcEnableMessage", 0x005DC8E0, (uintptr_t)detour_DcEnableMessage },
+    { "DcDisableMessage", 0x005DC990, (uintptr_t)detour_DcDisableMessage },
+    { "DcEnableActionPack", 0x00A0A060, (uintptr_t)detour_DcEnableActionPack },
+    { "DcWaitSpawnEntity", 0x00A09E90, (uintptr_t)detour_DcWaitSpawnEntity },
+    { "DcWaitSpawnEntityAt", 0x00A09DC0, (uintptr_t)detour_DcWaitSpawnEntityAt },
+    { "DcEnableNavBlockerObject", 0x00A04F60, (uintptr_t)detour_DcEnableNavBlockerObject },
+    { "DcDisableNavBlockerObject", 0x00A04EF0, (uintptr_t)detour_DcDisableNavBlockerObject },
+    { "DcDisablePlatformControlOnObject", 0x00A04E80, (uintptr_t)detour_DcDisablePlatformControlOnObject },
+    { "DcDisableGadgetry", 0x00A03A70, (uintptr_t)detour_DcDisableGadgetry },
+    { "DcEnableGadgetry", 0x00A039C0, (uintptr_t)detour_DcEnableGadgetry },
+    { "DcDisableFrameForward", 0x00A038A0, (uintptr_t)detour_DcDisableFrameForward },
+    { "DcWaitInt32", 0x00A41D40, (uintptr_t)detour_DcWaitInt32 },
+    { "DcWaitBoolean", 0x00A41610, (uintptr_t)detour_DcWaitBoolean },
+    { "DcWait", 0x00A3E690, (uintptr_t)detour_DcWait },
+    { "DcWaitFrames", 0x00A41270, (uintptr_t)detour_DcWaitFrames },
+    { "DcWaitOneFrame", 0x00A40F70, (uintptr_t)detour_DcWaitOneFrame },
+    { "DcWaitUntil", 0x00A40E60, (uintptr_t)detour_DcWaitUntil },
+    { "DcWaitUntilFrame", 0x00A40D40, (uintptr_t)detour_DcWaitUntilFrame },
+    { "DcWaitUntilNetTime", 0x00A40870, (uintptr_t)detour_DcWaitUntilNetTime },
+    { "DcWaitFor", 0x00A3FC50, (uintptr_t)detour_DcWaitFor },
+    { "DcWaitTankAimAtObj", 0x00AA3A40, (uintptr_t)detour_DcWaitTankAimAtObj },
+    { "DcWaitTankAimForward", 0x00AA3430, (uintptr_t)detour_DcWaitTankAimForward },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
