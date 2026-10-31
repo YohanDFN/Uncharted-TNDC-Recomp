@@ -42,20 +42,6 @@ static int64_t ABI detour_DcDiscP(int32_t argc, uint64_t *argv, uint32_t *status
     return ((uint32_t)argv[0] == cur_disc) ? 1 : 0;
 }
 
-static int64_t ABI detour_DcResetAimFov(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x0090D780: (reset-aim-fov) */
-    (void)argc; (void)argv; (void)status;
-    *(uint32_t *)(g_u2_image_base + 0x0104F8E0ull) = 0xBF800000u; /* -1.0f */
-    return 0;
-}
-
-static int64_t ABI detour_DcOverrideAimFov(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x0090D7A0: (override-aim-fov fov) */
-    (void)argc; (void)status;
-    *(uint32_t *)(g_u2_image_base + 0x0104F8E0ull) = (uint32_t)argv[0];
-    return 0;
-}
-
 static int64_t ABI detour_DcGetHarvestingPriority(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01AB0: (get-harvesting-priority) */
     (void)argc; (void)argv; (void)status;
@@ -465,14 +451,6 @@ static int64_t ABI detour_DcStringIdFromString(int32_t argc, uint64_t *argv, uin
     return 0;
 }
 
-static int64_t ABI detour_DcSwimDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x0090D760: (swim-disable) */
-    typedef void (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
-    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00924040ull);
-    fn(argc, argv, status);
-    return 0;
-}
-
 static int64_t ABI detour_DcSwimDisallowStandOnBottom(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090D680: (swim-disallow-stand-on-bottom) */
     (void)argc; (void)argv; (void)status;
@@ -480,14 +458,6 @@ static int64_t ABI detour_DcSwimDisallowStandOnBottom(int32_t argc, uint64_t *ar
     fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00A1D2D0ull);
     uint64_t ctx = *(const uint64_t *)(g_u2_image_base + 0x01161EE8ull);
     fn(0, g_u2_image_base + 0x0104F810ull + 0x5Eull, ctx);
-    return 0;
-}
-
-static int64_t ABI detour_DcSwimEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x0090D770: (swim-enable) */
-    typedef void (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
-    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00924140ull);
-    fn(argc, argv, status);
     return 0;
 }
 
@@ -821,22 +791,6 @@ static int64_t ABI detour_DcCameraMovedBackwardsP(int32_t argc, uint64_t *argv, 
     return (back_dist > threshold) ? 1 : 0;
 }
 
-static int64_t ABI detour_DcWeaponSetReset(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x0090AD00: (weapon-set-reset) */
-    (void)argc; (void)argv;
-    if (status) *status = 0;
-    if (!g_u2_image_base) return 0;
-    typedef void * (ABI *EvalSymFn)(uint32_t);
-    EvalSymFn eval_sym = (EvalSymFn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
-    if (eval_sym) {
-        const void *src = eval_sym(0x459D0E4Eu);
-        if (src) {
-            memcpy((void *)(g_u2_image_base + 0x0153E1A0ull), src, 15 * sizeof(uint64_t));
-        }
-    }
-    return 0;
-}
-
 static int64_t ABI detour_DcInvalidStringId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FDE50: (invalid-string-id) -> 0 */
     (void)argc; (void)argv;
@@ -890,6 +844,308 @@ static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *
     return 0;
 }
 
+static int64_t ABI detour_DcCameraEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E680: (camera-enable cam-sym [target] [fade_time] [priority] ...) */
+    if (status) *status = 0;
+    if (argc < 1 || !g_u2_image_base) return 0;
+    uint32_t cam_id = (uint32_t)argv[0];
+
+    uint8_t *head = (uint8_t *)(g_u2_image_base + 0x0147F050ull);
+    uint8_t *cur = *(uint8_t **)head;
+    while (cur && cur != head) {
+        if (*(const uint32_t *)(cur + 0x14) == cam_id) {
+            cur[0x34] &= (uint8_t)~0x01; /* clear abandon */
+            cur[0x34] |= 0x04;          /* set active / enabled */
+            break;
+        }
+        cur = *(uint8_t **)cur;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraAbandon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E5E0: (camera-abandon [cam-symbol]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t cam_id = 0;
+    if (argc > 0) {
+        cam_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *GetSelfFn)(int, int, int);
+        GetSelfFn get_self = *(GetSelfFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) cam_id = get_self(0, 0, 1);
+    }
+    if (!cam_id) return 0;
+
+    uint8_t *head = (uint8_t *)(g_u2_image_base + 0x0147F050ull);
+    uint8_t *cur = *(uint8_t **)head;
+    while (cur && cur != head) {
+        if (*(const uint32_t *)(cur + 0x14) == cam_id) {
+            cur[0x34] |= 0x01; /* abandon flag */
+            break;
+        }
+        cur = *(uint8_t **)cur;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraFadeOut(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E380: (camera-fade-out [cam-symbol] [duration]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t cam_id = 0;
+    float duration = 1.0f;
+    if (argc > 0) {
+        cam_id = (uint32_t)argv[0];
+        if (argc > 1) duration = u2_reg_to_f32(argv[1]);
+    } else {
+        typedef uint32_t (ABI *GetSelfFn)(int, int, int);
+        GetSelfFn get_self = *(GetSelfFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) cam_id = get_self(0, 0, 1);
+        duration = *(const float *)(g_u2_image_base + 0x00E673E0ull);
+    }
+    if (!cam_id) return 0;
+
+    uint8_t *head = (uint8_t *)(g_u2_image_base + 0x0147F050ull);
+    uint8_t *cur = *(uint8_t **)head;
+    while (cur && cur != head) {
+        if (*(const uint32_t *)(cur + 0x14) == cam_id) {
+            *(float *)(cur + 0x38) = duration;
+            cur[0x34] |= 0x02; /* fade-out flag */
+            break;
+        }
+        cur = *(uint8_t **)cur;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraLocalSpace(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EA20: (camera-local-space) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    int32_t val = 0x4CBEBC20;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104F810ull + 0x40);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D290ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D2A0ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, void *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0xBD729FA7u, str_arg, &val, 4, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDisableCoverCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E290: (disable-cover-camera) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 0;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104F693ull);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x17DDF893u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcAllowCameraCutCompensate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0DD40: (allow-camera-cut-compensate) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 0;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x01157738ull);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D2C0ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x309861E2u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraAimOverridePoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0DF40: (camera-aim-override-point point) */
+    if (status) *status = 0;
+    if (argc < 1 || !argv || !argv[0] || !g_u2_image_base) return 0;
+    const float *pt = (const float *)(uintptr_t)argv[0];
+    *(uint32_t *)(g_u2_image_base + 0x0147F0BCull) = 1u;
+    float *dest = (float *)(g_u2_image_base + 0x0147F080ull);
+    dest[0] = pt[0];
+    dest[1] = pt[1];
+    dest[2] = pt[2];
+    dest[3] = 1.0f;
+    return 1;
+}
+
+static int64_t ABI detour_DcCameraAimOverrideDirection(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0DE40: (camera-aim-override-direction pitch yaw) */
+    if (status) *status = 0;
+    if (argc < 2 || !g_u2_image_base) return 0;
+    float pitch = u2_reg_to_f32(argv[0]);
+    float yaw   = u2_reg_to_f32(argv[1]);
+    *(uint32_t *)(g_u2_image_base + 0x0147F0BCull) = 2u;
+    float *dest = (float *)(g_u2_image_base + 0x0147F090ull);
+    dest[0] = pitch;
+    dest[1] = yaw;
+    return 1;
+}
+
+static int64_t ABI detour_DcCameraAnimationDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A033B0: (camera-animation-disable track-id [blend-time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraAnimationEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03480: (camera-animation-enable track-id [blend-time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraShakeInZoomCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0DCA0: (camera-shake-in-zoom-camera) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x110);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x92950534u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraShake(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E040: (camera-shake type intensity [duration]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcIsCameraStickPressed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0D610: (is-camera-stick-pressed) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float dx = *(const float *)(g_u2_image_base + 0x01116180ull + 0xA80);
+    float dy = *(const float *)(g_u2_image_base + 0x01116180ull + 0xA84);
+    float mag = sqrtf(dx * dx + dy * dy);
+    float threshold = *(const float *)(g_u2_image_base + 0x00E67390ull);
+    return (mag > threshold) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcCameraLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A128B0: (camera-locator) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void * (ABI *AllocFn)(uint64_t, void *, uint64_t);
+    AllocFn alloc_fn = (AllocFn)(uintptr_t)(g_u2_image_base + 0x00B332A0ull);
+    uint32_t type_tag = 0x45;
+    void *ptr = alloc_fn ? alloc_fn(0x60, &type_tag, 0x10) : NULL;
+    if (ptr) {
+        uint32_t *p32 = (uint32_t *)ptr;
+        p32[0] = 0x7FCCCCCC;
+        p32[1] = 0x7FCCCCCC;
+        memset((uint8_t *)ptr + 0x20, 0, 16);
+        memcpy((uint8_t *)ptr + 0x30, (const void *)(g_u2_image_base + 0x00E50B80ull), 16);
+        *(uint64_t *)((uint8_t *)ptr + 0x08) = 0;
+        *(uint32_t *)((uint8_t *)ptr + 0x10) = 0;
+    }
+    return (int64_t)(uintptr_t)ptr;
+}
+
+static int64_t ABI detour_DcSetDefaultFollowCameraSettings(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EBF0: (set-default-follow-camera-settings [setting-ptr]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    void *arg_val = (argc > 0) ? (void *)(uintptr_t)argv[0] : NULL;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104F810ull + 0x50);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D270ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D280ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, void *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0xF46E3BABu, str_arg, arg_val, 4, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 0x27u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcForceNoShiftCameraZoomMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A035E0: (force-no-shift-camera-zoom-mode) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x01114200ull);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    if (prop_fn) prop_fn(0, str_arg, &flag, 1, t1, t2, NULL);
+    return 0;
+}
+
+static int64_t ABI detour_DcForceAimingCameraUltraTight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03670: (force-aiming-camera-ultra-tight) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0xE1);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    if (prop_fn) prop_fn(0, str_arg, &flag, 1, t1, t2, NULL);
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -898,8 +1154,6 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcCameraRestoreLocator", 0x00A0E9B0, (uintptr_t)detour_DcCameraRestoreLocator },
     { "DcDebugPause", 0x00A102A0, (uintptr_t)detour_DcDebugPause },
     { "DcDiscP", 0x009FD910, (uintptr_t)detour_DcDiscP },
-    { "DcResetAimFov", 0x0090D780, (uintptr_t)detour_DcResetAimFov },
-    { "DcOverrideAimFov", 0x0090D7A0, (uintptr_t)detour_DcOverrideAimFov },
     { "DcGetHarvestingPriority", 0x00A01AB0, (uintptr_t)detour_DcGetHarvestingPriority },
     { "DcSetHarvestingPriority", 0x00A01AC0, (uintptr_t)detour_DcSetHarvestingPriority },
     { "DcResetHarvestingPriority", 0x00A01AE0, (uintptr_t)detour_DcResetHarvestingPriority },
@@ -941,9 +1195,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcStopScriptRumbles", 0x00A105B0, (uintptr_t)detour_DcStopScriptRumbles },
     { "DcStringFromStringId", 0x009FDE30, (uintptr_t)detour_DcStringFromStringId },
     { "DcStringIdFromString", 0x009FDE00, (uintptr_t)detour_DcStringIdFromString },
-    { "DcSwimDisable", 0x0090D760, (uintptr_t)detour_DcSwimDisable },
     { "DcSwimDisallowStandOnBottom", 0x0090D680, (uintptr_t)detour_DcSwimDisallowStandOnBottom },
-    { "DcSwimEnable", 0x0090D770, (uintptr_t)detour_DcSwimEnable },
     { "DcSyncVoxMetaData", 0x009FD1F0, (uintptr_t)detour_DcSyncVoxMetaData },
     { "DcSyncVoxMpMetaData", 0x009FD1E0, (uintptr_t)detour_DcSyncVoxMpMetaData },
     { "DcTaskSubnodeActiveP", 0x009FEC80, (uintptr_t)detour_DcTaskSubnodeActiveP },
@@ -971,7 +1223,6 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcEventTrainP", 0x004C31A0, (uintptr_t)detour_DcEventTrainP },
     { "DcEventTrainCarP", 0x004C3020, (uintptr_t)detour_DcEventTrainCarP },
     { "DcCameraMovedBackwardsP", 0x00A0DC40, (uintptr_t)detour_DcCameraMovedBackwardsP },
-    { "DcWeaponSetReset", 0x0090AD00, (uintptr_t)detour_DcWeaponSetReset },
     { "DcInvalidStringId", 0x009FDE50, (uintptr_t)detour_DcInvalidStringId },
     { "DcPrintPoint", 0x00A10290, (uintptr_t)detour_DcPrintNoOp },
     { "DcPrintSymbol", 0x00A10280, (uintptr_t)detour_DcPrintNoOp },
@@ -992,6 +1243,23 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSetE3LoadingScreen", 0x009FD5B0, (uintptr_t)detour_DcNoOp0 },
     { "DcEntitySetLevelB", 0x00A64C30, (uintptr_t)detour_DcNoOp0 },
     { "DcFmaResetPartModules", 0x00A00130, (uintptr_t)detour_DcNoOp0 },
+    { "DcCameraEnable", 0x00A0E680, (uintptr_t)detour_DcCameraEnable },
+    { "DcCameraAbandon", 0x00A0E5E0, (uintptr_t)detour_DcCameraAbandon },
+    { "DcCameraFadeOut", 0x00A0E380, (uintptr_t)detour_DcCameraFadeOut },
+    { "DcCameraLocalSpace", 0x00A0EA20, (uintptr_t)detour_DcCameraLocalSpace },
+    { "DcDisableCoverCamera", 0x00A0E290, (uintptr_t)detour_DcDisableCoverCamera },
+    { "DcAllowCameraCutCompensate", 0x00A0DD40, (uintptr_t)detour_DcAllowCameraCutCompensate },
+    { "DcCameraAimOverridePoint", 0x00A0DF40, (uintptr_t)detour_DcCameraAimOverridePoint },
+    { "DcCameraAimOverrideDirection", 0x00A0DE40, (uintptr_t)detour_DcCameraAimOverrideDirection },
+    { "DcCameraAnimationDisable", 0x00A033B0, (uintptr_t)detour_DcCameraAnimationDisable },
+    { "DcCameraAnimationEnable", 0x00A03480, (uintptr_t)detour_DcCameraAnimationEnable },
+    { "DcCameraShakeInZoomCamera", 0x00A0DCA0, (uintptr_t)detour_DcCameraShakeInZoomCamera },
+    { "DcCameraShake", 0x00A0E040, (uintptr_t)detour_DcCameraShake },
+    { "DcIsCameraStickPressed", 0x00A0D610, (uintptr_t)detour_DcIsCameraStickPressed },
+    { "DcCameraLocator", 0x00A128B0, (uintptr_t)detour_DcCameraLocator },
+    { "DcSetDefaultFollowCameraSettings", 0x00A0EBF0, (uintptr_t)detour_DcSetDefaultFollowCameraSettings },
+    { "DcForceNoShiftCameraZoomMode", 0x00A035E0, (uintptr_t)detour_DcForceNoShiftCameraZoomMode },
+    { "DcForceAimingCameraUltraTight", 0x00A03670, (uintptr_t)detour_DcForceAimingCameraUltraTight },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
