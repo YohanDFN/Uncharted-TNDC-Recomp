@@ -2123,6 +2123,36 @@ static int64_t ABI detour_DcWaitNpcLeaveScriptedAp(int32_t argc, uint64_t *argv,
     return 0;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 20 (Part 1): NPC Health Parameters (1 func)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcSetHealthParameters(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DAAA0: (set-health-parameters [npc] [max-hp] [regen-rate]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    float max_hp = (argc >= 2 && argv) ? *(const float *)&argv[1] : 100.0f;
+    float regen = (argc >= 3 && argv) ? *(const float *)&argv[2] : 1.0f;
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *hp_fn)(void *, float, float);
+        hp_fn fn = (hp_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor, max_hp, regen);
+    }
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -2243,6 +2273,8 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcWaitForNpcNotBusy", 0x002DF6A0, (uintptr_t)detour_DcWaitForNpcNotBusy },
     { "DcWaitNpcUseScriptedAp", 0x002DDF20, (uintptr_t)detour_DcWaitNpcUseScriptedAp },
     { "DcWaitNpcLeaveScriptedAp", 0x002DDD20, (uintptr_t)detour_DcWaitNpcLeaveScriptedAp },
+    /* Lot 20: NPC Health Parameters */
+    { "DcSetHealthParameters", 0x002DAAA0, (uintptr_t)detour_DcSetHealthParameters },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

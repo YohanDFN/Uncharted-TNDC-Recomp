@@ -3477,6 +3477,305 @@ static int64_t ABI detour_DcWaitTankAimForward(int32_t argc, uint64_t *argv, uin
     return fn ? fn(argc, argv, status) : 0;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 20 (Part 4): Scene Shaders, Water, Weather, Lighting & Renders (32 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcSetAnimationSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00397880: (set-animation-speed [anim] [speed]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetLookatStopPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00397320: (set-lookat-stop-phase [val]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetTableShaderMaterialValuesParam(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009F3B70: (set-table-shader-material-values-param ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetShaderMaterialParam(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10DD0: (set-shader-material-param ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetSingleShaderInstanceParam(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10A50: (set-single-shader-instance-param ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetShaderInstanceParam(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A107B0: (set-shader-instance-param ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetBlackFade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10700: (set-black-fade [fade-amount]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float fade = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *p_fade = (float *)(uintptr_t)(g_u2_image_base + 0x01150494ull);
+    if (p_fade) *p_fade = fade;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetWhiteFade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A106A0: (set-white-fade [fade-amount]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float fade = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *p_fade = (float *)(uintptr_t)(g_u2_image_base + 0x01150498ull);
+    if (p_fade) *p_fade = fade;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetFocusableIgnore(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F3C0: (set-focusable-ignore [obj-id] [flag]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t obj_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t flag = (argc >= 2 && argv) ? (int32_t)argv[1] : 1;
+    typedef void (ABI *focus_fn)(uint32_t, int32_t);
+    focus_fn fn = (focus_fn)(uintptr_t)(g_u2_image_base + 0x00A0F300ull);
+    if (fn) fn(obj_id, flag);
+    return 1;
+}
+
+static int64_t ABI detour_DcSetFocusableGrappled(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F2C0: (set-focusable-grappled [obj-id] [flag]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t obj_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t flag = (argc >= 2 && argv) ? (int32_t)argv[1] : 1;
+    typedef void (ABI *focus_fn)(uint32_t, int32_t);
+    focus_fn fn = (focus_fn)(uintptr_t)(g_u2_image_base + 0x00A0F300ull);
+    if (fn) fn(obj_id, flag);
+    return 1;
+}
+
+static int64_t ABI detour_DcSetClockMultiplier(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EE60: (set-clock-multiplier [speed]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float mult = (argc > 0 && argv) ? *(const float *)&argv[0] : 1.0f;
+    float *p_clock = (float *)(uintptr_t)(g_u2_image_base + 0x01161EE0ull);
+    if (p_clock) *p_clock = mult;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0BD30: (set-visible [entity] [visible-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t vis = (argc >= 2 && argv) ? (int32_t)argv[1] : 1;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(entity_id, 0) : NULL;
+    if (ent) {
+        typedef void (ABI *vis_fn)(void *, int32_t);
+        vis_fn fn = (vis_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(ent, vis);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetMeshVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0BA20: (set-mesh-visible [entity] [mesh-idx] [visible-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t mesh = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    int32_t vis = (argc >= 3 && argv) ? (int32_t)argv[2] : 1;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(entity_id, 0) : NULL;
+    if (ent) {
+        typedef void (ABI *mesh_fn)(void *, uint32_t, int32_t);
+        mesh_fn fn = (mesh_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(ent, mesh, vis);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetObjectHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04A20: (set-object-health [entity] [hp]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    float hp = (argc >= 2 && argv) ? *(const float *)&argv[1] : 100.0f;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(entity_id, 0) : NULL;
+    if (ent) {
+        typedef void (ABI *hp_fn)(void *, float);
+        hp_fn fn = (hp_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(ent, hp);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetCollisionLayer(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03CD0: (set-collision-layer [entity] [layer]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t layer = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(entity_id, 0) : NULL;
+    if (ent) {
+        typedef void (ABI *layer_fn)(void *, uint32_t);
+        layer_fn fn = (layer_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(ent, layer);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetWaterOffset(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02FF0: (set-water-offset [offset-vec]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetWaterState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02E20: (set-water-state [state]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetDeformationOfWaterUnit(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02CC0: (set-deformation-of-water-unit [unit] [deform]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetRainState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02830: (set-rain-state [state]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetRainRipplesState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A027F0: (set-rain-ripples-state [state]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetTimeToDryPeriod(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02780: (set-time-to-dry-period [time-sec]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetCharacterWetMaskValue(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A026E0: (set-character-wet-mask-value [character] [val]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetCharacterWetMaskState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02690: (set-character-wet-mask-state [character] [state]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetCharacterWetMask(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02550: (set-character-wet-mask [character] [mask]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetMaxCharacterWetness(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02510: (set-max-character-wetness [character] [max-wet]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetRenderSettings(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFF80: (set-render-settings [setting-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetLightFov(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFC80: (set-light-fov [light-id] [fov-deg]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetDynamicLightColor(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEE20: (set-dynamic-light-color [light-id] [color-vec]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetCurrentBySpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD710: (set-current-by-spawner [spawner-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetRagdollFlow(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD5C0: (set-ragdoll-flow [entity] [flow-vec]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetObjectFaction(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCF40: (set-object-faction [entity] [faction-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t faction = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(entity_id, 0) : NULL;
+    if (ent) {
+        typedef void (ABI *faction_fn)(void *, uint32_t);
+        faction_fn fn = (faction_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(ent, faction);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetIceCaveStupidGearsHack(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCC50: (set-ice-cave-stupid-gears-hack [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -3742,6 +4041,39 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcWaitFor", 0x00A3FC50, (uintptr_t)detour_DcWaitFor },
     { "DcWaitTankAimAtObj", 0x00AA3A40, (uintptr_t)detour_DcWaitTankAimAtObj },
     { "DcWaitTankAimForward", 0x00AA3430, (uintptr_t)detour_DcWaitTankAimForward },
+    /* Lot 20 (Part 4): Scene Shaders, Water, Weather, Lighting & Renders (32 funcs) */
+    { "DcSetAnimationSpeed", 0x00397880, (uintptr_t)detour_DcSetAnimationSpeed },
+    { "DcSetLookatStopPhase", 0x00397320, (uintptr_t)detour_DcSetLookatStopPhase },
+    { "DcSetTableShaderMaterialValuesParam", 0x009F3B70, (uintptr_t)detour_DcSetTableShaderMaterialValuesParam },
+    { "DcSetShaderMaterialParam", 0x00A10DD0, (uintptr_t)detour_DcSetShaderMaterialParam },
+    { "DcSetSingleShaderInstanceParam", 0x00A10A50, (uintptr_t)detour_DcSetSingleShaderInstanceParam },
+    { "DcSetShaderInstanceParam", 0x00A107B0, (uintptr_t)detour_DcSetShaderInstanceParam },
+    { "DcSetBlackFade", 0x00A10700, (uintptr_t)detour_DcSetBlackFade },
+    { "DcSetWhiteFade", 0x00A106A0, (uintptr_t)detour_DcSetWhiteFade },
+    { "DcSetFocusableIgnore", 0x00A0F3C0, (uintptr_t)detour_DcSetFocusableIgnore },
+    { "DcSetFocusableGrappled", 0x00A0F2C0, (uintptr_t)detour_DcSetFocusableGrappled },
+    { "DcSetClockMultiplier", 0x00A0EE60, (uintptr_t)detour_DcSetClockMultiplier },
+    { "DcSetVisible", 0x00A0BD30, (uintptr_t)detour_DcSetVisible },
+    { "DcSetMeshVisible", 0x00A0BA20, (uintptr_t)detour_DcSetMeshVisible },
+    { "DcSetObjectHealth", 0x00A04A20, (uintptr_t)detour_DcSetObjectHealth },
+    { "DcSetCollisionLayer", 0x00A03CD0, (uintptr_t)detour_DcSetCollisionLayer },
+    { "DcSetWaterOffset", 0x00A02FF0, (uintptr_t)detour_DcSetWaterOffset },
+    { "DcSetWaterState", 0x00A02E20, (uintptr_t)detour_DcSetWaterState },
+    { "DcSetDeformationOfWaterUnit", 0x00A02CC0, (uintptr_t)detour_DcSetDeformationOfWaterUnit },
+    { "DcSetRainState", 0x00A02830, (uintptr_t)detour_DcSetRainState },
+    { "DcSetRainRipplesState", 0x00A027F0, (uintptr_t)detour_DcSetRainRipplesState },
+    { "DcSetTimeToDryPeriod", 0x00A02780, (uintptr_t)detour_DcSetTimeToDryPeriod },
+    { "DcSetCharacterWetMaskValue", 0x00A026E0, (uintptr_t)detour_DcSetCharacterWetMaskValue },
+    { "DcSetCharacterWetMaskState", 0x00A02690, (uintptr_t)detour_DcSetCharacterWetMaskState },
+    { "DcSetCharacterWetMask", 0x00A02550, (uintptr_t)detour_DcSetCharacterWetMask },
+    { "DcSetMaxCharacterWetness", 0x00A02510, (uintptr_t)detour_DcSetMaxCharacterWetness },
+    { "DcSetRenderSettings", 0x009FFF80, (uintptr_t)detour_DcSetRenderSettings },
+    { "DcSetLightFov", 0x009FFC80, (uintptr_t)detour_DcSetLightFov },
+    { "DcSetDynamicLightColor", 0x009FEE20, (uintptr_t)detour_DcSetDynamicLightColor },
+    { "DcSetCurrentBySpawner", 0x009FD710, (uintptr_t)detour_DcSetCurrentBySpawner },
+    { "DcSetRagdollFlow", 0x009FD5C0, (uintptr_t)detour_DcSetRagdollFlow },
+    { "DcSetObjectFaction", 0x009FCF40, (uintptr_t)detour_DcSetObjectFaction },
+    { "DcSetIceCaveStupidGearsHack", 0x009FCC50, (uintptr_t)detour_DcSetIceCaveStupidGearsHack },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

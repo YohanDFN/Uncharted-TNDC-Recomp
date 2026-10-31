@@ -2190,6 +2190,199 @@ static int64_t ABI detour_DcWaitPlayerTurnTo(int32_t argc, uint64_t *argv, uint3
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 20 (Part 3): Player Movement, Combat & Weapon Setters (12 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcSetTargetSpawnerAngle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090FE30: (set-target-spawner-angle [angle]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float angle = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "target-spawner-angle", angle) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetMinFallDist(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090E660: (set-min-fall-dist [dist]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float dist = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "min-fall-dist", dist) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetPlayerInCombat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DB40: (set-player-in-combat [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "in-combat", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetMoveMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D4F0: (set-move-mode [mode]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t mode = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "move-mode", (float)mode) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetWalkMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D4B0: (set-walk-mode [mode]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t mode = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "walk-mode", (float)mode) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetWalkType(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D350: (set-walk-type [type]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t type = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "walk-type", (float)type) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetRunType(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D1F0: (set-run-type [type]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t type = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "run-type", (float)type) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetReverseJumpEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D140: (set-reverse-jump-enable [flag]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "reverse-jump-enable", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetPlayerCanOnlyDrawPistol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B9E0: (set-player-can-only-draw-pistol [flag]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "can-only-draw-pistol", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetReloadPistolIfEmpty(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B940: (set-reload-pistol-if-empty [flag]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "reload-pistol-if-empty", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetCoverPushBackDist(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B060: (set-cover-push-back-dist [dist]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float dist = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "cover-push-back-dist", dist) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetOffBalanceBySpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x008E9160: (set-off-balance-by-spawner [spawner-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t spawner_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *spawner_fn)(uint32_t);
+    spawner_fn fn = (spawner_fn)(uintptr_t)(g_u2_image_base + 0x008E90B0ull);
+    if (fn) fn(spawner_id);
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -2316,6 +2509,19 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcDisablePlayerCoverExit", 0x00906950, (uintptr_t)detour_DcDisablePlayerCoverExit },
     { "DcWaitPlayerMoveTo", 0x00A0B350, (uintptr_t)detour_DcWaitPlayerMoveTo },
     { "DcWaitPlayerTurnTo", 0x00A0AFC0, (uintptr_t)detour_DcWaitPlayerTurnTo },
+    /* Lot 20 (Part 3): Player Movement, Combat & Weapon Setters (12 funcs) */
+    { "DcSetTargetSpawnerAngle", 0x0090FE30, (uintptr_t)detour_DcSetTargetSpawnerAngle },
+    { "DcSetMinFallDist", 0x0090E660, (uintptr_t)detour_DcSetMinFallDist },
+    { "DcSetPlayerInCombat", 0x0090DB40, (uintptr_t)detour_DcSetPlayerInCombat },
+    { "DcSetMoveMode", 0x0090D4F0, (uintptr_t)detour_DcSetMoveMode },
+    { "DcSetWalkMode", 0x0090D4B0, (uintptr_t)detour_DcSetWalkMode },
+    { "DcSetWalkType", 0x0090D350, (uintptr_t)detour_DcSetWalkType },
+    { "DcSetRunType", 0x0090D1F0, (uintptr_t)detour_DcSetRunType },
+    { "DcSetReverseJumpEnable", 0x0090D140, (uintptr_t)detour_DcSetReverseJumpEnable },
+    { "DcSetPlayerCanOnlyDrawPistol", 0x0090B9E0, (uintptr_t)detour_DcSetPlayerCanOnlyDrawPistol },
+    { "DcSetReloadPistolIfEmpty", 0x0090B940, (uintptr_t)detour_DcSetReloadPistolIfEmpty },
+    { "DcSetCoverPushBackDist", 0x0090B060, (uintptr_t)detour_DcSetCoverPushBackDist },
+    { "DcSetOffBalanceBySpawner", 0x008E9160, (uintptr_t)detour_DcSetOffBalanceBySpawner },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {

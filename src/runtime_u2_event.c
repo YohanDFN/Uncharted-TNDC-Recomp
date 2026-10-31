@@ -526,6 +526,69 @@ static int64_t ABI detour_DcGroupIsMemberSymbolP(int32_t argc, uint64_t *argv, u
     return 0;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 20 (Part 2): Event Tension & Tag Setters (5 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcSetForceTension(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667EE0: (set-force-tension [tension-val]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float tension = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *p_tension = (float *)(uintptr_t)(g_u2_image_base + 0x01150490ull);
+    if (p_tension) *p_tension = tension;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A42910: (set-symbol [symbol-id] [val]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    uint32_t val = (uint32_t)argv[1];
+    typedef void (ABI *set_sym_fn)(uint32_t, uint32_t);
+    set_sym_fn fn = (set_sym_fn)(uintptr_t)(g_u2_image_base + 0x00A42800ull);
+    if (fn) fn(sym, val);
+    return 1;
+}
+
+static int64_t ABI detour_DcSetFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A42630: (set-float [symbol-id] [float-val]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    float val = *(const float *)&argv[1];
+    typedef void (ABI *set_flt_fn)(uint32_t, float);
+    set_flt_fn fn = (set_flt_fn)(uintptr_t)(g_u2_image_base + 0x00A42500ull);
+    if (fn) fn(sym, val);
+    return 1;
+}
+
+static int64_t ABI detour_DcSetInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A42350: (set-int32 [symbol-id] [int-val]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    int32_t val = (int32_t)argv[1];
+    typedef void (ABI *set_int_fn)(uint32_t, int32_t);
+    set_int_fn fn = (set_int_fn)(uintptr_t)(g_u2_image_base + 0x00A42200ull);
+    if (fn) fn(sym, val);
+    return 1;
+}
+
+static int64_t ABI detour_DcSetBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A42060: (set-boolean [symbol-id] [bool-val]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    int32_t val = (int32_t)argv[1] ? 1 : 0;
+    typedef void (ABI *set_bool_fn)(uint32_t, int32_t);
+    set_bool_fn fn = (set_bool_fn)(uintptr_t)(g_u2_image_base + 0x00A41F00ull);
+    if (fn) fn(sym, val);
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -584,6 +647,12 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcGroupAnd", 0x0054AFD0, (uintptr_t)detour_DcGroupAnd },
     { "DcGroupOr", 0x0054A760, (uintptr_t)detour_DcGroupOr },
     { "DcGroupIsMemberSymbolP", 0x0054A250, (uintptr_t)detour_DcGroupIsMemberSymbolP },
+    /* Lot 20 (Part 2): Event Tension & Tag Setters (5 funcs) */
+    { "DcSetForceTension", 0x00667EE0, (uintptr_t)detour_DcSetForceTension },
+    { "DcSetSymbol", 0x00A42910, (uintptr_t)detour_DcSetSymbol },
+    { "DcSetFloat", 0x00A42630, (uintptr_t)detour_DcSetFloat },
+    { "DcSetInt32", 0x00A42350, (uintptr_t)detour_DcSetInt32 },
+    { "DcSetBoolean", 0x00A42060, (uintptr_t)detour_DcSetBoolean },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
