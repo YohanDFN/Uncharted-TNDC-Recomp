@@ -584,6 +584,124 @@ static int64_t ABI detour_DcNpcCombatBehaviorTime(int32_t argc, uint64_t *argv, 
     return (int64_t)u2_f32_to_reg(tm);
 }
 
+static int64_t ABI detour_DcNpcSetZoneRadius(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3280: (npc-set-zone-radius [npc-id] [radius]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    float r = (argc > 1 && argv) ? u2_reg_to_f32(argv[1]) : 0.0f;
+    uint8_t *zone = *(uint8_t **)(npc + 0x21F0);
+    if (zone) *(float *)(zone + 0x24) = r;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetHuntingZoneRadius(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E31C0: (npc-set-hunting-zone-radius [npc-id] [radius]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    float r = (argc > 1 && argv) ? u2_reg_to_f32(argv[1]) : 0.0f;
+    uint8_t *zone = *(uint8_t **)(npc + 0x21F0);
+    if (zone) *(float *)(zone + 0x28) = r;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetZoneYThreshold(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3110: (npc-set-zone-y-threshold [npc-id] [threshold]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    float th = (argc > 1 && argv) ? u2_reg_to_f32(argv[1]) : 0.0f;
+    uint8_t *zone = *(uint8_t **)(npc + 0x21F0);
+    if (zone) *(float *)(zone + 0x2C) = th;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetHuntingZoneYThreshold(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3050: (npc-set-hunting-zone-y-threshold [npc-id] [threshold]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    float th = (argc > 1 && argv) ? u2_reg_to_f32(argv[1]) : 0.0f;
+    uint8_t *zone = *(uint8_t **)(npc + 0x21F0);
+    if (zone) *(float *)(zone + 0x30) = th;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetZoneCenter(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3450: (npc-set-zone-center [npc-id] [point-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t point_id = (argc > 1 && argv) ? (uint32_t)argv[1] : 0;
+    uint8_t *zone = *(uint8_t **)(npc + 0x21F0);
+    if (zone) *(uint32_t *)(zone + 0x14) = point_id;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetHuntingZoneCenter(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3330: (npc-set-hunting-zone-center [npc-id] [point-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t point_id = (argc > 1 && argv) ? (uint32_t)argv[1] : 0;
+    uint8_t *zone = *(uint8_t **)(npc + 0x21F0);
+    if (zone) *(uint32_t *)(zone + 0x18) = point_id;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcTargetInZoneP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E2F20: (npc-target-in-zone? [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    void *zone = *(void **)(npc + 0x21F0);
+    if (!zone) return 0;
+    typedef uint8_t (ABI *InZoneFn)(void *);
+    InZoneFn fn = (InZoneFn)(uintptr_t)(g_u2_image_base + 0x0025D810ull);
+    return fn ? (fn(zone) ? 1 : 0) : 0;
+}
+
+static int64_t ABI detour_DcNpcSetPatrolRoute(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DE620: (npc-set-patrol-route [npc-id] [route-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t route_id = (argc > 1 && argv) ? (uint32_t)argv[1] : 0;
+    uint8_t *nav = *(uint8_t **)(npc + 0x21E0);
+    if (nav) *(uint32_t *)(nav + 0x58) = route_id;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetLeadDrakeSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DFEE0: (npc-set-lead-drake-spline [npc-id] [spline-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t spline_id = (argc > 1 && argv) ? (uint32_t)argv[1] : 0;
+    uint8_t *nav = *(uint8_t **)(npc + 0x21E0);
+    if (nav) *(uint32_t *)(nav + 0x5C) = spline_id;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcIsPlayerInFrontP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DF270: (npc-is-player-in-front? [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    const uint8_t *drake = (const uint8_t *)u2_get_active_player();
+    if (!drake) return 0;
+
+    const float *npc_pos = (const float *)(npc + 0x80);
+    const float *drake_pos = (const float *)(drake + 0x80);
+    const float *npc_fwd = (const float *)(npc + 0xB0);
+
+    float dx = drake_pos[0] - npc_pos[0];
+    float dz = drake_pos[2] - npc_pos[2];
+    float dot = dx * npc_fwd[0] + dz * npc_fwd[2];
+    return (dot > 0.0f) ? 1 : 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -621,6 +739,16 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcEnableHitReactions", 0x002DD4B0, (uintptr_t)detour_DcNpcEnableHitReactions },
     { "DcNpcSetCanBeHit", 0x002DD580, (uintptr_t)detour_DcNpcSetCanBeHit },
     { "DcNpcCombatBehaviorTime", 0x002DD720, (uintptr_t)detour_DcNpcCombatBehaviorTime },
+    { "DcNpcSetZoneRadius", 0x002E3280, (uintptr_t)detour_DcNpcSetZoneRadius },
+    { "DcNpcSetHuntingZoneRadius", 0x002E31C0, (uintptr_t)detour_DcNpcSetHuntingZoneRadius },
+    { "DcNpcSetZoneYThreshold", 0x002E3110, (uintptr_t)detour_DcNpcSetZoneYThreshold },
+    { "DcNpcSetHuntingZoneYThreshold", 0x002E3050, (uintptr_t)detour_DcNpcSetHuntingZoneYThreshold },
+    { "DcNpcSetZoneCenter", 0x002E3450, (uintptr_t)detour_DcNpcSetZoneCenter },
+    { "DcNpcSetHuntingZoneCenter", 0x002E3330, (uintptr_t)detour_DcNpcSetHuntingZoneCenter },
+    { "DcNpcTargetInZoneP", 0x002E2F20, (uintptr_t)detour_DcNpcTargetInZoneP },
+    { "DcNpcSetPatrolRoute", 0x002DE620, (uintptr_t)detour_DcNpcSetPatrolRoute },
+    { "DcNpcSetLeadDrakeSpline", 0x002DFEE0, (uintptr_t)detour_DcNpcSetLeadDrakeSpline },
+    { "DcNpcIsPlayerInFrontP", 0x002DF270, (uintptr_t)detour_DcNpcIsPlayerInFrontP },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {
