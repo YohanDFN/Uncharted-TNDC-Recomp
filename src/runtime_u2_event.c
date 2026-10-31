@@ -589,6 +589,105 @@ static int64_t ABI detour_DcSetBoolean(int32_t argc, uint64_t *argv, uint32_t *s
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 21 (Part 2): Event State, Time & Tag Getters (9 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcGetCaptureZone(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006687D0: (get-capture-zone) -> zone-id */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    return (int64_t)(*(const uint32_t *)(g_u2_image_base + 0x011504A0ull));
+}
+
+static int64_t ABI detour_DcGetStatValue(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0097BD10: (get-stat-value [stat-id]) -> float */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t stat_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef float (ABI *stat_fn)(uint32_t);
+    stat_fn fn = (stat_fn)(uintptr_t)(g_u2_image_base + 0x0097BC00ull);
+    float val = fn ? fn(stat_id) : 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &val, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetStateTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A44960: (get-state-time) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float t = *(const float *)(g_u2_image_base + 0x01161EE0ull);
+    uint32_t bits;
+    memcpy(&bits, &t, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetCurrentTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A44800: (get-current-time) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float t = *(const float *)(g_u2_image_base + 0x01161EE4ull);
+    uint32_t bits;
+    memcpy(&bits, &t, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetScriptState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A44290: (get-script-state) -> int */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    return (int64_t)(*(const uint32_t *)(g_u2_image_base + 0x01161EE8ull));
+}
+
+static int64_t ABI detour_DcGetSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43440: (get-symbol [sym-id]) -> val */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef uint32_t (ABI *get_sym_fn)(uint32_t);
+    get_sym_fn fn = (get_sym_fn)(uintptr_t)(g_u2_image_base + 0x00A43300ull);
+    return fn ? (int64_t)fn(sym) : 0;
+}
+
+static int64_t ABI detour_DcGetFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43170: (get-float [sym-id]) -> float */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef float (ABI *get_flt_fn)(uint32_t);
+    get_flt_fn fn = (get_flt_fn)(uintptr_t)(g_u2_image_base + 0x00A43000ull);
+    float val = fn ? fn(sym) : 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &val, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A42EB0: (get-int32 [sym-id]) -> int */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef int32_t (ABI *get_int_fn)(uint32_t);
+    get_int_fn fn = (get_int_fn)(uintptr_t)(g_u2_image_base + 0x00A42D00ull);
+    return fn ? (int64_t)fn(sym) : 0;
+}
+
+static int64_t ABI detour_DcGetBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A42BF0: (get-boolean [sym-id]) -> bool */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef int32_t (ABI *get_bool_fn)(uint32_t);
+    get_bool_fn fn = (get_bool_fn)(uintptr_t)(g_u2_image_base + 0x00A42A00ull);
+    return fn ? (fn(sym) != 0 ? 1 : 0) : 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -653,6 +752,16 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcSetFloat", 0x00A42630, (uintptr_t)detour_DcSetFloat },
     { "DcSetInt32", 0x00A42350, (uintptr_t)detour_DcSetInt32 },
     { "DcSetBoolean", 0x00A42060, (uintptr_t)detour_DcSetBoolean },
+    /* Lot 21 (Part 2): Event State, Time & Tag Getters (9 funcs) */
+    { "DcGetCaptureZone", 0x006687D0, (uintptr_t)detour_DcGetCaptureZone },
+    { "DcGetStatValue", 0x0097BD10, (uintptr_t)detour_DcGetStatValue },
+    { "DcGetStateTime", 0x00A44960, (uintptr_t)detour_DcGetStateTime },
+    { "DcGetCurrentTime", 0x00A44800, (uintptr_t)detour_DcGetCurrentTime },
+    { "DcGetScriptState", 0x00A44290, (uintptr_t)detour_DcGetScriptState },
+    { "DcGetSymbol", 0x00A43440, (uintptr_t)detour_DcGetSymbol },
+    { "DcGetFloat", 0x00A43170, (uintptr_t)detour_DcGetFloat },
+    { "DcGetInt32", 0x00A42EB0, (uintptr_t)detour_DcGetInt32 },
+    { "DcGetBoolean", 0x00A42BF0, (uintptr_t)detour_DcGetBoolean },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

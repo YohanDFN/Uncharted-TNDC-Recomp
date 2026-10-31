@@ -3776,6 +3776,341 @@ static int64_t ABI detour_DcSetIceCaveStupidGearsHack(int32_t argc, uint64_t *ar
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 21 (Part 3): Scene Object, Locator, Joint & Physics Getters (27 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcGetAnimationPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x003976C0: (get-animation-phase [anim]) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    float phase = 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &phase, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetObjectPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A12610: (get-object-position [entity] [out-vec]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 2 && argv && argv[1]) {
+        float *out = (float *)(uintptr_t)argv[1];
+        const float *pos = (const float *)((uint8_t *)ent + 0x30);
+        memcpy(out, pos, 4 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectOffsetPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A12390: (get-object-offset-position [entity] [offset-vec] [out-vec]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[1] && argv[2]) {
+        const float *offset = (const float *)(uintptr_t)argv[1];
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *pos = (const float *)((uint8_t *)ent + 0x30);
+        out[0] = pos[0] + offset[0];
+        out[1] = pos[1] + offset[1];
+        out[2] = pos[2] + offset[2];
+        out[3] = 1.0f;
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectOffsetLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A121E0: (get-object-offset-locator [entity] [offset] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetJointPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A120C0: (get-joint-position [entity] [joint-idx] [out-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *pos = (const float *)((uint8_t *)ent + 0x30);
+        memcpy(out, pos, 4 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetQuaternionPitch(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009F37C0: (get-quaternion-pitch [quat]) -> float */
+    if (status) *status = 0;
+    float pitch = 0.0f;
+    if (argc > 0 && argv && argv[0]) {
+        const float *q = (const float *)(uintptr_t)argv[0];
+        pitch = asinf(2.0f * (q[0] * q[2] - q[3] * q[1]));
+    }
+    uint32_t bits;
+    memcpy(&bits, &pitch, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetLocatorDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EF50: (get-locator-distance [loc1] [loc2]) -> float */
+    if (status) *status = 0;
+    float dist = 0.0f;
+    if (argc >= 2 && argv && argv[0] && argv[1]) {
+        const float *p1 = (const float *)(uintptr_t)argv[0];
+        const float *p2 = (const float *)(uintptr_t)argv[1];
+        float dx = p1[12] - p2[12];
+        float dy = p1[13] - p2[13];
+        float dz = p1[14] - p2[14];
+        dist = sqrtf(dx * dx + dy * dy + dz * dz);
+    }
+    uint32_t bits;
+    memcpy(&bits, &dist, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetObjectId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0BEE0: (get-object-id [entity]) -> id */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    return (int64_t)(uint32_t)argv[0];
+}
+
+static int64_t ABI detour_DcGetSpawnerPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A094B0: (get-spawner-position [spawner-id] [out-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    out[0] = 0.0f; out[1] = 0.0f; out[2] = 0.0f; out[3] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetSpawnerLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09330: (get-spawner-locator [spawner-id] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetSpawnerLocatorProjected(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A08D10: (get-spawner-locator-projected [spawner-id] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetSpawnerLocatorRadial(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A088C0: (get-spawner-locator-radial [spawner-id] [radius] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 3 || !argv || !argv[2]) return 0;
+    float *out = (float *)(uintptr_t)argv[2];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetObjectLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A08630: (get-object-locator [entity] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 2 && argv && argv[1]) {
+        float *out = (float *)(uintptr_t)argv[1];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectLocatorRadial(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A081A0: (get-object-locator-radial [entity] [radius] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetJointLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A07E80: (get-joint-locator [entity] [joint] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetApReferenceLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A07990: (get-ap-reference-locator [ap-ref] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetApReferenceEffectLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A07340: (get-ap-reference-effect-locator [ap-ref] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetApReferenceLocatorRadial(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A06C20: (get-ap-reference-locator-radial [ap-ref] [radius] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 3 || !argv || !argv[2]) return 0;
+    float *out = (float *)(uintptr_t)argv[2];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetAlignLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A066F0: (get-align-locator [entity] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetJointAngleDiffFromBindpose(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A06180: (get-joint-angle-diff-from-bindpose [entity] [joint]) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    float diff = 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &diff, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetActionPackLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A060C0: (get-action-pack-locator [ap] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetOriginLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A05F60: (get-origin-locator [out-matrix]) */
+    if (status) *status = 0;
+    if (argc < 1 || !argv || !argv[0]) return 0;
+    float *out = (float *)(uintptr_t)argv[0];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetObjectState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04C10: (get-object-state [entity]) -> state */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    return ent ? (int64_t)(*(const uint32_t *)((uint8_t *)ent + 0x20)) : 0;
+}
+
+static int64_t ABI detour_DcGetObjectHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04B10: (get-object-health [entity]) -> float */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    float hp = ent ? *(const float *)((uint8_t *)ent + 0x28) : 100.0f;
+    uint32_t bits;
+    memcpy(&bits, &hp, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetWaterOffset(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02F20: (get-water-offset [out-vec]) */
+    if (status) *status = 0;
+    if (argc < 1 || !argv || !argv[0]) return 0;
+    float *out = (float *)(uintptr_t)argv[0];
+    out[0] = 0.0f; out[1] = 0.0f; out[2] = 0.0f; out[3] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetWaterState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02D90: (get-water-state) -> int */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGetDda(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD010: (get-dda) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    float dda = 1.0f;
+    uint32_t bits;
+    memcpy(&bits, &dda, sizeof(bits));
+    return (int64_t)bits;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -4074,6 +4409,34 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSetRagdollFlow", 0x009FD5C0, (uintptr_t)detour_DcSetRagdollFlow },
     { "DcSetObjectFaction", 0x009FCF40, (uintptr_t)detour_DcSetObjectFaction },
     { "DcSetIceCaveStupidGearsHack", 0x009FCC50, (uintptr_t)detour_DcSetIceCaveStupidGearsHack },
+    /* Lot 21 (Part 3): Scene Object, Locator, Joint & Physics Getters (27 funcs) */
+    { "DcGetAnimationPhase", 0x003976C0, (uintptr_t)detour_DcGetAnimationPhase },
+    { "DcGetObjectPosition", 0x00A12610, (uintptr_t)detour_DcGetObjectPosition },
+    { "DcGetObjectOffsetPosition", 0x00A12390, (uintptr_t)detour_DcGetObjectOffsetPosition },
+    { "DcGetObjectOffsetLocator", 0x00A121E0, (uintptr_t)detour_DcGetObjectOffsetLocator },
+    { "DcGetJointPosition", 0x00A120C0, (uintptr_t)detour_DcGetJointPosition },
+    { "DcGetQuaternionPitch", 0x009F37C0, (uintptr_t)detour_DcGetQuaternionPitch },
+    { "DcGetLocatorDistance", 0x00A0EF50, (uintptr_t)detour_DcGetLocatorDistance },
+    { "DcGetObjectId", 0x00A0BEE0, (uintptr_t)detour_DcGetObjectId },
+    { "DcGetSpawnerPosition", 0x00A094B0, (uintptr_t)detour_DcGetSpawnerPosition },
+    { "DcGetSpawnerLocator", 0x00A09330, (uintptr_t)detour_DcGetSpawnerLocator },
+    { "DcGetSpawnerLocatorProjected", 0x00A08D10, (uintptr_t)detour_DcGetSpawnerLocatorProjected },
+    { "DcGetSpawnerLocatorRadial", 0x00A088C0, (uintptr_t)detour_DcGetSpawnerLocatorRadial },
+    { "DcGetObjectLocator", 0x00A08630, (uintptr_t)detour_DcGetObjectLocator },
+    { "DcGetObjectLocatorRadial", 0x00A081A0, (uintptr_t)detour_DcGetObjectLocatorRadial },
+    { "DcGetJointLocator", 0x00A07E80, (uintptr_t)detour_DcGetJointLocator },
+    { "DcGetApReferenceLocator", 0x00A07990, (uintptr_t)detour_DcGetApReferenceLocator },
+    { "DcGetApReferenceEffectLocator", 0x00A07340, (uintptr_t)detour_DcGetApReferenceEffectLocator },
+    { "DcGetApReferenceLocatorRadial", 0x00A06C20, (uintptr_t)detour_DcGetApReferenceLocatorRadial },
+    { "DcGetAlignLocator", 0x00A066F0, (uintptr_t)detour_DcGetAlignLocator },
+    { "DcGetJointAngleDiffFromBindpose", 0x00A06180, (uintptr_t)detour_DcGetJointAngleDiffFromBindpose },
+    { "DcGetActionPackLocator", 0x00A060C0, (uintptr_t)detour_DcGetActionPackLocator },
+    { "DcGetOriginLocator", 0x00A05F60, (uintptr_t)detour_DcGetOriginLocator },
+    { "DcGetObjectState", 0x00A04C10, (uintptr_t)detour_DcGetObjectState },
+    { "DcGetObjectHealth", 0x00A04B10, (uintptr_t)detour_DcGetObjectHealth },
+    { "DcGetWaterOffset", 0x00A02F20, (uintptr_t)detour_DcGetWaterOffset },
+    { "DcGetWaterState", 0x00A02D90, (uintptr_t)detour_DcGetWaterState },
+    { "DcGetDda", 0x009FD010, (uintptr_t)detour_DcGetDda },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

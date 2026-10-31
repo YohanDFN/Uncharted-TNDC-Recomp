@@ -2383,6 +2383,76 @@ static int64_t ABI detour_DcSetOffBalanceBySpawner(int32_t argc, uint64_t *argv,
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 21 (Part 1): Player Getters (6 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcGetPlayerAimTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DCBA0: (get-player-aim-time) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (!player) return 0;
+    float aim_time = *(const float *)(player + 0x2A58);
+    uint32_t bits;
+    memcpy(&bits, &aim_time, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetGrappleApRef(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009102C0: (get-grapple-ap-ref) -> int */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (!player) return 0;
+    return (int64_t)(*(const uint32_t *)(player + 0x2A60));
+}
+
+static int64_t ABI detour_DcGetPlayerEdgeBbject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DCA0: (get-player-edge-object) -> obj-id */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (!player) return 0;
+    return (int64_t)(*(const uint32_t *)(player + 0x2780));
+}
+
+static int64_t ABI detour_DcGetPlayerPlatform(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090CF40: (get-player-platform) -> platform-id */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (!player) return 0;
+    return (int64_t)(*(const uint32_t *)(player + 0x2784));
+}
+
+static int64_t ABI detour_DcGetMeleeTeachDest(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908D10: (get-melee-teach-dest [out-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (!player || argc <= 0 || !argv || !argv[0]) return 0;
+    float *out = (float *)(uintptr_t)argv[0];
+    const float *pos = (const float *)(player + 0x2A70);
+    memcpy(out, pos, 4 * sizeof(float));
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetPlayerCarriedObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009068C0: (get-player-carried-object) -> obj-id */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (!player) return 0;
+    return (int64_t)(*(const uint32_t *)(player + 0x2788));
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -2522,6 +2592,13 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcSetReloadPistolIfEmpty", 0x0090B940, (uintptr_t)detour_DcSetReloadPistolIfEmpty },
     { "DcSetCoverPushBackDist", 0x0090B060, (uintptr_t)detour_DcSetCoverPushBackDist },
     { "DcSetOffBalanceBySpawner", 0x008E9160, (uintptr_t)detour_DcSetOffBalanceBySpawner },
+    /* Lot 21 (Part 1): Player Getters (6 funcs) */
+    { "DcGetPlayerAimTime", 0x005DCBA0, (uintptr_t)detour_DcGetPlayerAimTime },
+    { "DcGetGrappleApRef", 0x009102C0, (uintptr_t)detour_DcGetGrappleApRef },
+    { "DcGetPlayerEdgeBbject", 0x0090DCA0, (uintptr_t)detour_DcGetPlayerEdgeBbject },
+    { "DcGetPlayerPlatform", 0x0090CF40, (uintptr_t)detour_DcGetPlayerPlatform },
+    { "DcGetMeleeTeachDest", 0x00908D10, (uintptr_t)detour_DcGetMeleeTeachDest },
+    { "DcGetPlayerCarriedObject", 0x009068C0, (uintptr_t)detour_DcGetPlayerCarriedObject },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {
