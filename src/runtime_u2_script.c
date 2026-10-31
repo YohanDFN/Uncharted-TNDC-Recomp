@@ -1759,6 +1759,236 @@ static int64_t ABI detour_DcInvalidStringId(int32_t argc, uint64_t *argv, uint32
 }
 
 /* ============================================================================
+ * Wave 9 Detours: Ammo Clip Ratio, Audio Rain/Speech & NPC Combat Controls
+ * ============================================================================ */
+
+static int64_t ABI detour_DcGetPlayerClipPercentFull(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DCE00: (get-player-clip-percent-full) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return (int64_t)u2_f32_to_reg(0.0f);
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return (int64_t)u2_f32_to_reg(0.0f);
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return (int64_t)u2_f32_to_reg(0.0f);
+    int32_t cur_weapon_idx = *(const int32_t *)(drake + 0x4B8);
+    int32_t weapon_count = *(const int32_t *)(drake + 0x4BC);
+    if (cur_weapon_idx < 0 || cur_weapon_idx >= weapon_count) return (int64_t)u2_f32_to_reg(0.0f);
+    const uint8_t *entry_slot = drake + 0x4C8 + (uint64_t)cur_weapon_idx * 16u;
+    const uint8_t *weapon_ptr = *(const uint8_t **)entry_slot;
+    const uint32_t weapon_tag = *(const uint32_t *)(entry_slot + 8);
+    if (!weapon_ptr || weapon_tag == 0) return (int64_t)u2_f32_to_reg(0.0f);
+    const uint8_t *weapon = *(const uint8_t **)weapon_ptr;
+    if (!weapon || *(const uint32_t *)(weapon + 0x44) != weapon_tag) return (int64_t)u2_f32_to_reg(0.0f);
+    int16_t clip = *(const int16_t *)(weapon + 0x620);
+    typedef int32_t (ABI *GetMaxClipFn)(const void *, int32_t);
+    GetMaxClipFn get_max = (GetMaxClipFn)(uintptr_t)(g_u2_image_base + 0x00AE47D0ull);
+    int32_t max_clip = get_max ? get_max(weapon, 0) : 0;
+    float pct = (max_clip > 0) ? ((float)clip / (float)max_clip) : 0.0f;
+    return (int64_t)u2_f32_to_reg(pct);
+}
+
+static int64_t ABI detour_DcUseAudioRainLevel(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A009F0: (use-audio-rain-level level) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    uint32_t level = (uint32_t)argv[0];
+    uint8_t *audio_mgr = g_u2_image_base + 0x01111750ull;
+    *(uint32_t *)(audio_mgr + 0x594) = level;
+    return 1;
+}
+
+static int64_t ABI detour_DcSuppressIdleSpeech(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01360: (suppress-idle-speech duration-sec) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    float dur = u2_reg_to_f32(argv[0]);
+    float scale = *(const float *)(g_u2_image_base + 0x00E672F4ull);
+    int64_t frames = (int64_t)(dur * scale);
+    if (frames < 1) frames = 1;
+    int64_t *p_cur = (int64_t *)(g_u2_image_base + 0x0147E5C8ull);
+    if (frames > *p_cur) *p_cur = frames;
+    return 0;
+}
+
+static int64_t ABI detour_DcHideHint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0CC10: (hide-hint) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    *(uint8_t *)(g_u2_image_base + 0x0104F1B8ull) = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcDie(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4680: (npc-die [npc-id] [reason]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) {
+        npc_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    if (npc_id == 0) return 0;
+    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
+    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
+    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
+    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+        typedef void * (ABI *GetEntityFn)(uint32_t);
+        GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        npc = get_ent ? get_ent(npc_id) : NULL;
+    }
+    if (!npc) return 0;
+    const uint8_t *health_comp = *(const uint8_t **)((const uint8_t *)npc + 0x1F0);
+    if (!health_comp) return 0;
+    typedef void (ABI *KillFn)(const void *, int32_t, int32_t);
+    const void *vtable = *(const void **)health_comp;
+    if (!vtable) return 0;
+    KillFn fn = *(KillFn *)((const uint8_t *)vtable + 0x50);
+    if (fn) fn(health_comp, 0, 1);
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcEnableShooting(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC680: (npc-enable-shooting [npc-id] enable?) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    uint8_t enable = 1;
+    if (argc >= 2 && argv) {
+        npc_id = (uint32_t)argv[0];
+        enable = (argv[1] != 0) ? 1 : 0;
+    } else if (argc == 1 && argv) {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+        enable = (argv[0] != 0) ? 1 : 0;
+    }
+    if (npc_id == 0) return 0;
+    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
+    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
+    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
+    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+        typedef void * (ABI *GetEntityFn)(uint32_t);
+        GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        npc = get_ent ? get_ent(npc_id) : NULL;
+    }
+    if (!npc) return 0;
+    uint8_t *shoot_comp = *(uint8_t **)((uint8_t *)npc + 0x3FA0);
+    if (!shoot_comp) return 0;
+    if (enable) {
+        *(uint8_t *)(shoot_comp + 0x110) |= 0x01;
+    } else {
+        *(uint8_t *)(shoot_comp + 0x110) &= ~0x01;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetShotDamageMultiplier(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC570: (npc-set-shot-damage-multiplier [npc-id] mult) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    float mult = 1.0f;
+    if (argc >= 2 && argv) {
+        npc_id = (uint32_t)argv[0];
+        mult = u2_reg_to_f32(argv[1]);
+    } else if (argc == 1 && argv) {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+        mult = u2_reg_to_f32(argv[0]);
+    }
+    if (npc_id == 0) return 0;
+    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
+    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
+    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
+    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+        typedef void * (ABI *GetEntityFn)(uint32_t);
+        GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        npc = get_ent ? get_ent(npc_id) : NULL;
+    }
+    if (!npc) return 0;
+    uint8_t *damage_comp = *(uint8_t **)((uint8_t *)npc + 0x3FA0);
+    if (!damage_comp) return 0;
+    *(float *)(damage_comp + 0x118) = mult;
+    return 0;
+}
+
+static int64_t ABI detour_DcCacheSoundBank(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD540: (cache-sound-bank bank-name) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    const void *bank_name = (const void *)(uintptr_t)argv[0];
+    if (!bank_name) return 0;
+    typedef void (ABI *CacheFn)(void *, const void *, int32_t, int32_t);
+    CacheFn fn = (CacheFn)(uintptr_t)(g_u2_image_base + 0x003C7FA0ull);
+    void *audio_mgr = (void *)(g_u2_image_base + 0x01111750ull);
+    if (fn) fn(audio_mgr, bank_name, 2, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcCacheSoundStream(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD510: (cache-sound-stream stream-name) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    const void *stream_name = (const void *)(uintptr_t)argv[0];
+    if (!stream_name) return 0;
+    typedef void (ABI *CacheFn)(void *, const void *, int32_t, int32_t);
+    CacheFn fn = (CacheFn)(uintptr_t)(g_u2_image_base + 0x003C7FA0ull);
+    void *audio_mgr = (void *)(g_u2_image_base + 0x01111750ull);
+    if (fn) fn(audio_mgr, stream_name, 3, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcCacheSpeechStream(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD4E0: (cache-speech-stream speech-name) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    const void *speech_name = (const void *)(uintptr_t)argv[0];
+    if (!speech_name) return 0;
+    typedef void (ABI *CacheFn)(void *, const void *, int32_t, int32_t);
+    CacheFn fn = (CacheFn)(uintptr_t)(g_u2_image_base + 0x003C7FA0ull);
+    void *audio_mgr = (void *)(g_u2_image_base + 0x01111750ull);
+    if (fn) fn(audio_mgr, speech_name, 5, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcCacheMusicPlaylist(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD460: (cache-music-playlist playlist-name) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    if (sym == 0) return 0;
+    typedef void * (ABI *EvalFn)(uint32_t);
+    EvalFn eval_sym = (EvalFn)(uintptr_t)(g_u2_image_base + 0x00A15300ull);
+    const uint8_t *obj = eval_sym ? (const uint8_t *)eval_sym(sym) : NULL;
+    if (!obj) return 0;
+    const uint8_t *pl = *(const uint8_t **)obj;
+    if (!pl) return 0;
+    int32_t count = *(const int32_t *)(pl + 0xA8);
+    if (count <= 0) return 0;
+    const uint8_t *items = *(const uint8_t **)(pl + 0xB0);
+    if (!items) return 0;
+    typedef void (ABI *CacheFn)(void *, const void *, int32_t, int32_t);
+    CacheFn fn = (CacheFn)(uintptr_t)(g_u2_image_base + 0x003C7FA0ull);
+    void *audio_mgr = (void *)(g_u2_image_base + 0x01111750ull);
+    if (!fn) return 0;
+    for (int32_t i = 0; i < count; ++i) {
+        const void *name = *(const void **)(items + (size_t)i * 16);
+        if (name) fn(audio_mgr, name, 4, 0);
+    }
+    return 0;
+}
+
+/* ============================================================================
  * 3. Opcode Table (80 opcodes: 0x00 .. 0x4F at jump table 0x00A14DA4)
  * ============================================================================ */
 
@@ -2868,6 +3098,19 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         { "DcDisplayInt", 0x009FCFF0, (uintptr_t)detour_DcNoOp0 },
         { "DcMessage", 0x005DC620, (uintptr_t)detour_DcNoOp0 },
         { "DcAnimStateAdvancePhase", 0x00397690, (uintptr_t)detour_DcNoOp0 },
+
+        /* Wave 9: Ammo Clip Ratio, Audio Rain/Speech & NPC Combat Controls */
+        { "DcGetPlayerClipPercentFull", 0x005DCE00, (uintptr_t)detour_DcGetPlayerClipPercentFull },
+        { "DcUseAudioRainLevel", 0x00A009F0, (uintptr_t)detour_DcUseAudioRainLevel },
+        { "DcSuppressIdleSpeech", 0x00A01360, (uintptr_t)detour_DcSuppressIdleSpeech },
+        { "DcHideHint", 0x00A0CC10, (uintptr_t)detour_DcHideHint },
+        { "DcNpcDie", 0x002E4680, (uintptr_t)detour_DcNpcDie },
+        { "DcNpcEnableShooting", 0x002DC680, (uintptr_t)detour_DcNpcEnableShooting },
+        { "DcNpcSetShotDamageMultiplier", 0x002DC570, (uintptr_t)detour_DcNpcSetShotDamageMultiplier },
+        { "DcCacheSoundBank", 0x009FD540, (uintptr_t)detour_DcCacheSoundBank },
+        { "DcCacheSoundStream", 0x009FD510, (uintptr_t)detour_DcCacheSoundStream },
+        { "DcCacheSpeechStream", 0x009FD4E0, (uintptr_t)detour_DcCacheSpeechStream },
+        { "DcCacheMusicPlaylist", 0x009FD460, (uintptr_t)detour_DcCacheMusicPlaylist },
     };
 
     size_t installed = 0;
