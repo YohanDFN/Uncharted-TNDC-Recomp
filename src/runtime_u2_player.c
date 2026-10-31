@@ -1585,6 +1585,446 @@ static int64_t ABI detour_DcPlayerBlindfireTargeting(int32_t argc, uint64_t *arg
     return 0;
 }
 
+
+static int64_t ABI detour_DcPlayerLerpAnimUpdateRate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x003973F0: (player-lerp-anim-update-rate [rate] [duration]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerDisableJumpAwayFromEdge(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00907030: (player-disable-jump-away-from-edge [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x115);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x24C6DB72u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceDynoJumpUp(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009070D0: (player-force-dyno-jump-up [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x114);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x8A1211DEu, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerNoEdgeFall(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009080E0: (player-no-edge-fall [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x113);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0xD4B0A7B0u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceNearDynoJumps(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908180: (player-force-near-dyno-jumps [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x111);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0xBC75DFBAu, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerEnableClimbGear(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908220: (player-enable-climb-gear [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x011579A3ull) = flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerCanMeleeCombo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908310: (player-can-melee-combo) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    return *(const uint8_t *)(g_u2_image_base + 0x011579E1ull);
+}
+
+static int64_t ABI detour_DcPlayerCanMelee(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908570: (player-can-melee) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    return *(const uint8_t *)(g_u2_image_base + 0x011579E0ull);
+}
+
+static int64_t ABI detour_DcPlayerPushForwardSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908750: (player-push-forward-speed [speed]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerSetProneMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009089D0: (player-set-prone-mode [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceNumPunches(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908AF0: (player-force-num-punches num) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceFightFinisher(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908C00: (player-force-fight-finisher [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceComboLightTutorial(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00909150: (player-force-combo-light-tutorial [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x011579C1ull) = flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceComboMediumTutorial(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00909240: (player-force-combo-medium-tutorial [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x011579C0ull) = flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerSetTeachingComboMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00909330: (player-set-teaching-combo-mode [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x011579C2ull) = flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerEnableMoveTracker(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00909430: (player-enable-move-tracker [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerClimbUp(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090A8C0: (player-climb-up) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceAimingTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B1F0: (player-force-aiming-time [time]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float time = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 0.0f;
+    *(float *)(g_u2_image_base + 0x011579B0ull) = time;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceAiming(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B2F0: (player-force-aiming [flag]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float time = (argc > 0 && argv && argv[0] != 0) ? 1000.0f : 0.0f;
+    *(float *)(g_u2_image_base + 0x011579B0ull) = time;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceJumpAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B3D0: (player-force-jump-at [pos]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerSaveWeaponSet(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B830: (player-save-weapon-set [set-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerInRegionP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090BD70: (player-in-region? region-id) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPlayerFacingPositionP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090BEE0: (player-facing-position? pos [angle]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPlayerForceEdgeFall(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090CCC0: (player-force-edge-fall) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerSetCornerClimbDistScale(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DE90: (player-set-corner-climb-dist-scale scale) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float scale = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 1.0f;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x12c);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D290ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D2A0ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, float *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x9B47D004u, str_arg, &scale, 4, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerAllowPushOffLedgeStealthKill(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DF10: (player-allow-push-off-ledge-stealth-kill [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x191);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x77BD8B28u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerEdgeCharacterRelativeControls(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DFB0: (player-edge-character-relative-controls [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x190);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x6543D758u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerForceStealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090FA30: (player-force-stealth [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x0a8);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x89D52B75u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerDisableCoverSwitch(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090FB30: (player-disable-cover-switch [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x18c);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x272BF7EEu, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *player = u2_get_active_player();
+        if (player) {
+            typedef void (ABI *PostFn)(void *, void *);
+            void **vtable = *(void ***)player;
+            if (vtable && vtable[0x18 / 8]) {
+                PostFn post = (PostFn)vtable[0x18 / 8];
+                post(player, obj);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerSetCarryNpcSlowWalk(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090FF30: (player-set-carry-npc-slow-walk [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x011579D8ull) = flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerTakeMeleeDamage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009101A0: (player-take-melee-damage [damage]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerTurnTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0B2D0: (player-turn-to [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0B680: (player-move-to [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerBlindFireOnlyRight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0B720: (player-blind-fire-only-right [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x011579DBull) = flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerCheckForGotHit(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EF20: (player-check-for-got-hit) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -1665,6 +2105,41 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcPlayerDisableCoverExitOver", 0x0090F730, (uintptr_t)detour_DcPlayerDisableCoverExitOver },
     { "DcPlayerForceNoStealth", 0x0090F830, (uintptr_t)detour_DcPlayerForceNoStealth },
     { "DcPlayerBlindfireTargeting", 0x0090F930, (uintptr_t)detour_DcPlayerBlindfireTargeting },
+    { "DcPlayerLerpAnimUpdateRate", 0x003973F0, (uintptr_t)detour_DcPlayerLerpAnimUpdateRate },
+    { "DcPlayerDisableJumpAwayFromEdge", 0x00907030, (uintptr_t)detour_DcPlayerDisableJumpAwayFromEdge },
+    { "DcPlayerForceDynoJumpUp", 0x009070D0, (uintptr_t)detour_DcPlayerForceDynoJumpUp },
+    { "DcPlayerNoEdgeFall", 0x009080E0, (uintptr_t)detour_DcPlayerNoEdgeFall },
+    { "DcPlayerForceNearDynoJumps", 0x00908180, (uintptr_t)detour_DcPlayerForceNearDynoJumps },
+    { "DcPlayerEnableClimbGear", 0x00908220, (uintptr_t)detour_DcPlayerEnableClimbGear },
+    { "DcPlayerCanMeleeCombo", 0x00908310, (uintptr_t)detour_DcPlayerCanMeleeCombo },
+    { "DcPlayerCanMelee", 0x00908570, (uintptr_t)detour_DcPlayerCanMelee },
+    { "DcPlayerPushForwardSpeed", 0x00908750, (uintptr_t)detour_DcPlayerPushForwardSpeed },
+    { "DcPlayerSetProneMode", 0x009089D0, (uintptr_t)detour_DcPlayerSetProneMode },
+    { "DcPlayerForceNumPunches", 0x00908AF0, (uintptr_t)detour_DcPlayerForceNumPunches },
+    { "DcPlayerForceFightFinisher", 0x00908C00, (uintptr_t)detour_DcPlayerForceFightFinisher },
+    { "DcPlayerForceComboLightTutorial", 0x00909150, (uintptr_t)detour_DcPlayerForceComboLightTutorial },
+    { "DcPlayerForceComboMediumTutorial", 0x00909240, (uintptr_t)detour_DcPlayerForceComboMediumTutorial },
+    { "DcPlayerSetTeachingComboMode", 0x00909330, (uintptr_t)detour_DcPlayerSetTeachingComboMode },
+    { "DcPlayerEnableMoveTracker", 0x00909430, (uintptr_t)detour_DcPlayerEnableMoveTracker },
+    { "DcPlayerClimbUp", 0x0090A8C0, (uintptr_t)detour_DcPlayerClimbUp },
+    { "DcPlayerForceAimingTime", 0x0090B1F0, (uintptr_t)detour_DcPlayerForceAimingTime },
+    { "DcPlayerForceAiming", 0x0090B2F0, (uintptr_t)detour_DcPlayerForceAiming },
+    { "DcPlayerForceJumpAt", 0x0090B3D0, (uintptr_t)detour_DcPlayerForceJumpAt },
+    { "DcPlayerSaveWeaponSet", 0x0090B830, (uintptr_t)detour_DcPlayerSaveWeaponSet },
+    { "DcPlayerInRegionP", 0x0090BD70, (uintptr_t)detour_DcPlayerInRegionP },
+    { "DcPlayerFacingPositionP", 0x0090BEE0, (uintptr_t)detour_DcPlayerFacingPositionP },
+    { "DcPlayerForceEdgeFall", 0x0090CCC0, (uintptr_t)detour_DcPlayerForceEdgeFall },
+    { "DcPlayerSetCornerClimbDistScale", 0x0090DE90, (uintptr_t)detour_DcPlayerSetCornerClimbDistScale },
+    { "DcPlayerAllowPushOffLedgeStealthKill", 0x0090DF10, (uintptr_t)detour_DcPlayerAllowPushOffLedgeStealthKill },
+    { "DcPlayerEdgeCharacterRelativeControls", 0x0090DFB0, (uintptr_t)detour_DcPlayerEdgeCharacterRelativeControls },
+    { "DcPlayerForceStealth", 0x0090FA30, (uintptr_t)detour_DcPlayerForceStealth },
+    { "DcPlayerDisableCoverSwitch", 0x0090FB30, (uintptr_t)detour_DcPlayerDisableCoverSwitch },
+    { "DcPlayerSetCarryNpcSlowWalk", 0x0090FF30, (uintptr_t)detour_DcPlayerSetCarryNpcSlowWalk },
+    { "DcPlayerTakeMeleeDamage", 0x009101A0, (uintptr_t)detour_DcPlayerTakeMeleeDamage },
+    { "DcPlayerTurnTo", 0x00A0B2D0, (uintptr_t)detour_DcPlayerTurnTo },
+    { "DcPlayerMoveTo", 0x00A0B680, (uintptr_t)detour_DcPlayerMoveTo },
+    { "DcPlayerBlindFireOnlyRight", 0x00A0B720, (uintptr_t)detour_DcPlayerBlindFireOnlyRight },
+    { "DcPlayerCheckForGotHit", 0x00A0EF20, (uintptr_t)detour_DcPlayerCheckForGotHit },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {
