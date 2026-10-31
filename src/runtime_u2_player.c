@@ -466,38 +466,118 @@ static int64_t ABI detour_DcGetPlayerClipPercentFull(int32_t argc, uint64_t *arg
     return (int64_t)u2_f32_to_reg(pct);
 }
 
-static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, uint32_t *status) {
-    /* 0x002E0050: (npc-in-melee-with-player? [npc-id]) */
+static int64_t ABI detour_DcRemovePlayerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00906E10: (remove-player-weapon [weapon-type]) */
     if (status) *status = 0;
     if (!g_u2_image_base) return 0;
-    uint32_t npc_id = 0;
+    uint32_t target_weapon_type = 0;
     if (argc > 0 && argv) {
-        npc_id = (uint32_t)argv[0];
-    } else {
-        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
-        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
-        if (get_self) npc_id = get_self(0, 0, 1);
+        target_weapon_type = (uint32_t)argv[0];
     }
-    if (npc_id == 0) return 0;
-    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
-    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
-    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
-    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
-    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
-        typedef void * (ABI *GetEntityFn)(uint32_t);
-        GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
-        npc = get_ent ? get_ent(npc_id) : NULL;
+    const uint8_t *drake = (const uint8_t *)u2_get_active_player();
+    if (!drake) return 0;
+
+    int32_t weapon_count = *(const int32_t *)(drake + 0x4BC);
+    if (weapon_count <= 0) return 0;
+
+    for (int32_t i = 0; i < weapon_count; ++i) {
+        const uint8_t *slot = drake + 0x4C8 + (uint64_t)i * 16u;
+        const uint8_t *weapon_ptr = *(const uint8_t **)slot;
+        uint32_t tag = *(const uint32_t *)(slot + 8);
+        if (!weapon_ptr || tag == 0) continue;
+
+        const uint8_t *weapon = *(const uint8_t **)weapon_ptr;
+        if (!weapon || *(const uint32_t *)(weapon + 0x44) != tag) continue;
+
+        uint32_t wtype = *(const uint32_t *)(weapon + 0x550);
+        if (wtype == target_weapon_type) {
+            void *inv = *(void **)(drake + 0x2768);
+            if (inv) {
+                void **vtable = *(void ***)inv;
+                if (vtable && vtable[0x118 / 8]) {
+                    typedef void (ABI *RemoveWeaponFn)(void *, const void *);
+                    RemoveWeaponFn remove_fn = (RemoveWeaponFn)vtable[0x118 / 8];
+                    remove_fn(inv, weapon);
+                }
+            }
+            break;
+        }
     }
-    if (!npc) return 0;
-    const uint8_t *melee_comp = *(const uint8_t **)((const uint8_t *)npc + 0x2208);
-    if (!melee_comp) return 0;
-    const uint8_t *sub = *(const uint8_t **)(melee_comp + 0x18);
-    if (!sub) return 0;
-    const void *vtable = *(const void **)sub;
+    return 0;
+}
+
+typedef struct {
+    void *ptr;
+    uint64_t tag;
+} U2WeaponHandle;
+
+static int64_t ABI detour_DcPlayerInstantDrawWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DDE0: (player-instant-draw-weapon [draw-slot]) ; 0 = sidearm, != 0 = long gun */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc <= 0 || !argv) return 0;
+
+    int32_t slot_type = (int32_t)argv[0];
+    const uint8_t *drake = (const uint8_t *)u2_get_active_player();
+    if (!drake) return 0;
+
+    void *inv = *(void **)(drake + 0x2768);
+    if (!inv) return 0;
+
+    void **vtable = *(void ***)inv;
     if (!vtable) return 0;
-    typedef uint8_t (ABI *MeleeFn)(const void *);
-    MeleeFn fn = *(MeleeFn *)((const uint8_t *)vtable + 0x30);
-    return fn ? (fn(sub) ? 1 : 0) : 0;
+
+    int32_t draw_mode = 2; /* 2 = sidearm */
+    size_t get_fn_idx = 0x70 / 8; /* primary */
+    if (slot_type != 0) {
+        draw_mode = 3; /* 3 = long gun */
+        get_fn_idx = 0x78 / 8; /* secondary */
+    }
+
+    typedef U2WeaponHandle (ABI *GetWeaponHandleFn)(void *);
+    GetWeaponHandleFn get_handle = (GetWeaponHandleFn)vtable[get_fn_idx];
+    if (!get_handle) return 0;
+
+    U2WeaponHandle h = get_handle(inv);
+    if (!h.ptr || (uint32_t)h.tag == 0) return 0;
+
+    const uint8_t *weapon = *(const uint8_t **)h.ptr;
+    if (!weapon || *(const uint32_t *)(weapon + 0x44) != (uint32_t)h.tag) return 0;
+
+    typedef void (ABI *DrawWeaponFn)(void *, int32_t);
+    DrawWeaponFn draw_fn = (DrawWeaponFn)vtable[0xA0 / 8];
+    if (draw_fn) {
+        draw_fn(inv, draw_mode);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSetPlayerInfiniteAmmo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090BA80: (set-player-infinite-ammo [bool]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t enabled = 0;
+    if (argc > 0 && argv) {
+        enabled = (argv[0] != 0) ? 1 : 0;
+    }
+
+    void **mgr_ptr = (void **)(uintptr_t)(g_u2_image_base + 0x01161EE8ull);
+    if (!mgr_ptr || !*mgr_ptr) return 0;
+    void *mgr = *mgr_ptr;
+
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CDC8ull);
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104F84Aull);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    void *obj = prop_fn ? prop_fn(0, str_arg, &enabled, 1, t1, t2, mgr) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] |= 0x02;
+        *(uint32_t *)(b + 0x20) = 2;
+    }
+    return 0;
 }
 
 /* Table of detours provided by this module */
@@ -533,7 +613,9 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcPlayerInCombatP", 0x0090DC20, (uintptr_t)detour_DcPlayerInCombatP },
     { "DcPlayerHangingOnBarP", 0x0090AB80, (uintptr_t)detour_DcPlayerHangingOnBarP },
     { "DcGetPlayerClipPercentFull", 0x005DCE00, (uintptr_t)detour_DcGetPlayerClipPercentFull },
-    { "DcNpcInMeleeWithPlayerP", 0x002E0050, (uintptr_t)detour_DcNpcInMeleeWithPlayerP },
+    { "DcRemovePlayerWeapon", 0x00906E10, (uintptr_t)detour_DcRemovePlayerWeapon },
+    { "DcPlayerInstantDrawWeapon", 0x0090DDE0, (uintptr_t)detour_DcPlayerInstantDrawWeapon },
+    { "DcSetPlayerInfiniteAmmo", 0x0090BA80, (uintptr_t)detour_DcSetPlayerInfiniteAmmo },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {
