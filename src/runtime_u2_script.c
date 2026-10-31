@@ -1637,6 +1637,128 @@ static int64_t ABI detour_DcPlayerHangingOnBarP(int32_t argc, uint64_t *argv, ui
 }
 
 /* ============================================================================
+ * Wave 8 Detours: Camera Backward Motion, NPC Life Status & Weapon Inventory
+ * ============================================================================ */
+
+static int64_t ABI detour_DcCameraMovedBackwardsP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0DC40: (camera-moved-backwards? [threshold]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float threshold = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : *(const float *)(g_u2_image_base + 0x00E673B4ull);
+    const uint8_t *cam_ptr = *(const uint8_t **)(g_u2_image_base + 0x0147F020ull);
+    if (!cam_ptr) return 0;
+    const uint8_t *cam = *(const uint8_t **)cam_ptr;
+    if (!cam) return 0;
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0147F028ull);
+    if (*(const uint32_t *)(cam + 0x44) != expected_tag) return 0;
+    if (*(const uint32_t *)(cam + 0x7C) != 0x58D01CCEu) return 0;
+    float back_dist = *(const float *)(cam + 0x0A14);
+    return (back_dist > threshold) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcNpcAliveP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD900: (npc-alive? [npc-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) {
+        npc_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    if (npc_id == 0) return 0;
+    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
+    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
+    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
+    if (!npc) {
+        if (*(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+            typedef void * (ABI *GetEntityFn)(uint32_t);
+            GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+            npc = get_ent ? get_ent(npc_id) : NULL;
+            if (npc) {
+                uint32_t flags = (uint32_t)*(const uint8_t *)((const uint8_t *)npc + 0x36) << 16;
+                if ((flags & 0x40000) == 0) return 0;
+            }
+        }
+        if (!npc) return 0;
+    }
+    typedef uint8_t (ABI *IsDeadFn)(void *);
+    const void *vtable = *(const void **)npc;
+    if (!vtable) return 0;
+    IsDeadFn is_dead = *(IsDeadFn *)((const uint8_t *)vtable + 0x250);
+    if (!is_dead) return 0;
+    return is_dead(npc) ? 0 : 1;
+}
+
+static int64_t ABI detour_DcNpcKilledP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD990: (npc-killed? [npc-id]) */
+    int64_t alive = detour_DcNpcAliveP(argc, argv, status);
+    return alive ? 0 : 1;
+}
+
+static int64_t ABI detour_DcNpcSetCanDie(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD410: (npc-set-can-die [npc-id] can-die?) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    uint8_t can_die = 0;
+    if (argc >= 2 && argv) {
+        npc_id = (uint32_t)argv[0];
+        can_die = (argv[1] != 0) ? 1 : 0;
+    } else if (argc == 1 && argv) {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+        can_die = (argv[0] != 0) ? 1 : 0;
+    }
+    if (npc_id == 0) return 0;
+    typedef void * (ABI *GetNpcFn)(void *, uint32_t);
+    GetNpcFn get_npc = (GetNpcFn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_mgr = (void *)(g_u2_image_base + 0x0110DCB8ull);
+    void *npc = get_npc ? get_npc(npc_mgr, npc_id) : NULL;
+    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+        typedef void * (ABI *GetEntityFn)(uint32_t);
+        GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        npc = get_ent ? get_ent(npc_id) : NULL;
+    }
+    if (!npc) return 0;
+    const uint8_t *health_comp = *(const uint8_t **)((const uint8_t *)npc + 0x1F0);
+    if (!health_comp) return 0;
+    typedef void (ABI *SetCanDieFn)(const void *, uint8_t);
+    const void *vtable = *(const void **)health_comp;
+    if (!vtable) return 0;
+    SetCanDieFn fn = *(SetCanDieFn *)((const uint8_t *)vtable + 0x98);
+    if (fn) fn(health_comp, can_die);
+    return 0;
+}
+
+static int64_t ABI detour_DcWeaponSetReset(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090AD00: (weapon-set-reset) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void * (ABI *EvalSymFn)(uint32_t);
+    EvalSymFn eval_sym = (EvalSymFn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
+    if (eval_sym) {
+        const void *src = eval_sym(0x459D0E4Eu);
+        if (src) {
+            memcpy((void *)(g_u2_image_base + 0x0153E1A0ull), src, 15 * sizeof(uint64_t));
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcInvalidStringId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDE50: (invalid-string-id) -> 0 */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+/* ============================================================================
  * 3. Opcode Table (80 opcodes: 0x00 .. 0x4F at jump table 0x00A14DA4)
  * ============================================================================ */
 
@@ -2730,6 +2852,22 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         { "DcGetPlayerSpeed", 0x00910020, (uintptr_t)detour_DcGetPlayerSpeed },
         { "DcPlayerInCombatP", 0x0090DC20, (uintptr_t)detour_DcPlayerInCombatP },
         { "DcPlayerHangingOnBarP", 0x0090AB80, (uintptr_t)detour_DcPlayerHangingOnBarP },
+
+        /* Wave 8: Camera Backward Motion, NPC Life Status & Weapon Inventory */
+        { "DcCameraMovedBackwardsP", 0x00A0DC40, (uintptr_t)detour_DcCameraMovedBackwardsP },
+        { "DcNpcAliveP", 0x002DD900, (uintptr_t)detour_DcNpcAliveP },
+        { "DcNpcKilledP", 0x002DD990, (uintptr_t)detour_DcNpcKilledP },
+        { "DcNpcSetCanDie", 0x002DD410, (uintptr_t)detour_DcNpcSetCanDie },
+        { "DcWeaponSetReset", 0x0090AD00, (uintptr_t)detour_DcWeaponSetReset },
+        { "DcInvalidStringId", 0x009FDE50, (uintptr_t)detour_DcInvalidStringId },
+        { "DcPrintPoint", 0x00A10290, (uintptr_t)detour_DcPrintNoOp },
+        { "DcPrintSymbol", 0x00A10280, (uintptr_t)detour_DcPrintNoOp },
+        { "DcOceanBobEnable", 0x00A033A0, (uintptr_t)detour_DcNoOp0 },
+        { "DcOceanBobDisable", 0x00A03390, (uintptr_t)detour_DcNoOp0 },
+        { "DcDisplay", 0x009FD000, (uintptr_t)detour_DcNoOp0 },
+        { "DcDisplayInt", 0x009FCFF0, (uintptr_t)detour_DcNoOp0 },
+        { "DcMessage", 0x005DC620, (uintptr_t)detour_DcNoOp0 },
+        { "DcAnimStateAdvancePhase", 0x00397690, (uintptr_t)detour_DcNoOp0 },
     };
 
     size_t installed = 0;
