@@ -2718,6 +2718,100 @@ static int64_t ABI detour_DcHeliEnableWind(int32_t argc, uint64_t *argv, uint32_
     return 1;
 }
 
+
+static int64_t ABI detour_DcUseReflections(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02C10: (use-reflections flag) */
+    (void)status;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x01164980ull) = (uint8_t)flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcUseVisibleWaterUnitForReflection(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02BC0: (use-visible-water-unit-for-reflection flag) */
+    (void)status;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(g_u2_image_base + 0x01164981ull) = (uint8_t)flag;
+    return 0;
+}
+
+static int64_t ABI detour_DcUseWaterUnitForReflection(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02C70: (use-water-unit-for-reflection unit-idx flag) */
+    (void)status;
+    if (!g_u2_image_base) return 0;
+    if (argc >= 2 && argv) {
+        int32_t idx = (int32_t)argv[0];
+        int32_t flag = (argv[1] != 0) ? 1 : 0;
+        if (idx >= 0 && idx < 16) {
+            *(uint8_t *)(g_u2_image_base + 0x01164982ull + idx) = (uint8_t)flag;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcUseRainIntensityValues(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A031C0: (use-rain-intensity-values ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcUseWindIntensityValues(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03290: (use-wind-intensity-values ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcKillAllBreakables(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F260: (kill-all-breakables) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *scene_mgr = *(const uint8_t * const *)(g_u2_image_base + 0x0115F1A0ull + 0xc58);
+    if (!scene_mgr) return 0;
+    typedef void (ABI *kill_fn)(const void *, uint32_t);
+    kill_fn fn = (kill_fn)(uintptr_t)(g_u2_image_base + 0x0088BC10ull);
+    if (fn) fn(scene_mgr, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcKillAllDroppedWeapons(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F1B0: (kill-all-dropped-weapons) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *weapon_mgr = *(const uint8_t * const *)(g_u2_image_base + 0x0115F1A0ull + 0xc90);
+    if (!weapon_mgr) return 0;
+    typedef void (ABI *kill_fn)(const void *);
+    kill_fn fn = (kill_fn)(uintptr_t)(g_u2_image_base + 0x00898510ull);
+    if (fn) fn(weapon_mgr);
+    return 0;
+}
+
+static int64_t ABI detour_DcKillAllAttachables(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009F2BF0: (kill-all-attachables) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcKillPlayerFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A920: (kill-player-flashlight) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcKillSullivanFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A750: (kill-sullivan-flashlight) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -2907,6 +3001,16 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcHeliAnimateGun", 0x00A7ECD0, (uintptr_t)detour_DcHeliAnimateGun },
     { "DcHeliSetBasePitch", 0x00A7EC00, (uintptr_t)detour_DcHeliSetBasePitch },
     { "DcHeliEnableWind", 0x00A7EB60, (uintptr_t)detour_DcHeliEnableWind },
+    { "DcUseReflections", 0x00A02C10, (uintptr_t)detour_DcUseReflections },
+    { "DcUseVisibleWaterUnitForReflection", 0x00A02BC0, (uintptr_t)detour_DcUseVisibleWaterUnitForReflection },
+    { "DcUseWaterUnitForReflection", 0x00A02C70, (uintptr_t)detour_DcUseWaterUnitForReflection },
+    { "DcUseRainIntensityValues", 0x00A031C0, (uintptr_t)detour_DcUseRainIntensityValues },
+    { "DcUseWindIntensityValues", 0x00A03290, (uintptr_t)detour_DcUseWindIntensityValues },
+    { "DcKillAllBreakables", 0x00A0F260, (uintptr_t)detour_DcKillAllBreakables },
+    { "DcKillAllDroppedWeapons", 0x00A0F1B0, (uintptr_t)detour_DcKillAllDroppedWeapons },
+    { "DcKillAllAttachables", 0x009F2BF0, (uintptr_t)detour_DcKillAllAttachables },
+    { "DcKillPlayerFlashlight", 0x00A0A920, (uintptr_t)detour_DcKillPlayerFlashlight },
+    { "DcKillSullivanFlashlight", 0x00A0A750, (uintptr_t)detour_DcKillSullivanFlashlight },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

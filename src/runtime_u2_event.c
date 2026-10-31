@@ -370,6 +370,119 @@ static int64_t ABI detour_DcNetEndWave(int32_t argc, uint64_t *argv, uint32_t *s
     return 0;
 }
 
+
+static int64_t ABI detour_DcEventObjectDamage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C3610: (event-object-damage) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    float dmg = *(const float *)(frame + 0x24);
+    return (int64_t)u2_f32_to_reg(dmg);
+}
+
+static int64_t ABI detour_DcEventLevelP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C34C0: (event-level? level-name) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEventAttackTypeP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C38A0: (event-attack-type? [type]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventAttackSourceP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C3730: (event-attack-source? [source]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventGetAttackInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C3D50: (event-get-attack-info) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcTaskNodeActiveP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10340: (task-node-active? task node) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcTaskElapsedTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A102B0: (task-elapsed-time task) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return (int64_t)u2_f32_to_reg(0.0f);
+}
+
+static int64_t ABI detour_DcTaskSubnodeComplete(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FECA0: (task-subnode-complete task node) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcTaskSubnodePlay(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEC00: (task-subnode-play task node) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcTaskFind(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEB90: (task-find task-name) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcTagSpecifiedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43DE0: (tag-specified? [tag-list] [tag-symbol]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcTagSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43C90: (tag-symbol [tag-list] [tag-symbol] [default]) */
+    if (status) *status = 0;
+    if (argc >= 3 && argv) return (int64_t)argv[2];
+    return 0;
+}
+
+static int64_t ABI detour_DcTagString(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43B40: (tag-string [tag-list] [tag-symbol] [default]) */
+    if (status) *status = 0;
+    if (argc >= 3 && argv) return (int64_t)argv[2];
+    return 0;
+}
+
+static int64_t ABI detour_DcTagFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A439D0: (tag-float [tag-list] [tag-symbol] [default]) */
+    if (status) *status = 0;
+    if (argc >= 3 && argv) return (int64_t)argv[2];
+    return (int64_t)u2_f32_to_reg(0.0f);
+}
+
+static int64_t ABI detour_DcTagInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43880: (tag-int32 [tag-list] [tag-symbol] [default]) */
+    if (status) *status = 0;
+    if (argc >= 3 && argv) return (int64_t)argv[2];
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -407,6 +520,21 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcNetGetBoosterEnabled", 0x00668810, (uintptr_t)detour_DcNetGetBoosterEnabled },
     { "DcNetGetGrappleTime", 0x006687F0, (uintptr_t)detour_DcNetGetGrappleTime },
     { "DcNetEndWave", 0x006687E0, (uintptr_t)detour_DcNetEndWave },
+    { "DcEventObjectDamage", 0x004C3610, (uintptr_t)detour_DcEventObjectDamage },
+    { "DcEventLevelP", 0x004C34C0, (uintptr_t)detour_DcEventLevelP },
+    { "DcEventAttackTypeP", 0x004C38A0, (uintptr_t)detour_DcEventAttackTypeP },
+    { "DcEventAttackSourceP", 0x004C3730, (uintptr_t)detour_DcEventAttackSourceP },
+    { "DcEventGetAttackInfo", 0x004C3D50, (uintptr_t)detour_DcEventGetAttackInfo },
+    { "DcTaskNodeActiveP", 0x00A10340, (uintptr_t)detour_DcTaskNodeActiveP },
+    { "DcTaskElapsedTime", 0x00A102B0, (uintptr_t)detour_DcTaskElapsedTime },
+    { "DcTaskSubnodeComplete", 0x009FECA0, (uintptr_t)detour_DcTaskSubnodeComplete },
+    { "DcTaskSubnodePlay", 0x009FEC00, (uintptr_t)detour_DcTaskSubnodePlay },
+    { "DcTaskFind", 0x009FEB90, (uintptr_t)detour_DcTaskFind },
+    { "DcTagSpecifiedP", 0x00A43DE0, (uintptr_t)detour_DcTagSpecifiedP },
+    { "DcTagSymbol", 0x00A43C90, (uintptr_t)detour_DcTagSymbol },
+    { "DcTagString", 0x00A43B40, (uintptr_t)detour_DcTagString },
+    { "DcTagFloat", 0x00A439D0, (uintptr_t)detour_DcTagFloat },
+    { "DcTagInt32", 0x00A43880, (uintptr_t)detour_DcTagInt32 },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
