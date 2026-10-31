@@ -483,6 +483,49 @@ static int64_t ABI detour_DcTagInt32(int32_t argc, uint64_t *argv, uint32_t *sta
     return 0;
 }
 
+
+static int64_t ABI detour_DcGroupCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00549810: (group-count group-id) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupSpawnedCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00549BF0: (group-spawned-count group-id) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0054A6B0: (group-at group-id index) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupAnd(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0054AFD0: (group-and group-a group-b) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupOr(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0054A760: (group-or group-a group-b) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupIsMemberSymbolP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0054A250: (group-is-member-symbol? group symbol) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -535,6 +578,12 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcTagString", 0x00A43B40, (uintptr_t)detour_DcTagString },
     { "DcTagFloat", 0x00A439D0, (uintptr_t)detour_DcTagFloat },
     { "DcTagInt32", 0x00A43880, (uintptr_t)detour_DcTagInt32 },
+    { "DcGroupCount", 0x00549810, (uintptr_t)detour_DcGroupCount },
+    { "DcGroupSpawnedCount", 0x00549BF0, (uintptr_t)detour_DcGroupSpawnedCount },
+    { "DcGroupAt", 0x0054A6B0, (uintptr_t)detour_DcGroupAt },
+    { "DcGroupAnd", 0x0054AFD0, (uintptr_t)detour_DcGroupAnd },
+    { "DcGroupOr", 0x0054A760, (uintptr_t)detour_DcGroupOr },
+    { "DcGroupIsMemberSymbolP", 0x0054A250, (uintptr_t)detour_DcGroupIsMemberSymbolP },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

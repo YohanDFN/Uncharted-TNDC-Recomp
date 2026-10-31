@@ -1061,6 +1061,35 @@ static int64_t ABI detour_DcNpcSetAccuracyMultiplier(int32_t argc, uint64_t *arg
     return 1;
 }
 
+
+static int64_t ABI detour_DcGrenadeDirectorEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0069BAB0: (grenade-director-enable [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGrenadeDirectorDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0069BA40: (grenade-director-disable) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGrenadeDirectorIsEnabledP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0069B9C0: (grenade-director-is-enabled?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGrenadeDirectorChangeSettings(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0069B910: (grenade-director-change-settings ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -1128,6 +1157,10 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcAttachToBattleManager", 0x002E0530, (uintptr_t)detour_DcNpcAttachToBattleManager },
     { "DcNpcSetCommGroupId", 0x002E0430, (uintptr_t)detour_DcNpcSetCommGroupId },
     { "DcNpcSetAccuracyMultiplier", 0x002E00F0, (uintptr_t)detour_DcNpcSetAccuracyMultiplier },
+    { "DcGrenadeDirectorEnable", 0x0069BAB0, (uintptr_t)detour_DcGrenadeDirectorEnable },
+    { "DcGrenadeDirectorDisable", 0x0069BA40, (uintptr_t)detour_DcGrenadeDirectorDisable },
+    { "DcGrenadeDirectorIsEnabledP", 0x0069B9C0, (uintptr_t)detour_DcGrenadeDirectorIsEnabledP },
+    { "DcGrenadeDirectorChangeSettings", 0x0069B910, (uintptr_t)detour_DcGrenadeDirectorChangeSettings },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

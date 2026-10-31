@@ -2812,6 +2812,130 @@ static int64_t ABI detour_DcKillSullivanFlashlight(int32_t argc, uint64_t *argv,
     return 0;
 }
 
+
+static int64_t ABI detour_DcCalcNewPhaseFromSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FBF0: (calc-new-phase-from-speed ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return (int64_t)u2_f32_to_reg(0.0f);
+}
+
+static int64_t ABI detour_DcCalcStartPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FB70: (calc-start-phase ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return (int64_t)u2_f32_to_reg(0.0f);
+}
+
+static int64_t ABI detour_DcCalcStartPhaseMaxFrames(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FAF0: (calc-start-phase-max-frames ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return (int64_t)u2_f32_to_reg(0.0f);
+}
+
+static int64_t ABI detour_DcCalcStartPhaseRange(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FA70: (calc-start-phase-range ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return (int64_t)u2_f32_to_reg(0.0f);
+}
+
+static int64_t ABI detour_DcMakeCharacterMoreWet(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A023C0: (make-character-more-wet [character] amount) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcMakeActiveCharacterMoreWet(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A020E0: (make-active-character-more-wet amount) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcMakeVector(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDCF0: (make-vector [x] [y] [z] [w]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void *(ABI *alloc_fn)(uint32_t, uint32_t);
+    alloc_fn alloc_v = (alloc_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    float *v = alloc_v ? (float *)alloc_v(16, 16) : NULL;
+    if (v) {
+        v[0] = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 0.0f;
+        v[1] = (argc > 1 && argv) ? u2_reg_to_f32(argv[1]) : 0.0f;
+        v[2] = (argc > 2 && argv) ? u2_reg_to_f32(argv[2]) : 0.0f;
+        v[3] = (argc > 3 && argv) ? u2_reg_to_f32(argv[3]) : 1.0f;
+    }
+    return (int64_t)(uintptr_t)v;
+}
+
+static int64_t ABI detour_DcMakeVector3(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDC20: (make-vector-3 [x] [y] [z]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void *(ABI *alloc_fn)(uint32_t, uint32_t);
+    alloc_fn alloc_v = (alloc_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    float *v = alloc_v ? (float *)alloc_v(16, 16) : NULL;
+    if (v) {
+        v[0] = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 0.0f;
+        v[1] = (argc > 1 && argv) ? u2_reg_to_f32(argv[1]) : 0.0f;
+        v[2] = (argc > 2 && argv) ? u2_reg_to_f32(argv[2]) : 0.0f;
+        v[3] = 0.0f;
+    }
+    return (int64_t)(uintptr_t)v;
+}
+
+static int64_t ABI detour_DcDebugDrawLine(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE090: (debug-draw-line p0 p1 [color]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcDebugDrawCross(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE070: (debug-draw-cross pt [radius] [color]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcDebugDrawLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE000: (debug-draw-locator loc [color]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcDebugDrawString(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDFB0: (debug-draw-string str pt [color]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcAddImportModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FF10: (add-import-module mod-name) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcAddLoadModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FE90: (add-load-module mod-name) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcAddDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF2C0: (add-dynamic-light ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -3011,6 +3135,21 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcKillAllAttachables", 0x009F2BF0, (uintptr_t)detour_DcKillAllAttachables },
     { "DcKillPlayerFlashlight", 0x00A0A920, (uintptr_t)detour_DcKillPlayerFlashlight },
     { "DcKillSullivanFlashlight", 0x00A0A750, (uintptr_t)detour_DcKillSullivanFlashlight },
+    { "DcCalcNewPhaseFromSpeed", 0x00A0FBF0, (uintptr_t)detour_DcCalcNewPhaseFromSpeed },
+    { "DcCalcStartPhase", 0x00A0FB70, (uintptr_t)detour_DcCalcStartPhase },
+    { "DcCalcStartPhaseMaxFrames", 0x00A0FAF0, (uintptr_t)detour_DcCalcStartPhaseMaxFrames },
+    { "DcCalcStartPhaseRange", 0x00A0FA70, (uintptr_t)detour_DcCalcStartPhaseRange },
+    { "DcMakeCharacterMoreWet", 0x00A023C0, (uintptr_t)detour_DcMakeCharacterMoreWet },
+    { "DcMakeActiveCharacterMoreWet", 0x00A020E0, (uintptr_t)detour_DcMakeActiveCharacterMoreWet },
+    { "DcMakeVector", 0x009FDCF0, (uintptr_t)detour_DcMakeVector },
+    { "DcMakeVector3", 0x009FDC20, (uintptr_t)detour_DcMakeVector3 },
+    { "DcDebugDrawLine", 0x009FE090, (uintptr_t)detour_DcDebugDrawLine },
+    { "DcDebugDrawCross", 0x009FE070, (uintptr_t)detour_DcDebugDrawCross },
+    { "DcDebugDrawLocator", 0x009FE000, (uintptr_t)detour_DcDebugDrawLocator },
+    { "DcDebugDrawString", 0x009FDFB0, (uintptr_t)detour_DcDebugDrawString },
+    { "DcAddImportModule", 0x00A0FF10, (uintptr_t)detour_DcAddImportModule },
+    { "DcAddLoadModule", 0x00A0FE90, (uintptr_t)detour_DcAddLoadModule },
+    { "DcAddDynamicLight", 0x009FF2C0, (uintptr_t)detour_DcAddDynamicLight },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
