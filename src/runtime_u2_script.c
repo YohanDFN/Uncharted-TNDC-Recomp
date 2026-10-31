@@ -982,6 +982,75 @@ static void init_dummy_generic_module_obj(void) {
     }
 }
 
+static const char s_dummy_art_group[8] = "ak47";
+
+static struct {
+    uint8_t pad[0x58];
+    const char *m_artGroup;
+} s_dummy_weapon_def;
+
+static struct {
+    uint32_t sym_id;
+    uint32_t pad04;
+    void    *pWeaponDef;
+} s_dummy_weapon_entry;
+
+static struct {
+    uint32_t count;
+    uint32_t pad04;
+    void    *entries;
+} s_dummy_weapon_table;
+static int s_dummy_weapon_table_inited = 0;
+
+static void init_dummy_weapon_table(void) {
+    if (!s_dummy_weapon_table_inited) {
+        memset(&s_dummy_weapon_def, 0, sizeof(s_dummy_weapon_def));
+        s_dummy_weapon_def.m_artGroup = s_dummy_art_group;
+
+        s_dummy_weapon_entry.sym_id = 0x365A20DE;
+        s_dummy_weapon_entry.pad04 = 0;
+        s_dummy_weapon_entry.pWeaponDef = &s_dummy_weapon_def;
+
+        s_dummy_weapon_table.count = 1;
+        s_dummy_weapon_table.pad04 = 0;
+        s_dummy_weapon_table.entries = &s_dummy_weapon_entry;
+
+        s_dummy_weapon_table_inited = 1;
+    }
+}
+
+static struct {
+    uint32_t count;
+    uint32_t pad04;
+    void    *entries;
+    uint8_t  pad10[0x100];
+} s_dummy_zero_table;
+static int s_dummy_zero_table_inited = 0;
+
+static void init_dummy_zero_table(void) {
+    if (!s_dummy_zero_table_inited) {
+        memset(&s_dummy_zero_table, 0, sizeof(s_dummy_zero_table));
+        s_dummy_zero_table.count = 0;
+        s_dummy_zero_table.entries = &s_dummy_zero_table;
+        s_dummy_zero_table_inited = 1;
+    }
+}
+
+static struct {
+    void *ptrs[128];
+} s_dummy_module_table_ref;
+static int s_dummy_module_table_ref_inited = 0;
+
+static void init_dummy_module_table_ref(void) {
+    if (!s_dummy_module_table_ref_inited) {
+        init_dummy_zero_table();
+        for (size_t i = 0; i < 128; ++i) {
+            s_dummy_module_table_ref.ptrs[i] = &s_dummy_zero_table;
+        }
+        s_dummy_module_table_ref_inited = 1;
+    }
+}
+
 /* SysV-ABI replacement for LookupPointer (0x00A15E70) */
 static void * ABI detour_LookupPointer(uint32_t sym_id) {
     if (!g_u2_image_base) return NULL;
@@ -996,6 +1065,21 @@ static void * ABI detour_LookupPointer(uint32_t sym_id) {
     if (sym_id == 0xCD0FBE5A) {
         init_dummy_decal();
         return &s_dummy_decal;
+    }
+
+    if (sym_id == 0x74BFA7D0 || sym_id == 0x74FFCEEB ||
+        sym_id == 0x7805BEB9 || sym_id == 0x0DEC97A4 ||
+        sym_id == 0xB4BCCE62 || sym_id == 0x76E08710 ||
+        sym_id == 0x9A091ADD || sym_id == 0x6E51B48F ||
+        sym_id == 0x459D0E4E || sym_id == 0x1020810B ||
+        sym_id == 0x5EB35427) {
+        init_dummy_zero_table();
+        return &s_dummy_zero_table;
+    }
+
+    if (sym_id == 0x0A2E5BED) {
+        init_dummy_weapon_table();
+        return &s_dummy_weapon_table;
     }
 
     /* Missing symbol fallback: do not trigger int $0x41 assertion crash */
@@ -1019,9 +1103,23 @@ static void * ABI detour_LookupPointerInModule(uint32_t sym_id, uint32_t mod_id)
         return &s_dummy_generic_module_obj;
     }
 
+    if (sym_id == 0x6E51B48F || mod_id == 0x67723261) {
+        init_dummy_module_table_ref();
+        return &s_dummy_module_table_ref;
+    }
+
+    if (sym_id == 0x35DC6ECE) {
+        init_dummy_zero_table();
+        return &s_dummy_zero_table;
+    }
+
     /* Missing symbol fallback: do not trigger int $0x41 assertion crash */
     return NULL;
 }
+
+static struct {
+    uint8_t pad[0x400];
+} s_dummy_hud_sub_obj;
 
 /* SysV-ABI replacement for Hud::ReadConfigFile (0x00552C70):
  * Safely initializes HUD material tables when hud.bin is inside PSARC archive
@@ -1033,6 +1131,52 @@ static void ABI detour_Hud_ReadConfigFile(void *hud) {
     *(uint32_t *)(h + 0x108) = 0;
     memset(h + 0x88, 0, 0x80);
     memset(h + 0x110, 0, 0x200);
+    memset(&s_dummy_hud_sub_obj, 0, sizeof(s_dummy_hud_sub_obj));
+    *(void **)(h + 0x310) = &s_dummy_hud_sub_obj;
+}
+
+/* SysV-ABI replacement for Entity::UpdateExtents (0x00415700):
+ * Bounds check before dereferencing virtual method GetBounds (*0x148)
+ */
+static void ABI detour_Entity_UpdateExtents(void *this_ptr, void *arg_rsi) {
+    if (!this_ptr) return;
+    uint8_t *obj = (uint8_t *)this_ptr;
+
+    uint64_t rax = 0;
+    uint32_t ecx = 0;
+    if (arg_rsi) {
+        rax = *(uint64_t *)((uint8_t *)arg_rsi + 0x38);
+        ecx = *(uint32_t *)((uint8_t *)arg_rsi + 0x44);
+    }
+    *(uint64_t *)(obj + 0x88) = rax;
+    *(uint32_t *)(obj + 0x90) = ecx;
+    *(uint64_t *)(obj + 0x98) = 0;
+    obj[0x35] |= 0x40;
+
+    void **vtable = *(void ***)obj;
+    if (!vtable) return;
+
+    typedef void * (ABI *GetBoundsFn)(void *this_p);
+    GetBoundsFn getBounds = (GetBoundsFn)vtable[0x148 / sizeof(void *)];
+    if (!getBounds) return;
+
+    void *bounds = getBounds(this_ptr);
+    if (!bounds) {
+        memset(obj + 0x12c, 0, 24);
+        return;
+    }
+
+    const float *max_pt = (const float *)((uint8_t *)bounds + 0x10);
+    *(float *)(obj + 0x138) = max_pt[0];
+    *(float *)(obj + 0x13c) = max_pt[1];
+    *(float *)(obj + 0x140) = max_pt[2];
+
+    void *bounds2 = getBounds(this_ptr);
+    if (!bounds2) return;
+    const float *min_pt = (const float *)((uint8_t *)bounds2 + 0x00);
+    *(float *)(obj + 0x12c) = min_pt[0];
+    *(float *)(obj + 0x130) = min_pt[1];
+    *(float *)(obj + 0x134) = min_pt[2];
 }
 
 static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size) {
@@ -1127,6 +1271,49 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     ++installed;
     write_detour_jmp64(image + 0x00552C70, (uintptr_t)detour_Hud_ReadConfigFile);
     ++installed;
+    write_detour_jmp64(image + 0x00415700, (uintptr_t)detour_Entity_UpdateExtents);
+    ++installed;
+
+    if (image_size > 0x1130008 + 0x318) {
+        memset(&s_dummy_hud_sub_obj, 0, sizeof(s_dummy_hud_sub_obj));
+        *(void **)(image + 0x1130008 + 0x310) = &s_dummy_hud_sub_obj;
+    }
+
+    /* Patch 0x003C03E7: skip 8-iteration table scan when r13 is NULL to avoid fault at 0x3c0400 */
+    if (image_size > 0x003C03E7 + 25) {
+        static const uint8_t s_patch_3c03e7[25] = {
+            0x4d, 0x85, 0xed,                               /* testq %r13, %r13 */
+            0x74, 0x4a,                                     /* je 0x3c0436 */
+            0x49, 0x83, 0xc5, 0x08,                         /* addq $0x8, %r13 */
+            0xc5, 0xfa, 0x10, 0x05, 0x08, 0xf5, 0xa9, 0x00, /* vmovss 0xa9f508(%rip), %xmm0 */
+            0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00  /* nopl (%rax,%rax) */
+        };
+        memcpy(image + 0x003C03E7, s_patch_3c03e7, sizeof(s_patch_3c03e7));
+        ++installed;
+    }
+
+    /* Patch 0x009F20B5: skip uninitialized hash table divide-by-zero (0xc0000094) and take fallback 0x9f20ec */
+    if (image_size > 0x009F20B5 + 11) {
+        static const uint8_t s_patch_9f20b5[11] = {
+            0xeb, 0x35,                                     /* jmp 0x9f20ec */
+            0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00,       /* 7-byte nopl (%rax) */
+            0x66, 0x90                                      /* 2-byte nop */
+        };
+        memcpy(image + 0x009F20B5, s_patch_9f20b5, sizeof(s_patch_9f20b5));
+        ++installed;
+    }
+
+    /* Patch 0x00A578D2: zero accessory outputs when rbx is NULL to prevent fault at 0x88(rbx) */
+    if (image_size > 0x00A578D2 + 13) {
+        static const uint8_t s_patch_a578d2[13] = {
+            0x31, 0xf6,                                     /* xorl %esi, %esi */
+            0x31, 0xc9,                                     /* xorl %ecx, %ecx */
+            0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, /* 8-byte nopl (%rax,%rax) */
+            0x90                                            /* 1-byte nop */
+        };
+        memcpy(image + 0x00A578D2, s_patch_a578d2, sizeof(s_patch_a578d2));
+        ++installed;
+    }
 
     const char *native_vm_env = getenv("BB_U2_NATIVE_VM");
     const int enable_native_vm = (native_vm_env && *native_vm_env && *native_vm_env != '0');
