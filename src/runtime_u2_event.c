@@ -858,6 +858,130 @@ static int64_t ABI detour_DcStopRumble(int32_t argc, uint64_t *argv, uint32_t *s
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 25: Tasks, Save, Journal, Script VM & Signals (17 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcTaskFailed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE900: (task-failed [task] [reason]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGameTaskGraphLogin(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE8F0: (game-task-graph-login) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUpdateTaskMenu(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE8C0: (update-task-menu) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcAutoSaveGame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE820: (auto-save-game) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDifficultyInterp(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDAD0: (difficulty-interp easy med hard crushing) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcJournalSetPage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD130: (journal-set-page page) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSsError(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A44670: (ss-error msg ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSpawnScript(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A44460: (spawn-script script ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEndScript(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A44190: (end-script script) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcJump(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43ED0: (jump label) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcTagBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43700: (tag-boolean tag val) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSignal(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40480: (signal sig [target] [val]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSignalRaisedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40220: (signal-raised? sig [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcForgetSignal(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3FF40: (forget-signal sig [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcOfferContextualEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3FB60: (offer-contextual-entity entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcOfferContextualProcess(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3FA50: (offer-contextual-process proc) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRemoveContextualEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3F960: (remove-contextual-entity entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -956,6 +1080,24 @@ static const U2NativeDetour s_event_detours[] = {
     /* Lot 24: Rumble Controls (2 funcs) */
     { "DcStartRumble", 0x009FF3D0, (uintptr_t)detour_DcStartRumble },
     { "DcStopRumble", 0x009FF370, (uintptr_t)detour_DcStopRumble },
+    /* Lot 25: Tasks, Save, Journal, Script VM & Signals (17 funcs) */
+    { "DcTaskFailed", 0x009FE900, (uintptr_t)detour_DcTaskFailed },
+    { "DcGameTaskGraphLogin", 0x009FE8F0, (uintptr_t)detour_DcGameTaskGraphLogin },
+    { "DcUpdateTaskMenu", 0x009FE8C0, (uintptr_t)detour_DcUpdateTaskMenu },
+    { "DcAutoSaveGame", 0x009FE820, (uintptr_t)detour_DcAutoSaveGame },
+    { "DcDifficultyInterp", 0x009FDAD0, (uintptr_t)detour_DcDifficultyInterp },
+    { "DcJournalSetPage", 0x009FD130, (uintptr_t)detour_DcJournalSetPage },
+    { "DcSsError", 0x00A44670, (uintptr_t)detour_DcSsError },
+    { "DcSpawnScript", 0x00A44460, (uintptr_t)detour_DcSpawnScript },
+    { "DcEndScript", 0x00A44190, (uintptr_t)detour_DcEndScript },
+    { "DcJump", 0x00A43ED0, (uintptr_t)detour_DcJump },
+    { "DcTagBoolean", 0x00A43700, (uintptr_t)detour_DcTagBoolean },
+    { "DcSignal", 0x00A40480, (uintptr_t)detour_DcSignal },
+    { "DcSignalRaisedP", 0x00A40220, (uintptr_t)detour_DcSignalRaisedP },
+    { "DcForgetSignal", 0x00A3FF40, (uintptr_t)detour_DcForgetSignal },
+    { "DcOfferContextualEntity", 0x00A3FB60, (uintptr_t)detour_DcOfferContextualEntity },
+    { "DcOfferContextualProcess", 0x00A3FA50, (uintptr_t)detour_DcOfferContextualProcess },
+    { "DcRemoveContextualEntity", 0x00A3F960, (uintptr_t)detour_DcRemoveContextualEntity },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

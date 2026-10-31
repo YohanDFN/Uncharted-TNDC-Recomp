@@ -4686,6 +4686,137 @@ static int64_t ABI detour_DcSpawnExplosionNpcOnly(int32_t argc, uint64_t *argv, 
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 25: Dynamic Lights, Spawning State, HUD Messages, Particles,
+           Splines, Modules & Pure Engine Symbols (27 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcAddDynamicLightJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF010: (add-dynamic-light-joint light entity joint) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUpdateDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEEE0: (update-dynamic-light light) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRemoveDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEDF0: (remove-dynamic-light light) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLevelsFullySpawnedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE5E0: (levels-fully-spawned?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLevelsFullySpawnedIgnorePlayerP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE400: (levels-fully-spawned-ignore-player?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDisplayMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE140: (display-message msg [time] [pos]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcStringFromFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDE60: (string-from-float val [precision]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcMakeInert(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD850: (make-inert entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcIsOnScreen(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD200: (is-on-screen entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcTranslateYLoop(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FC590: (translate-y-loop entity min max speed) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcScanParticleDirectories(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A19360: (scan-particle-directories) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcReloadModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A19200: (reload-module mod) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcReloadParticleModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A19180: (reload-particle-module mod) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSplineLocatorAtDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00EA2315: (spline-locator-at-distance spline dist) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLayerToScriptControllerIndices(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00EA2F7E: (layer-to-script-controller-indices layer) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSplineDistanceVehicleAnimation(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8640: (spline-distance-vehicle-animation veh dist) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+/* 11 pure Lisp engine symbols */
+static int64_t ABI detour_DcBehavior(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcBreakable(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcGo(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcPrevCar(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcPrintf_NoButReally(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcStateCharacterAccumulatesWetnessFromWate(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcTrainCar(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcTrainCarArtGroup(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcUseVisibleWaterUnitForReflectionWithTole(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcVehicleClass(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+static int64_t ABI detour_DcY6uLSA(int32_t argc, uint64_t *argv, uint32_t *status) { (void)argc; (void)argv; if (status) *status = 0; return 0; }
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -5089,6 +5220,36 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcFadeToBlackPers", 0x009FFA40, (uintptr_t)detour_DcFadeToBlackPers },
     { "DcSpawnExplosion", 0x009FF610, (uintptr_t)detour_DcSpawnExplosion },
     { "DcSpawnExplosionNpcOnly", 0x009FF410, (uintptr_t)detour_DcSpawnExplosionNpcOnly },
+    /* Lot 25: Dynamic Lights, Spawning State, HUD Messages, Particles & Splines (16 funcs) */
+    { "DcAddDynamicLightJoint", 0x009FF010, (uintptr_t)detour_DcAddDynamicLightJoint },
+    { "DcUpdateDynamicLight", 0x009FEEE0, (uintptr_t)detour_DcUpdateDynamicLight },
+    { "DcRemoveDynamicLight", 0x009FEDF0, (uintptr_t)detour_DcRemoveDynamicLight },
+    { "DcLevelsFullySpawnedP", 0x009FE5E0, (uintptr_t)detour_DcLevelsFullySpawnedP },
+    { "DcLevelsFullySpawnedIgnorePlayerP", 0x009FE400, (uintptr_t)detour_DcLevelsFullySpawnedIgnorePlayerP },
+    { "DcDisplayMessage", 0x009FE140, (uintptr_t)detour_DcDisplayMessage },
+    { "DcStringFromFloat", 0x009FDE60, (uintptr_t)detour_DcStringFromFloat },
+    { "DcMakeInert", 0x009FD850, (uintptr_t)detour_DcMakeInert },
+    { "DcIsOnScreen", 0x009FD200, (uintptr_t)detour_DcIsOnScreen },
+    { "DcTranslateYLoop", 0x009FC590, (uintptr_t)detour_DcTranslateYLoop },
+    { "DcScanParticleDirectories", 0x00A19360, (uintptr_t)detour_DcScanParticleDirectories },
+    { "DcReloadModule", 0x00A19200, (uintptr_t)detour_DcReloadModule },
+    { "DcReloadParticleModule", 0x00A19180, (uintptr_t)detour_DcReloadParticleModule },
+    { "DcSplineLocatorAtDistance", 0x00EA2315, (uintptr_t)detour_DcSplineLocatorAtDistance },
+    { "DcLayerToScriptControllerIndices", 0x00EA2F7E, (uintptr_t)detour_DcLayerToScriptControllerIndices },
+    { "DcSplineDistanceVehicleAnimation", 0x00AB8640, (uintptr_t)detour_DcSplineDistanceVehicleAnimation },
+
+    /* Pure Lisp engine symbols & types (11 entries) */
+    { "DcBehavior", 0, (uintptr_t)detour_DcBehavior },
+    { "DcBreakable", 0, (uintptr_t)detour_DcBreakable },
+    { "DcGo", 0, (uintptr_t)detour_DcGo },
+    { "DcPrevCar", 0, (uintptr_t)detour_DcPrevCar },
+    { "DcPrintf_NoButReally", 0, (uintptr_t)detour_DcPrintf_NoButReally },
+    { "DcStateCharacterAccumulatesWetnessFromWate", 0, (uintptr_t)detour_DcStateCharacterAccumulatesWetnessFromWate },
+    { "DcTrainCar", 0, (uintptr_t)detour_DcTrainCar },
+    { "DcTrainCarArtGroup", 0, (uintptr_t)detour_DcTrainCarArtGroup },
+    { "DcUseVisibleWaterUnitForReflectionWithTole", 0, (uintptr_t)detour_DcUseVisibleWaterUnitForReflectionWithTole },
+    { "DcVehicleClass", 0, (uintptr_t)detour_DcVehicleClass },
+    { "DcY6uLSA", 0, (uintptr_t)detour_DcY6uLSA },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

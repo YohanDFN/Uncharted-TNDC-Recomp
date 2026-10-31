@@ -2643,6 +2643,18 @@ static int64_t ABI detour_DcTurnOnFlashlight(int32_t argc, uint64_t *argv, uint3
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 25: Aiming Mirror Controls (1 func)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcMirrorAimingAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FC990: (mirror-aiming-at target [source]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -2807,6 +2819,8 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcFireWeaponAtTarget", 0x00A0C4C0, (uintptr_t)detour_DcFireWeaponAtTarget },
     { "DcGivePlayerFlashlight", 0x00A0ADC0, (uintptr_t)detour_DcGivePlayerFlashlight },
     { "DcTurnOnFlashlight", 0x00A0A250, (uintptr_t)detour_DcTurnOnFlashlight },
+    /* Lot 25: Aiming Mirror Controls (1 func) */
+    { "DcMirrorAimingAt", 0x009FC990, (uintptr_t)detour_DcMirrorAimingAt },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {

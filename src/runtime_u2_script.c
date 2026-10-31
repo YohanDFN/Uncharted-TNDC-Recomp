@@ -997,7 +997,7 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         const U2NativeDetour *mod_detours = NULL;
         size_t count = s_module_getters[g](&mod_detours);
         for (size_t i = 0; i < count; ++i) {
-            if (mod_detours[i].offset + 14 <= image_size) {
+            if (mod_detours[i].offset > 0 && mod_detours[i].offset < 0x00E00000 && mod_detours[i].offset + 14 <= image_size) {
                 write_detour_jmp64(image + mod_detours[i].offset, mod_detours[i].host_fn);
                 ++installed;
             }

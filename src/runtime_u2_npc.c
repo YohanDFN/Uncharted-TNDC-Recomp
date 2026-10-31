@@ -2314,6 +2314,39 @@ static int64_t ABI detour_DcSullivanFlashlightToWaist(int32_t argc, uint64_t *ar
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 25: NPC IK, Ally Collisions & Spawning (4 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcAllowLegIkByOthers(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCDF0: (allow-leg-ik-by-others [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDisallowLegIkByOthers(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCCF0: (disallow-leg-ik-by-others [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDontCollideAgainstAllies(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCBB0: (dont-collide-against-allies) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcXSpawnNpcAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A64C40: (x-spawn-npc-at type loc) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -2449,6 +2482,11 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcGiveSullivanFlashlight", 0x00A0ABC0, (uintptr_t)detour_DcGiveSullivanFlashlight },
     { "DcSullivanFlashlightToHand", 0x00A0A6A0, (uintptr_t)detour_DcSullivanFlashlightToHand },
     { "DcSullivanFlashlightToWaist", 0x00A0A5F0, (uintptr_t)detour_DcSullivanFlashlightToWaist },
+    /* Lot 25: NPC IK, Ally Collisions & Spawning (4 funcs) */
+    { "DcAllowLegIkByOthers", 0x009FCDF0, (uintptr_t)detour_DcAllowLegIkByOthers },
+    { "DcDisallowLegIkByOthers", 0x009FCCF0, (uintptr_t)detour_DcDisallowLegIkByOthers },
+    { "DcDontCollideAgainstAllies", 0x009FCBB0, (uintptr_t)detour_DcDontCollideAgainstAllies },
+    { "DcXSpawnNpcAt", 0x00A64C40, (uintptr_t)detour_DcXSpawnNpcAt },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {
