@@ -919,6 +919,122 @@ static void write_detour_jmp64(uint8_t *dst, uintptr_t target) {
     dst[11] = 0xE0;
 }
 
+/* ============================================================================
+ * Safe Symbol Lookup Detours:
+ *   - detour_LookupPointer         (0x00A15E70): intercepts missing decal material 0xCD0FBE5A
+ *   - detour_LookupPointerInModule (0x00A17280): intercepts missing render-settings 0xAD087087
+ * ============================================================================ */
+
+static const char *s_empty_str_ptr = "";
+
+static struct {
+    uint8_t pad0[0x48];
+    const char **p48;
+    const char **p50;
+    uint8_t pad1[8];
+    const char **p60;
+    uint8_t pad2[0x80];
+} s_dummy_decal;
+static int s_dummy_decal_initialized = 0;
+
+static void init_dummy_decal(void) {
+    if (!s_dummy_decal_initialized) {
+        memset(&s_dummy_decal, 0, sizeof(s_dummy_decal));
+        s_dummy_decal.p48 = &s_empty_str_ptr;
+        s_dummy_decal.p50 = &s_empty_str_ptr;
+        s_dummy_decal.p60 = &s_empty_str_ptr;
+        s_dummy_decal_initialized = 1;
+    }
+}
+
+static uint64_t s_dummy_zero_u64 = 0;
+static struct {
+    uint8_t pad[0x100];
+} s_dummy_sub_obj;
+
+static struct {
+    uint8_t pad0[0x20];
+    void *p20;          /* +0x20: points to &s_dummy_zero_u64 */
+    uint8_t pad1[0x18]; /* +0x28 */
+    void *p40;          /* +0x40: points to &s_dummy_sub_obj */
+    uint8_t pad2[8];    /* +0x48 */
+    void *p50;          /* +0x50: points to &s_dummy_sub_obj */
+    void *p58;          /* +0x58: points to &s_dummy_sub_obj */
+    void *p60;          /* +0x60: points to &s_dummy_sub_obj */
+    void *p68;          /* +0x68: points to &s_dummy_sub_obj */
+    uint32_t *p70;      /* +0x70: points to (uint32_t*)&s_dummy_zero_u64 */
+    uint8_t pad3[0x10000];
+} s_dummy_generic_module_obj;
+static int s_dummy_generic_module_obj_inited = 0;
+
+static void init_dummy_generic_module_obj(void) {
+    if (!s_dummy_generic_module_obj_inited) {
+        memset(&s_dummy_sub_obj, 0, sizeof(s_dummy_sub_obj));
+        memset(&s_dummy_generic_module_obj, 0, sizeof(s_dummy_generic_module_obj));
+        s_dummy_generic_module_obj.p20 = &s_dummy_zero_u64;
+        s_dummy_generic_module_obj.p40 = &s_dummy_sub_obj;
+        s_dummy_generic_module_obj.p50 = &s_dummy_sub_obj;
+        s_dummy_generic_module_obj.p58 = &s_dummy_sub_obj;
+        s_dummy_generic_module_obj.p60 = &s_dummy_sub_obj;
+        s_dummy_generic_module_obj.p68 = &s_dummy_sub_obj;
+        s_dummy_generic_module_obj.p70 = (uint32_t *)&s_dummy_zero_u64;
+        s_dummy_generic_module_obj_inited = 1;
+    }
+}
+
+/* SysV-ABI replacement for LookupPointer (0x00A15E70) */
+static void * ABI detour_LookupPointer(uint32_t sym_id) {
+    if (!g_u2_image_base) return NULL;
+    typedef void * (ABI *LookupSymbolFn)(uint32_t sym_id);
+    LookupSymbolFn guest_LookupSymbol = (LookupSymbolFn)(g_u2_image_base + 0x00A15300);
+
+    void *entry = guest_LookupSymbol(sym_id);
+    if (entry) {
+        return *(void **)entry;
+    }
+
+    if (sym_id == 0xCD0FBE5A) {
+        init_dummy_decal();
+        return &s_dummy_decal;
+    }
+
+    /* Missing symbol fallback: do not trigger int $0x41 assertion crash */
+    return NULL;
+}
+
+/* SysV-ABI replacement for LookupPointerInModule (0x00A17280) */
+static void * ABI detour_LookupPointerInModule(uint32_t sym_id, uint32_t mod_id) {
+    if (!g_u2_image_base) return NULL;
+    typedef void * (ABI *LookupSymbolInModuleFn)(uint32_t sym_id, uint32_t mod_id);
+    LookupSymbolInModuleFn guest_LookupSymbolInModule = (LookupSymbolInModuleFn)(g_u2_image_base + 0x00A17020);
+
+    void *val = guest_LookupSymbolInModule(sym_id, mod_id);
+    if (val) {
+        return val;
+    }
+
+    if (sym_id == 0xAD087087 || mod_id == 0x9EC73B22 ||
+        sym_id == 0x9353ED16 || mod_id == 0x863652C5) {
+        init_dummy_generic_module_obj();
+        return &s_dummy_generic_module_obj;
+    }
+
+    /* Missing symbol fallback: do not trigger int $0x41 assertion crash */
+    return NULL;
+}
+
+/* SysV-ABI replacement for Hud::ReadConfigFile (0x00552C70):
+ * Safely initializes HUD material tables when hud.bin is inside PSARC archive
+ */
+static void ABI detour_Hud_ReadConfigFile(void *hud) {
+    if (!hud) return;
+    uint8_t *h = (uint8_t *)hud;
+    *(uint32_t *)(h + 0x80) = 0;
+    *(uint32_t *)(h + 0x108) = 0;
+    memset(h + 0x88, 0, 0x80);
+    memset(h + 0x110, 0, 0x200);
+}
+
 static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size) {
     /* 
      * Fix GetSubMeshInstance assertion trap in mesh rendering (ndlib/render/ngen/mesh.h:1361):
@@ -1003,6 +1119,14 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
             }
         }
     }
+
+    /* Install safe symbol lookup detours (prevent missing symbol assertions/faults) */
+    write_detour_jmp64(image + 0x00A15E70, (uintptr_t)detour_LookupPointer);
+    ++installed;
+    write_detour_jmp64(image + 0x00A17280, (uintptr_t)detour_LookupPointerInModule);
+    ++installed;
+    write_detour_jmp64(image + 0x00552C70, (uintptr_t)detour_Hud_ReadConfigFile);
+    ++installed;
 
     const char *native_vm_env = getenv("BB_U2_NATIVE_VM");
     const int enable_native_vm = (native_vm_env && *native_vm_env && *native_vm_env != '0');
