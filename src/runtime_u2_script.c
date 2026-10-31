@@ -1001,6 +1001,642 @@ static int64_t ABI detour_DcEntityAliveP(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 /* ============================================================================
+ * 2c. Wave 5 Native C Subsystems (Units, Clock, Camera, Weapon & Player State)
+ * ============================================================================ */
+
+static int64_t ABI detour_DcUnitsPerFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0ECF0: (units-per-frame units [clock-id]) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    float units = u2_reg_to_f32(argv[0]);
+    int32_t clock_id = (argc >= 2) ? (int32_t)argv[1] : 1;
+    uint32_t clock_index = 1;
+    if (clock_id >= 0 && clock_id <= 9) {
+        clock_index = *(const uint32_t *)(g_u2_image_base + 0x00DEFA10ull + (uint64_t)clock_id * 4u);
+    }
+    const uint8_t *clock_ptr = g_u2_image_base + 0x01116180ull + (uint64_t)clock_index * 64u;
+    float dt = *(const float *)(clock_ptr + 0x4C);
+    return (int64_t)u2_f32_to_reg(units * dt);
+}
+
+static int64_t ABI detour_DcUnitsPerSecond(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EC70: (units-per-second units [clock-id]) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    float units = u2_reg_to_f32(argv[0]);
+    int32_t clock_id = (argc >= 2) ? (int32_t)argv[1] : 1;
+    uint32_t clock_index = 1;
+    if (clock_id >= 0 && clock_id <= 9) {
+        clock_index = *(const uint32_t *)(g_u2_image_base + 0x00DEFA10ull + (uint64_t)clock_id * 4u);
+    }
+    const uint8_t *clock_ptr = g_u2_image_base + 0x01116180ull + (uint64_t)clock_index * 64u;
+    float dt = *(const float *)(clock_ptr + 0x4C);
+    float epsilon = *(const float *)(g_u2_image_base + 0x00E673FCull);
+    if (dt > epsilon && dt > 0.0f) {
+        return (int64_t)u2_f32_to_reg(units / dt);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcFromUpsNoDt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD6B0: (from-ups-no-dt speed) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    float x = u2_reg_to_f32(argv[0]);
+    const uint8_t *clk_mgr_slot = *(const uint8_t **)(g_u2_image_base + 0x01161EE8ull);
+    if (clk_mgr_slot) {
+        const uint8_t *clk = *(const uint8_t **)(clk_mgr_slot + 0x70);
+        if (clk) {
+            float factor = *(const float *)(clk + 0x14);
+            return (int64_t)u2_f32_to_reg(x * factor);
+        }
+    }
+    return (int64_t)u2_f32_to_reg(x);
+}
+
+static int64_t ABI detour_DcIsJapanP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD8B0: (is-japan?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *settings = g_u2_image_base + 0x01059640ull;
+    if (*(const int32_t *)(settings + 0x3994) == 0) return 1;
+    const uint8_t *lang_mgr = g_u2_image_base + 0x01450D18ull;
+    uint32_t slot0 = *(const uint32_t *)(lang_mgr + 0x604);
+    if (*(const int32_t *)(lang_mgr + (uint64_t)slot0 * 0x38ull + 8) == 8) return 1;
+    uint64_t slot12 = *(const uint64_t *)(lang_mgr + 0x608);
+    uint32_t s1 = (uint32_t)slot12;
+    if (*(const int32_t *)(lang_mgr + (uint64_t)s1 * 0x38ull + 8) == 8) return 1;
+    uint32_t s2 = (uint32_t)(slot12 >> 32);
+    if (*(const int32_t *)(lang_mgr + (uint64_t)s2 * 0x38ull + 8) == 8) return 1;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerHasWeaponP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00906A50: (player-has-weapon? weapon-type) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    const uint32_t target_weapon_type = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t count = *(const int32_t *)(drake + 0x4BC);
+    if (count <= 0) return 0;
+    for (int32_t i = 0; i < count; ++i) {
+        const uint8_t *entry_slot = drake + 0x4C8 + (uint64_t)i * 16u;
+        const uint8_t *weapon_ptr = *(const uint8_t **)entry_slot;
+        const uint32_t weapon_tag = *(const uint32_t *)(entry_slot + 8);
+        if (!weapon_ptr || weapon_tag == 0) continue;
+        const uint8_t *weapon = *(const uint8_t **)weapon_ptr;
+        if (!weapon || *(const uint32_t *)(weapon + 0x44) != weapon_tag) continue;
+        if (*(const uint32_t *)(weapon + 0x550) == target_weapon_type) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerIsAimingP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090BC00: (player-is-aiming?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    /* Check aim camera override slot */
+    const uint8_t *aim_cam_slot = *(const uint8_t **)(g_u2_image_base + 0x0147F020ull);
+    const uint32_t aim_tag = *(const uint32_t *)(g_u2_image_base + 0x0147F020ull + 8);
+    if (aim_cam_slot && aim_tag != 0) {
+        const uint8_t *cam = *(const uint8_t **)aim_cam_slot;
+        if (cam && *(const uint32_t *)(cam + 0x44) == aim_tag && *(const int32_t *)(cam + 0x7C) == 9) {
+            return 1;
+        }
+    }
+    /* Check active cameras list */
+    const uint8_t *list_head = g_u2_image_base + 0x0147F050ull;
+    const uint8_t *curr = *(const uint8_t **)list_head;
+    while (curr && curr != list_head) {
+        if (!(*(curr + 0x34) & 1)) {
+            if (*(const int32_t *)(curr + 0x30) == -1) return 1;
+        }
+        curr = *(const uint8_t **)curr;
+    }
+    if (*(const int32_t *)(g_u2_image_base + 0x0147F0B4ull) == 9) return 1;
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraStoreLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E9C0: (camera-store-locator) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *tracker_slot = *(const uint8_t **)(g_u2_image_base + 0x01114208ull);
+    const uint32_t tracker_tag = *(const uint32_t *)(g_u2_image_base + 0x01114208ull + 8);
+    float pos[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float rot[4] = { 2.0f, 2.0f, 2.0f, 2.0f }; /* default from 0x00E509E0 */
+    if (tracker_slot && tracker_tag != 0) {
+        const uint8_t *tracker = *(const uint8_t **)tracker_slot;
+        if (tracker && *(const uint32_t *)(tracker + 0x44) == tracker_tag) {
+            memcpy(pos, tracker + 0x370, sizeof(pos));
+            memcpy(rot, tracker + 0x380, sizeof(rot));
+        }
+    }
+    memcpy(g_u2_image_base + 0x0147F030ull, pos, sizeof(pos));
+    memcpy(g_u2_image_base + 0x0147F040ull, rot, sizeof(rot));
+    return 0;
+}
+
+static int64_t ABI detour_DcDebugBreak(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDF30: (debug-break) - safe no-op replacing int $0x41 crash */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPrintNoOp(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* Shipping build 16-byte no-op prints (0x009FDEE0..0x009FDF20) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+/* ============================================================================
+ * 2d. Wave 6 Native C Subsystems (Events, Train Level Messaging & Cover/Weapon State)
+ * ============================================================================ */
+
+static int64_t ABI detour_DcPlayerInCoverP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090BBB0: (player-in-cover?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    const uint8_t *state_p50 = *(const uint8_t **)(drake + 0x50);
+    if (!state_p50) return 0;
+    const uint8_t *state = *(const uint8_t **)state_p50;
+    if (!state) return 0;
+    const uint8_t *comp = *(const uint8_t **)(state + 0x10);
+    if (comp && *(const uint32_t *)(comp + 0x18) == 0x48C615D8u) {
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerHideThisFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090E330: (player-hide-this-frame) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    uint8_t *drake = *(uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    drake[0x2A60] = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerHasWeaponAndAmmoP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00907290: (player-has-weapon-and-ammo? weapon-type) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    const uint32_t target_weapon_type = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t count = *(const int32_t *)(drake + 0x4BC);
+    if (count <= 0) return 0;
+    for (int32_t i = 0; i < count; ++i) {
+        const uint8_t *entry_slot = drake + 0x4C8 + (uint64_t)i * 16u;
+        const uint8_t *weapon_ptr = *(const uint8_t **)entry_slot;
+        const uint32_t weapon_tag = *(const uint32_t *)(entry_slot + 8);
+        if (!weapon_ptr || weapon_tag == 0) continue;
+        const uint8_t *weapon = *(const uint8_t **)weapon_ptr;
+        if (!weapon || *(const uint32_t *)(weapon + 0x44) != weapon_tag) continue;
+        if (*(const uint32_t *)(weapon + 0x550) == target_weapon_type) {
+            int16_t clip = *(const int16_t *)(weapon + 0x620);
+            int16_t reserve = *(const int16_t *)(weapon + 0x622);
+            return (clip + reserve > 0) ? 1 : 0;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerHasWeaponAndNoAmmoP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009071B0: (player-has-weapon-and-no-ammo? weapon-type) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    const uint32_t target_weapon_type = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t count = *(const int32_t *)(drake + 0x4BC);
+    if (count <= 0) return 0;
+    for (int32_t i = 0; i < count; ++i) {
+        const uint8_t *entry_slot = drake + 0x4C8 + (uint64_t)i * 16u;
+        const uint8_t *weapon_ptr = *(const uint8_t **)entry_slot;
+        const uint32_t weapon_tag = *(const uint32_t *)(entry_slot + 8);
+        if (!weapon_ptr || weapon_tag == 0) continue;
+        const uint8_t *weapon = *(const uint8_t **)weapon_ptr;
+        if (!weapon || *(const uint32_t *)(weapon + 0x44) != weapon_tag) continue;
+        if (*(const uint32_t *)(weapon + 0x550) == target_weapon_type) {
+            int16_t clip = *(const int16_t *)(weapon + 0x620);
+            int16_t reserve = *(const int16_t *)(weapon + 0x622);
+            return (clip + reserve == 0) ? 1 : 0;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerOnJetskiP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01B80: (player-on-jetski?) - shipping stub returning 0 */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcForceDockJetski(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01B90: (force-dock-jetski) - shipping stub returning 0 */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcForceBoardJetski(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01BA0: (force-board-jetski) - shipping stub returning 0 */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventSender(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C1DF0: (event-sender) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    const uint8_t *sender_slot = *(const uint8_t **)(frame + 0x10);
+    const uint32_t sender_tag = *(const uint32_t *)(frame + 0x18);
+    if (!sender_slot || sender_tag == 0) return 0;
+    const uint8_t *sender = *(const uint8_t **)sender_slot;
+    if (!sender || *(const uint32_t *)(sender + 0x44) != sender_tag) return 0;
+    return (int64_t)*(const uint32_t *)(sender + 0x68);
+}
+
+static int64_t ABI detour_DcEventSenderP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C1ED0: (event-sender? [sender-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    uint32_t target_sender_id = 0;
+    if (argc > 0 && argv) {
+        target_sender_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) target_sender_id = get_self(0, 0, 1);
+    }
+    if (target_sender_id == 0) return 0;
+    const uint8_t *sender_slot = *(const uint8_t **)(frame + 0x10);
+    const uint32_t sender_tag = *(const uint32_t *)(frame + 0x18);
+    if (!sender_slot || sender_tag == 0) return 0;
+    const uint8_t *sender = *(const uint8_t **)sender_slot;
+    if (!sender || *(const uint32_t *)(sender + 0x44) != sender_tag) return 0;
+    return (*(const uint32_t *)(sender + 0x68) == target_sender_id) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcEventTrainP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C31A0: (event-train? [train-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    const uint8_t *sender_slot = *(const uint8_t **)(frame + 0x10);
+    const uint32_t sender_tag = *(const uint32_t *)(frame + 0x18);
+    if (!sender_slot || sender_tag == 0) return 0;
+    const uint8_t *sender = *(const uint8_t **)sender_slot;
+    if (!sender || *(const uint32_t *)(sender + 0x44) != sender_tag) return 0;
+    if (*(const uint32_t *)(sender + 0x30) != 0xDFDDF753u) return 0;
+    uint32_t target_train_id = 0;
+    if (argc > 0 && argv) {
+        target_train_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, const char *, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) target_train_id = get_self(0, (const char *)(g_u2_image_base + 0x00DF4374ull), 1);
+    }
+    return (*(const uint32_t *)(sender + 0x240) == target_train_id) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcEventTrainCarP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C3020: (event-train-car? [car-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    const uint8_t *sender_slot = *(const uint8_t **)(frame + 0x10);
+    const uint32_t sender_tag = *(const uint32_t *)(frame + 0x18);
+    if (!sender_slot || sender_tag == 0) return 0;
+    const uint8_t *sender = *(const uint8_t **)sender_slot;
+    if (!sender || *(const uint32_t *)(sender + 0x44) != sender_tag) return 0;
+    if (*(const uint32_t *)(sender + 0x30) != 0xDFDDF753u) return 0;
+    uint32_t target_car_id = 0;
+    if (argc > 0 && argv) {
+        target_car_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, const char *, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) target_car_id = get_self(0, (const char *)(g_u2_image_base + 0x00DF4374ull), 1);
+    }
+    return (*(const uint32_t *)(sender + 0x244) == target_car_id) ? 1 : 0;
+}
+
+/* ============================================================================
+ * Wave 7 Detours: Event Arguments & Returns, Train Climbing & Player Status
+ * ============================================================================ */
+
+static int64_t ABI detour_DcEventArgBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2A40: (event-arg-boolean [arg-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    int32_t idx = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    int8_t num_args = *(const int8_t *)(frame + 0x20);
+    if (idx < 0 || idx >= (int32_t)num_args) return 0;
+    const uint8_t *slot = frame + 0x28 + (uint64_t)idx * 24u;
+    return (*slot != 0) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcEventArgInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2BE0: (event-arg-int32 [arg-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    int32_t idx = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    int8_t num_args = *(const int8_t *)(frame + 0x20);
+    if (idx < 0 || idx >= (int32_t)num_args) return 0;
+    const uint8_t *slot = frame + 0x28 + (uint64_t)idx * 24u;
+    return (int64_t)*(const int32_t *)slot;
+}
+
+static int64_t ABI detour_DcEventArgFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2BF0: (event-arg-float [arg-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    int32_t idx = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    int8_t num_args = *(const int8_t *)(frame + 0x20);
+    if (idx < 0 || idx >= (int32_t)num_args) return 0;
+    const uint8_t *slot = frame + 0x28 + (uint64_t)idx * 24u;
+    float fval = *(const float *)slot;
+    return (int64_t)u2_f32_to_reg(fval);
+}
+
+static int64_t ABI detour_DcEventArgSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2DA0: (event-arg-symbol [arg-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    int32_t idx = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    int8_t num_args = *(const int8_t *)(frame + 0x20);
+    if (idx < 0 || idx >= (int32_t)num_args) return 0;
+    const uint8_t *slot = frame + 0x28 + (uint64_t)idx * 24u;
+    return (int64_t)*(const uint32_t *)slot;
+}
+
+static int64_t ABI detour_DcEventArgString(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2EC0: (event-arg-string [arg-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    int32_t idx = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    int8_t num_args = *(const int8_t *)(frame + 0x20);
+    if (idx < 0 || idx >= (int32_t)num_args) return 0;
+    const uint8_t *slot = frame + 0x28 + (uint64_t)idx * 24u;
+    return (int64_t)*(const uint64_t *)slot;
+}
+
+static int64_t ABI detour_DcEventReturnBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C1FF0: (event-return-boolean val) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    uint8_t *ret_buf = *(uint8_t **)(event_mgr + 0x08 + (uint64_t)depth * 32u);
+    if (!ret_buf) return 0;
+    uint8_t val = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+    *(uint8_t *)(ret_buf + 0x627) = val;
+    *(uint32_t *)(ret_buf + 0x628) = 1;
+    *(uint8_t *)(ret_buf + 0x638) |= 0x01;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventReturnInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2390: (event-return-int32 val) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    uint8_t *ret_buf = *(uint8_t **)(event_mgr + 0x08 + (uint64_t)depth * 32u);
+    if (!ret_buf) return 0;
+    int32_t val = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    *(int32_t *)(ret_buf + 0x624) = val;
+    *(uint32_t *)(ret_buf + 0x628) = 2;
+    *(uint8_t *)(ret_buf + 0x638) |= 0x02;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventReturnUint32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C21D0: (event-return-uint32 val) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    uint8_t *ret_buf = *(uint8_t **)(event_mgr + 0x08 + (uint64_t)depth * 32u);
+    if (!ret_buf) return 0;
+    uint32_t val = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    *(uint32_t *)(ret_buf + 0x624) = val;
+    *(uint32_t *)(ret_buf + 0x628) = 2;
+    *(uint8_t *)(ret_buf + 0x638) |= 0x02;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventReturnFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2550: (event-return-float val) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    uint8_t *ret_buf = *(uint8_t **)(event_mgr + 0x08 + (uint64_t)depth * 32u);
+    if (!ret_buf) return 0;
+    float val = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 0.0f;
+    *(float *)(ret_buf + 0x620) = val;
+    *(uint32_t *)(ret_buf + 0x628) = 3;
+    *(uint8_t *)(ret_buf + 0x638) |= 0x04;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventReturnSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C2720: (event-return-symbol val) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    uint8_t *ret_buf = *(uint8_t **)(event_mgr + 0x08 + (uint64_t)depth * 32u);
+    if (!ret_buf) return 0;
+    uint32_t val = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    *(uint32_t *)(ret_buf + 0x624) = val;
+    *(uint32_t *)(ret_buf + 0x628) = 4;
+    *(uint8_t *)(ret_buf + 0x638) |= 0x08;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerUnderTrainP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090A660: (player-under-train?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    const uint8_t *parent_slot = *(const uint8_t **)(drake + 0xD8);
+    const uint32_t parent_tag = *(const uint32_t *)(drake + 0xE0);
+    if (!parent_slot || parent_tag == 0) return 0;
+    const uint8_t *parent = *(const uint8_t **)parent_slot;
+    if (!parent || *(const uint32_t *)(parent + 0x50) != parent_tag) return 0;
+    /* Train entity type tag is 0xDFDDF753 */
+    if (*(const uint32_t *)(parent + 0x30) != 0xDFDDF753u) return 0;
+    /* Check vertical offset between Drake and train body */
+    float drake_z = *(const float *)(drake + 0x58);
+    float train_z = *(const float *)(parent + 0x58);
+    return (drake_z < train_z) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcGetPlayerHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00910140: (get-player-health) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 100;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 100;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 100;
+    const uint8_t *health_comp = *(const uint8_t **)(drake + 0x1F0);
+    if (!health_comp) return 100;
+    typedef int32_t (ABI *HealthFn)(const void *);
+    const void *vtable = *(const void **)health_comp;
+    if (!vtable) return 100;
+    HealthFn fn = *(HealthFn *)((const uint8_t *)vtable + 0x48);
+    if (!fn) return 100;
+    return (int64_t)fn(health_comp);
+}
+
+static int64_t ABI detour_DcGetPlayerSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00910020: (get-player-speed) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return (int64_t)u2_f32_to_reg(0.0f);
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return (int64_t)u2_f32_to_reg(0.0f);
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return (int64_t)u2_f32_to_reg(0.0f);
+    float vx = *(const float *)(drake + 0x140);
+    float vy = *(const float *)(drake + 0x144);
+    float vz = *(const float *)(drake + 0x148);
+    float speed = sqrtf(vx * vx + vy * vy + vz * vz);
+    return (int64_t)u2_f32_to_reg(speed);
+}
+
+static int64_t ABI detour_DcPlayerInCombatP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DC20: (player-in-combat?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (*(const uint8_t *)(g_u2_image_base + 0x011640B1ull) != 0) return 1;
+    if (*(const int32_t *)(g_u2_image_base + 0x014CE97Cull) < 2) {
+        return (*(const int32_t *)(g_u2_image_base + 0x0153E194ull) == 1) ? 1 : 0;
+    }
+    const uint8_t *cm = g_u2_image_base + 0x0113B760ull;
+    if (*(const uint8_t *)(cm + 0x21C8) == 0) return 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPlayerHangingOnBarP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090AB80: (player-hanging-on-bar?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
+    const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
+    if (!drake_slot || expected_tag == 0) return 0;
+    const uint8_t *drake = *(const uint8_t **)drake_slot;
+    if (!drake || *(const uint32_t *)(drake + 0x44) != expected_tag) return 0;
+    const uint8_t *bar_comp = *(const uint8_t **)(drake + 0x2918);
+    if (!bar_comp) return 0;
+    typedef uint8_t (ABI *BarCheckFn)(const void *);
+    const void *vtable = *(const void **)bar_comp;
+    if (!vtable) return 0;
+    BarCheckFn fn = *(BarCheckFn *)((const uint8_t *)vtable + 0xA8);
+    if (!fn) return 0;
+    return (int64_t)fn(bar_comp);
+}
+
+/* ============================================================================
  * 3. Opcode Table (80 opcodes: 0x00 .. 0x4F at jump table 0x00A14DA4)
  * ============================================================================ */
 
@@ -2049,6 +2685,51 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         { "DcRandomInteger", 0x009FD930, (uintptr_t)detour_DcRandomInteger },
         { "DcEntityAliveP", 0x00A127E0, (uintptr_t)detour_DcEntityAliveP },
         { "DcCameraDisableAll", 0x00A0E330, (uintptr_t)detour_DcCameraDisableAll },
+
+        /* Wave 5: Physics, Clock, Camera, Weapon & Player State natives */
+        { "DcUnitsPerFrame", 0x00A0ECF0, (uintptr_t)detour_DcUnitsPerFrame },
+        { "DcUnitsPerSecond", 0x00A0EC70, (uintptr_t)detour_DcUnitsPerSecond },
+        { "DcFromUpsNoDt", 0x009FD6B0, (uintptr_t)detour_DcFromUpsNoDt },
+        { "DcIsJapanP", 0x009FD8B0, (uintptr_t)detour_DcIsJapanP },
+        { "DcPlayerHasWeaponP", 0x00906A50, (uintptr_t)detour_DcPlayerHasWeaponP },
+        { "DcPlayerIsAimingP", 0x0090BC00, (uintptr_t)detour_DcPlayerIsAimingP },
+        { "DcCameraStoreLocator", 0x00A0E9C0, (uintptr_t)detour_DcCameraStoreLocator },
+        { "DcDebugBreak", 0x009FDF30, (uintptr_t)detour_DcDebugBreak },
+        { "DcPrintString", 0x009FDEE0, (uintptr_t)detour_DcPrintNoOp },
+        { "DcPrintInteger", 0x009FDEF0, (uintptr_t)detour_DcPrintNoOp },
+        { "DcPrintFloat", 0x009FDF00, (uintptr_t)detour_DcPrintNoOp },
+        { "DcPrintVector", 0x009FDF10, (uintptr_t)detour_DcPrintNoOp },
+        { "DcPrintVector3", 0x009FDF20, (uintptr_t)detour_DcPrintNoOp },
+
+        /* Wave 6: Events, Train Car Hierarchy & Player Cover/Ammo State */
+        { "DcPlayerInCoverP", 0x0090BBB0, (uintptr_t)detour_DcPlayerInCoverP },
+        { "DcPlayerHideThisFrame", 0x0090E330, (uintptr_t)detour_DcPlayerHideThisFrame },
+        { "DcPlayerHasWeaponAndAmmoP", 0x00907290, (uintptr_t)detour_DcPlayerHasWeaponAndAmmoP },
+        { "DcPlayerHasWeaponAndNoAmmoP", 0x009071B0, (uintptr_t)detour_DcPlayerHasWeaponAndNoAmmoP },
+        { "DcPlayerOnJetskiP", 0x00A01B80, (uintptr_t)detour_DcPlayerOnJetskiP },
+        { "DcForceDockJetski", 0x00A01B90, (uintptr_t)detour_DcForceDockJetski },
+        { "DcForceBoardJetski", 0x00A01BA0, (uintptr_t)detour_DcForceBoardJetski },
+        { "DcEventSender", 0x004C1DF0, (uintptr_t)detour_DcEventSender },
+        { "DcEventSenderP", 0x004C1ED0, (uintptr_t)detour_DcEventSenderP },
+        { "DcEventTrainP", 0x004C31A0, (uintptr_t)detour_DcEventTrainP },
+        { "DcEventTrainCarP", 0x004C3020, (uintptr_t)detour_DcEventTrainCarP },
+
+        /* Wave 7: Event Args & Returns, Train Climbing & Player Status */
+        { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
+        { "DcEventArgInt32", 0x004C2BE0, (uintptr_t)detour_DcEventArgInt32 },
+        { "DcEventArgFloat", 0x004C2BF0, (uintptr_t)detour_DcEventArgFloat },
+        { "DcEventArgSymbol", 0x004C2DA0, (uintptr_t)detour_DcEventArgSymbol },
+        { "DcEventArgString", 0x004C2EC0, (uintptr_t)detour_DcEventArgString },
+        { "DcEventReturnBoolean", 0x004C1FF0, (uintptr_t)detour_DcEventReturnBoolean },
+        { "DcEventReturnInt32", 0x004C2390, (uintptr_t)detour_DcEventReturnInt32 },
+        { "DcEventReturnUint32", 0x004C21D0, (uintptr_t)detour_DcEventReturnUint32 },
+        { "DcEventReturnFloat", 0x004C2550, (uintptr_t)detour_DcEventReturnFloat },
+        { "DcEventReturnSymbol", 0x004C2720, (uintptr_t)detour_DcEventReturnSymbol },
+        { "DcPlayerUnderTrainP", 0x0090A660, (uintptr_t)detour_DcPlayerUnderTrainP },
+        { "DcGetPlayerHealth", 0x00910140, (uintptr_t)detour_DcGetPlayerHealth },
+        { "DcGetPlayerSpeed", 0x00910020, (uintptr_t)detour_DcGetPlayerSpeed },
+        { "DcPlayerInCombatP", 0x0090DC20, (uintptr_t)detour_DcPlayerInCombatP },
+        { "DcPlayerHangingOnBarP", 0x0090AB80, (uintptr_t)detour_DcPlayerHangingOnBarP },
     };
 
     size_t installed = 0;

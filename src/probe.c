@@ -205,6 +205,17 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
             return EXCEPTION_CONTINUE_EXECUTION;
         }
     }
+    if (code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_PRIV_INSTRUCTION) {
+        uintptr_t rip = (uintptr_t)info->ContextRecord->Rip;
+        const uint8_t *insn = (const uint8_t *)rip;
+        if (insn && insn[0] == 0xCD && insn[1] == 0x41) {
+            fprintf(stderr, "[U2 Trap] Bypassing PS4 debug assertion (int $0x41) at rip=%p (offset=%#llx)\n",
+                    (void *)rip, (unsigned long long)(image ? rip - (uintptr_t)image : 0));
+            fflush(stderr);
+            info->ContextRecord->Rip += 2;
+            return EXCEPTION_CONTINUE_EXECUTION;
+        }
+    }
     if (code==EXCEPTION_ACCESS_VIOLATION || code==EXCEPTION_ILLEGAL_INSTRUCTION || code==EXCEPTION_PRIV_INSTRUCTION ||
         code==EXCEPTION_STACK_OVERFLOW || code==EXCEPTION_INT_DIVIDE_BY_ZERO || code==EXCEPTION_DATATYPE_MISALIGNMENT) {
         /* Faults in guest code, the loader or the runtime end the process with a report; drivers
