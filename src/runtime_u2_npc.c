@@ -460,6 +460,130 @@ static int64_t ABI detour_DcNpcCanSeeP(int32_t argc, uint64_t *argv, uint32_t *s
     return can_see ? (can_see(vision, target_id) ? 1 : 0) : 0;
 }
 
+static int64_t ABI detour_DcNpcSetToPlayerFaction(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC960: (npc-set-to-player-faction [npc-id]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    *(int32_t *)(npc + 0x150) = 1;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetDemeanor(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC0D0: (npc-set-demeanor [npc-id] [demeanor]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t demeanor = (argc > 1 && argv) ? (int32_t)argv[1] : 0;
+    *(int32_t *)(npc + 0x154) = demeanor;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcDisableFlinch(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC1D0: (npc-disable-flinch [npc-id] [disable]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t disable = (argc > 1 && argv) ? (int32_t)argv[1] : 1;
+    if (disable) {
+        *(uint32_t *)(npc + 0x158) |= 0x01;
+    } else {
+        *(uint32_t *)(npc + 0x158) &= ~0x01;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetPerfectAim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC490: (npc-set-perfect-aim [npc-id] [enable]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t perfect = (argc > 1 && argv) ? (int32_t)argv[1] : 1;
+    uint8_t *aim_mgr = *(uint8_t **)(npc + 0x3FA0);
+    if (aim_mgr) {
+        *(uint8_t *)(aim_mgr + 0x20) = perfect ? 1 : 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcIgnoreExplosionDamage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC9C0: (npc-ignore-explosion-damage [npc-id] [ignore]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t ignore = (argc > 1 && argv) ? (int32_t)argv[1] : 1;
+    uint8_t *dmg_ctrl = *(uint8_t **)(npc + 0x1F0);
+    if (dmg_ctrl) {
+        *(uint8_t *)(dmg_ctrl + 0x48) = ignore ? 1 : 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcMovementSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DCA40: (npc-movement-speed [npc-id] [speed]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return (int64_t)u2_f32_to_reg(0.0f);
+    if (argc > 1 && argv) {
+        float spd = u2_reg_to_f32(argv[1]);
+        uint8_t *loco = *(uint8_t **)(npc + 0x190);
+        if (loco) {
+            uint8_t *sub = *(uint8_t **)(loco + 0x140);
+            if (sub) *(float *)(sub + 0x20) = spd;
+        }
+    }
+    const uint8_t *loco = *(const uint8_t **)(npc + 0x190);
+    float cur_spd = 0.0f;
+    if (loco) {
+        const uint8_t *sub = *(const uint8_t **)(loco + 0x140);
+        if (sub) cur_spd = *(const float *)(sub + 0x20);
+    }
+    return (int64_t)u2_f32_to_reg(cur_spd);
+}
+
+static int64_t ABI detour_DcNpcSetMovementSpeedScale(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD030: (npc-set-movement-speed-scale [npc-id] [scale]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    float scale = (argc > 1 && argv) ? u2_reg_to_f32(argv[1]) : 1.0f;
+    uint8_t *loco = *(uint8_t **)(npc + 0x190);
+    if (loco) {
+        *(float *)(loco + 0x44) = scale;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcEnableHitReactions(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD4B0: (npc-enable-hit-reactions [npc-id] [enable]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t enable = (argc > 1 && argv) ? (int32_t)argv[1] : 1;
+    *(uint8_t *)(npc + 0x160) = enable ? 1 : 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetCanBeHit(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD580: (npc-set-can-be-hit [npc-id] [can-be-hit]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t can_be_hit = (argc > 1 && argv) ? (int32_t)argv[1] : 1;
+    *(uint8_t *)(npc + 0x161) = can_be_hit ? 1 : 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcCombatBehaviorTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD720: (npc-combat-behavior-time [npc-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return (int64_t)u2_f32_to_reg(0.0f);
+    const uint8_t *comp = *(const uint8_t **)(npc + 0x3FA8);
+    float tm = comp ? *(const float *)(comp + 0x78) : 0.0f;
+    return (int64_t)u2_f32_to_reg(tm);
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -487,6 +611,16 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcSetWeaponVisible", 0x002DB170, (uintptr_t)detour_DcNpcSetWeaponVisible },
     { "DcNpcFireWeapon", 0x002DBE80, (uintptr_t)detour_DcNpcFireWeapon },
     { "DcNpcCanSeeP", 0x002DA420, (uintptr_t)detour_DcNpcCanSeeP },
+    { "DcNpcSetToPlayerFaction", 0x002DC960, (uintptr_t)detour_DcNpcSetToPlayerFaction },
+    { "DcNpcSetDemeanor", 0x002DC0D0, (uintptr_t)detour_DcNpcSetDemeanor },
+    { "DcNpcDisableFlinch", 0x002DC1D0, (uintptr_t)detour_DcNpcDisableFlinch },
+    { "DcNpcSetPerfectAim", 0x002DC490, (uintptr_t)detour_DcNpcSetPerfectAim },
+    { "DcNpcIgnoreExplosionDamage", 0x002DC9C0, (uintptr_t)detour_DcNpcIgnoreExplosionDamage },
+    { "DcNpcMovementSpeed", 0x002DCA40, (uintptr_t)detour_DcNpcMovementSpeed },
+    { "DcNpcSetMovementSpeedScale", 0x002DD030, (uintptr_t)detour_DcNpcSetMovementSpeedScale },
+    { "DcNpcEnableHitReactions", 0x002DD4B0, (uintptr_t)detour_DcNpcEnableHitReactions },
+    { "DcNpcSetCanBeHit", 0x002DD580, (uintptr_t)detour_DcNpcSetCanBeHit },
+    { "DcNpcCombatBehaviorTime", 0x002DD720, (uintptr_t)detour_DcNpcCombatBehaviorTime },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {
