@@ -1533,6 +1533,395 @@ static int64_t ABI detour_DcWaitHeliMoveTo(int32_t argc, uint64_t *argv, uint32_
     return 0;
 }
 
+/* --- Spline Navigation & Rail Vehicles Subsystem --- */
+
+static int64_t ABI detour_DcSplineLengthP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A256B0: (spline-length? spline-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint32_t spline_id = (uint32_t)argv[0];
+    uint8_t *table = *(uint8_t **)(g_u2_image_base + 0x0104EB30ull + 8);
+    if (!table) return 0;
+    for (uint32_t i = 0; i < 0x180u; ++i) {
+        uint8_t *entry = table + (size_t)i * 0x110 + 0x10;
+        if (*(uint8_t **)(entry - 0x10) != NULL) {
+            uint32_t *id_ptr = *(uint32_t **)(entry + 0x10);
+            if (id_ptr && *id_ptr == spline_id) {
+                uint8_t flags = *entry;
+                if ((flags & 0x05) == 0) {
+                    float length = *(const float *)(entry + 0x14);
+                    return (int64_t)u2_f32_to_reg(length);
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitSplineDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25740: (wait-spline-distance entity target-dist) */
+    if (!g_u2_image_base || argc < 2 || !argv) {
+        if (status) *status = 0;
+        return 0;
+    }
+    uint32_t ent_id = (uint32_t)argv[0];
+    float target_dist = u2_reg_to_f32(argv[1]);
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = get_ent ? get_ent(0, ent_id) : NULL;
+    if (!ent) {
+        if (status) *status = 0;
+        return 0;
+    }
+
+    /* Safe train check bounds clamped to avoid int $0x41 debug trap */
+    uint8_t *mgr = g_u2_image_base + 0x01050320ull;
+    int32_t count = *(const int32_t *)(mgr + 0x200);
+    void *train_car = NULL;
+    if (count >= 0 && count < 16) {
+        uint8_t *slot = mgr + 8 + (size_t)count * 32;
+        train_car = *(void **)slot;
+    }
+    (void)train_car;
+
+    typedef float (ABI *GetCurDistFn)(void *);
+    GetCurDistFn dist_fn = (GetCurDistFn)(uintptr_t)(g_u2_image_base + 0x00A23EC0ull);
+    float cur_dist = dist_fn ? dist_fn(ent + 0x3B0) : *(const float *)(ent + 0x3B0);
+
+    if (cur_dist >= target_dist) {
+        if (status) *status = 0;
+        return 1;
+    }
+    if (status) *status = 2; /* pending wait */
+    return 0;
+}
+
+static int64_t ABI detour_DcSplineTransferPendingP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25A20: (spline-transfer-pending? [entity]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = get_ent ? get_ent(0, handle) : NULL;
+    if (ent && (*(const uint32_t *)(ent + 0x34) & 0x10000u) != 0) {
+        uint8_t *comp = *(uint8_t **)(ent + 0x1B8);
+        if (comp && *(const uint32_t *)(comp + 0x20) != 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTransferToSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25A90: (transfer-to-spline [entity] target-spline [speed]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    uint32_t target_spline = (uint32_t)argv[arg_idx];
+    float speed = (argc > arg_idx + 1) ? u2_reg_to_f32(argv[arg_idx + 1]) : 10.0f;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = handle ? get_ent(0, handle) : NULL;
+    if (ent) {
+        typedef void (ABI *TransferFn)(void *, uint32_t, float);
+        TransferFn fn = (TransferFn)(uintptr_t)(g_u2_image_base + 0x00A23F50ull);
+        if (fn) fn(ent, target_spline, speed);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSetSplineFollowDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25C00: (set-spline-follow-distance [entity] dist) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    float dist = u2_reg_to_f32(argv[arg_idx]);
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = handle ? get_ent(0, handle) : NULL;
+    if (ent) {
+        *(float *)(ent + 0x3B0) = dist;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSetSplineFollowAcceleration(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25CB0: (set-spline-follow-acceleration [entity] accel) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    float accel = u2_reg_to_f32(argv[arg_idx]);
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = handle ? get_ent(0, handle) : NULL;
+    if (ent) {
+        *(float *)(ent + 0x540) = accel;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSetSplineFollowSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25D60: (set-spline-follow-speed [entity] speed [trans-time]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    float speed = u2_reg_to_f32(argv[arg_idx]);
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = handle ? get_ent(0, handle) : NULL;
+    if (ent) {
+        *(float *)(ent + 0x534) = speed;
+        *(float *)(ent + 0x538) = speed;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcFollowSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25E50: (follow-spline [entity] spline-id [speed] [accel]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    uint32_t spline_id = (uint32_t)argv[arg_idx];
+    float speed = (argc > arg_idx + 1) ? u2_reg_to_f32(argv[arg_idx + 1]) : 10.0f;
+    float accel = (argc > arg_idx + 2) ? u2_reg_to_f32(argv[arg_idx + 2]) : 5.0f;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = handle ? get_ent(0, handle) : NULL;
+    if (ent) {
+        typedef void (ABI *FollowFn)(void *, uint32_t, float, float);
+        FollowFn fn = (FollowFn)(uintptr_t)(g_u2_image_base + 0x00A241B0ull);
+        if (fn) fn(ent, spline_id, speed, accel);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSplineDistanceLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25F60: (spline-distance-locator spline-id locator) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[0] || !argv[1]) return 0;
+    uint32_t spline_id = (uint32_t)argv[0];
+    const float *locator = (const float *)(uintptr_t)argv[1];
+    uint8_t *table = *(uint8_t **)(g_u2_image_base + 0x0104EB30ull + 8);
+    if (!table) return 0;
+    for (uint32_t i = 0; i < 0x180u; ++i) {
+        uint8_t *entry = table + (size_t)i * 0x110 + 0x10;
+        if (*(uint8_t **)(entry - 0x10) != NULL) {
+            uint32_t *id_ptr = *(uint32_t **)(entry + 0x10);
+            if (id_ptr && *id_ptr == spline_id) {
+                typedef float (ABI *LocDistFn)(uint8_t *, const float *);
+                LocDistFn fn = (LocDistFn)(uintptr_t)(g_u2_image_base + 0x0046B0A0ull);
+                float dist = fn ? fn(entry, locator) : 0.0f;
+                return (int64_t)u2_f32_to_reg(dist);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSplineDistanceSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A260E0: (spline-distance-spawner spline-id spawner-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t spline_id = (uint32_t)argv[0];
+    uint32_t spawner_id = (uint32_t)argv[1];
+    float out_dist = 0.0f;
+    typedef uint8_t (ABI *SpawnerDistFn)(float *, uint32_t, uint32_t, const void *);
+    SpawnerDistFn fn = (SpawnerDistFn)(uintptr_t)(g_u2_image_base + 0x0046B0A0ull);
+    if (fn && fn(&out_dist, spawner_id, spline_id, (const void *)(g_u2_image_base + 0x00EA236Full))) {
+        return (int64_t)u2_f32_to_reg(out_dist);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSplineActivate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A26180: (spline-activate spline-id [active-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint32_t spline_id = (uint32_t)argv[0];
+    int32_t active = (argc >= 2) ? (argv[1] != 0) : 1;
+    uint8_t *table = *(uint8_t **)(g_u2_image_base + 0x0104EB30ull + 8);
+    if (!table) return 0;
+    for (uint32_t i = 0; i < 0x180u; ++i) {
+        uint8_t *entry = table + (size_t)i * 0x110 + 0x10;
+        if (*(uint8_t **)(entry - 0x10) != NULL) {
+            uint32_t *id_ptr = *(uint32_t **)(entry + 0x10);
+            if (id_ptr && *id_ptr == spline_id) {
+                uint8_t flags = *entry;
+                if (active) flags &= (uint8_t)~0x04;
+                else flags |= 0x04;
+                *entry = flags;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitHeliMoveToSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A7F800: (wait-heli-move-to-spline [heli] spline-id [speed]) */
+    uint8_t *heli = u2_resolve_heli(argc, argv);
+    if (!heli) {
+        if (status) *status = 0;
+        return 0;
+    }
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t spline_id = (argc > arg_idx) ? (uint32_t)argv[arg_idx] : 0;
+    float speed = (argc > arg_idx + 1) ? u2_reg_to_f32(argv[arg_idx + 1]) : 15.0f;
+
+    /* Clamps train bounds safely to avoid int $0x41 debug trap from original binary */
+    uint8_t *mgr = g_u2_image_base + 0x01050320ull;
+    int32_t count = *(const int32_t *)(mgr + 0x200);
+    void *train_car = NULL;
+    if (count >= 0 && count < 16) {
+        uint8_t *slot = mgr + 8 + (size_t)count * 32;
+        train_car = *(void **)slot;
+    }
+
+    if (status) *status = 2; /* pending wait status */
+    typedef void (ABI *WaitSplineFn)(void *, uint32_t, float, void *);
+    WaitSplineFn fn = (WaitSplineFn)(uintptr_t)(g_u2_image_base + 0x00A87850ull);
+    if (fn) fn(heli, spline_id, speed, train_car);
+    return 0;
+}
+
+static int64_t ABI detour_DcRailSetMoverSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB80A0: (rail-set-mover-speed speed [mover-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    float speed = u2_reg_to_f32(argv[0]);
+    uint32_t mover_idx = (argc >= 2) ? (uint32_t)argv[1] : 0;
+    if (mover_idx >= 2) return 0;
+    uint8_t *rail_mgr = g_u2_image_base + 0x010508B0ull;
+    if (rail_mgr) {
+        *(float *)(rail_mgr + 0x48 + (size_t)mover_idx * 0x30) = speed;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailAnimateToMover(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8130: (rail-animate-to-mover vehicle-id [mover-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint32_t veh_id = (uint32_t)argv[0];
+    uint32_t mover_idx = (argc >= 2) ? (uint32_t)argv[1] : 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, veh_id) : NULL;
+    if (veh) {
+        typedef void (ABI *AnimToMoverFn)(void *, uint32_t);
+        AnimToMoverFn fn = (AnimToMoverFn)(uintptr_t)(g_u2_image_base + 0x00AB6B20ull);
+        if (fn) fn(veh, mover_idx);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailFollowMover(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB81E0: (rail-follow-mover vehicle-id [mover-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint32_t veh_id = (uint32_t)argv[0];
+    uint32_t mover_idx = (argc >= 2) ? (uint32_t)argv[1] : 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, veh_id) : NULL;
+    if (veh) {
+        typedef void (ABI *FollowMoverFn)(void *, uint32_t);
+        FollowMoverFn fn = (FollowMoverFn)(uintptr_t)(g_u2_image_base + 0x00AB6BD0ull);
+        if (fn) fn(veh, mover_idx);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailActivateMover(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8340: (rail-activate-mover [mover-idx] [active-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t mover_idx = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t active = (argc >= 2 && argv) ? (argv[1] != 0) : 1;
+    uint8_t *rail_mgr = g_u2_image_base + 0x010508B0ull;
+    if (rail_mgr && mover_idx < 2) {
+        *(uint32_t *)(rail_mgr + 0x54 + (size_t)mover_idx * 0x30) = active ? 1 : 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailEnableGroundHug(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB8430: (rail-enable-ground-hug vehicle-id [enable-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint32_t veh_id = (uint32_t)argv[0];
+    int32_t enable = (argc >= 2) ? (argv[1] != 0) : 1;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, veh_id) : NULL;
+    if (veh) {
+        uint32_t flags = *(const uint32_t *)(veh + 0x138);
+        if (enable) flags |= 0x02u;
+        else flags &= ~0x02u;
+        *(uint32_t *)(veh + 0x138) = flags;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRailGetSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB84E0: (rail-get-spline [vehicle-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *veh = get_ent ? get_ent(0, handle) : NULL;
+    if (veh) {
+        typedef uint32_t (ABI *GetRailSplineFn)(void *);
+        GetRailSplineFn fn = (GetRailSplineFn)(uintptr_t)(g_u2_image_base + 0x000015B0ull);
+        return fn ? (int64_t)fn(veh) : 0;
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -1665,6 +2054,24 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcHeliMoveToSpline", 0x00A7FDD0, (uintptr_t)detour_DcHeliMoveToSpline },
     { "DcNetHeliMoveOnSpline", 0x00A7FCC0, (uintptr_t)detour_DcNetHeliMoveOnSpline },
     { "DcWaitHeliMoveTo", 0x00A7FA70, (uintptr_t)detour_DcWaitHeliMoveTo },
+    { "DcSplineLengthP", 0x00A256B0, (uintptr_t)detour_DcSplineLengthP },
+    { "DcWaitSplineDistance", 0x00A25740, (uintptr_t)detour_DcWaitSplineDistance },
+    { "DcSplineTransferPendingP", 0x00A25A20, (uintptr_t)detour_DcSplineTransferPendingP },
+    { "DcTransferToSpline", 0x00A25A90, (uintptr_t)detour_DcTransferToSpline },
+    { "DcSetSplineFollowDistance", 0x00A25C00, (uintptr_t)detour_DcSetSplineFollowDistance },
+    { "DcSetSplineFollowAcceleration", 0x00A25CB0, (uintptr_t)detour_DcSetSplineFollowAcceleration },
+    { "DcSetSplineFollowSpeed", 0x00A25D60, (uintptr_t)detour_DcSetSplineFollowSpeed },
+    { "DcFollowSpline", 0x00A25E50, (uintptr_t)detour_DcFollowSpline },
+    { "DcSplineDistanceLocator", 0x00A25F60, (uintptr_t)detour_DcSplineDistanceLocator },
+    { "DcSplineDistanceSpawner", 0x00A260E0, (uintptr_t)detour_DcSplineDistanceSpawner },
+    { "DcSplineActivate", 0x00A26180, (uintptr_t)detour_DcSplineActivate },
+    { "DcWaitHeliMoveToSpline", 0x00A7F800, (uintptr_t)detour_DcWaitHeliMoveToSpline },
+    { "DcRailSetMoverSpeed", 0x00AB80A0, (uintptr_t)detour_DcRailSetMoverSpeed },
+    { "DcRailAnimateToMover", 0x00AB8130, (uintptr_t)detour_DcRailAnimateToMover },
+    { "DcRailFollowMover", 0x00AB81E0, (uintptr_t)detour_DcRailFollowMover },
+    { "DcRailActivateMover", 0x00AB8340, (uintptr_t)detour_DcRailActivateMover },
+    { "DcRailEnableGroundHug", 0x00AB8430, (uintptr_t)detour_DcRailEnableGroundHug },
+    { "DcRailGetSpline", 0x00AB84E0, (uintptr_t)detour_DcRailGetSpline },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
