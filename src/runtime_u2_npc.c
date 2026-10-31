@@ -702,6 +702,365 @@ static int64_t ABI detour_DcNpcIsPlayerInFrontP(int32_t argc, uint64_t *argv, ui
     return (dot > 0.0f) ? 1 : 0;
 }
 
+
+static int64_t ABI detour_DcNpcMyBattleManagerId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4EF0: (npc-my-battle-manager-id [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    void **p_mgr_slot = *(void ***)(npc + 0x2548);
+    if (!p_mgr_slot) return 0;
+    uint8_t *mgr = (uint8_t *)(*p_mgr_slot);
+    if (!mgr) return 0;
+    int32_t seq = *(const int32_t *)(mgr + 0x44);
+    if (seq != *(const int32_t *)(npc + 0x2550)) return 0;
+    return *(const int32_t *)(mgr + 0x88);
+}
+
+static int64_t ABI detour_DcNpcUseClosestCover(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E43B0: (npc-use-closest-cover [npc] [cover-pos] [anim]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint8_t *ctrl = *(uint8_t **)(npc + 0x2638);
+    if (!ctrl) return 0;
+    ctrl = *(uint8_t **)(ctrl + 0x08);
+    if (!ctrl) return 0;
+    uint8_t *cover_mgr = *(uint8_t **)(ctrl + 0x40);
+    if (!cover_mgr) return 0;
+    if (argc >= 2 && argv && argv[1]) {
+        const float *cpos = (const float *)(uintptr_t)argv[1];
+        memcpy(cover_mgr + 0x40, cpos, 0x40);
+    }
+    *(int32_t *)(cover_mgr + 0x34) = -1;
+    *(int32_t *)(cover_mgr + 0x30) = 5;
+    *(int32_t *)(cover_mgr + 0x1c) = 4;
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitNpcUseClosestCover(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4130: (wait-npc-use-closest-cover [npc] [cover-pos]) */
+    detour_DcNpcUseClosestCover(argc, argv, status);
+    return 0;
+}
+
+static int64_t ABI detour_DcCoverThrowGrenadeAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4070: (cover-throw-grenade-anim [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    typedef void *(ABI *get_anim_fn)(void *);
+    void **vtable = *(void ***)npc;
+    if (!vtable) return 0;
+    get_anim_fn get_anim = (get_anim_fn)vtable[0x2a0 / 8];
+    if (!get_anim) return 0;
+    uint8_t *anim = (uint8_t *)get_anim(npc);
+    if (anim) {
+        uint8_t *slot = *(uint8_t **)(npc + 0x2208);
+        if (slot) {
+            void *rdi = *(void **)(slot + 8);
+            if (rdi) {
+                typedef void (ABI *play_anim_fn)(void *, void *);
+                play_anim_fn play_fn = (play_anim_fn)(uintptr_t)(g_u2_image_base + 0x002C19D0ull);
+                if (play_fn) play_fn(rdi, anim + 0x20);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcUseCap(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3F60: (npc-use-cap [npc] cap_id) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t cap_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    uint8_t *skill_ctrl = *(uint8_t **)(npc + 0x3fa0);
+    if (skill_ctrl) {
+        *(uint32_t *)(skill_ctrl + 0xc8) = cap_id;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcAddSkill(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3E70: (npc-add-skill [npc] skill_idx) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t skill_idx = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    uint8_t *skill_ctrl = *(uint8_t **)(npc + 0x3fa0);
+    if (skill_ctrl) {
+        *(uint64_t *)(skill_ctrl + 0x20) |= (1ull << (skill_idx & 63u));
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcRemoveSkill(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3D70: (npc-remove-skill [npc] skill_idx) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t skill_idx = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    uint8_t *skill_ctrl = *(uint8_t **)(npc + 0x3fa0);
+    if (skill_ctrl) {
+        *(uint64_t *)(skill_ctrl + 0x20) &= ~(1ull << (skill_idx & 63u));
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcUsingSkillP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3CB0: (npc-using-skill? [npc] skill_idx) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t skill_idx = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    const uint8_t *skill_ctrl = *(const uint8_t * const *)(npc + 0x3fa0);
+    if (!skill_ctrl) return 0;
+    uint64_t mask = *(const uint64_t *)(skill_ctrl + 0x20);
+    return ((mask & (1ull << (skill_idx & 63u))) != 0) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcNpcSetAllowAdjustHeadToNavMap(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3C00: (npc-set-allow-adjust-head-to-nav-map [npc] flag) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t flag = (argc >= 2 && argv && argv[1] != 0) ? 1 : 0;
+    uint8_t val = npc[0x21e0];
+    if (flag) val |= 0x04;
+    else val &= (uint8_t)~0x04;
+    npc[0x21e0] = val;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcEnableBlockFirstTapDelay(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3B50: (npc-enable-block-first-tap-delay [npc] flag) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    int32_t flag = (argc >= 2 && argv && argv[1] != 0) ? 1 : 0;
+    uint8_t val = npc[0x21e0];
+    if (flag) val |= 0x08;
+    else val &= (uint8_t)~0x08;
+    npc[0x21e0] = val;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetZoneMarker(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3AA0: (npc-set-zone-marker [npc] [marker]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    void *marker_info = NULL;
+    if (argc >= 2 && argv) marker_info = (void *)(uintptr_t)argv[1];
+    typedef void (ABI *helper_fn)(uint32_t, int32_t, void **);
+    helper_fn set_marker = (helper_fn)(uintptr_t)(g_u2_image_base + 0x002E3620ull);
+    if (set_marker) set_marker(npc_id, 0, &marker_info);
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetHuntingZoneMarker(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E3570: (npc-set-hunting-zone-marker [npc] [marker]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    void *marker_info = NULL;
+    if (argc >= 2 && argv) marker_info = (void *)(uintptr_t)argv[1];
+    typedef void (ABI *helper_fn)(uint32_t, int32_t, void **);
+    helper_fn set_marker = (helper_fn)(uintptr_t)(g_u2_image_base + 0x002E3620ull);
+    if (set_marker) set_marker(npc_id, 1, &marker_info);
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcThrowGrenadeAtPlayer(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E2350: (npc-throw-grenade-at-player [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint8_t *ctrl = *(uint8_t **)(npc + 0x4020);
+    if (!ctrl) return 0;
+    void *player = *(void **)(g_u2_image_base + 0x0115BD20ull);
+    if (!player) return 0;
+    void *player_ent = *(void **)player;
+    if (!player_ent) return 0;
+    float target_pos[4];
+    memcpy(target_pos, (const uint8_t *)player_ent + 0xf0, 16);
+    typedef void (ABI *throw_fn)(void *, void *, const float *);
+    void **vtable = *(void ***)ctrl;
+    if (!vtable) return 0;
+    throw_fn do_throw = (throw_fn)vtable[0x80 / 8];
+    if (do_throw) do_throw(ctrl, npc, target_pos);
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcHasConfirmedStatusP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E2160: (npc-has-confirmed-status? [npc] [target-id]) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    const uint8_t *status_mgr = *(const uint8_t * const *)(npc + 0x3fa8);
+    if (!status_mgr) return 0;
+    uint32_t target_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    if (target_id == 0) {
+        for (int i = 0; i < 16; i++) {
+            const uint8_t *slot = status_mgr + 0x38 + i * 0x110;
+            if (*(const int32_t *)slot == 3) return 1;
+        }
+        return 0;
+    }
+    typedef void *(ABI *get_ent_fn)(uint32_t);
+    get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    const uint8_t *target_ent = get_ent ? (const uint8_t *)get_ent(target_id) : NULL;
+    if (!target_ent || !(*(const uint16_t *)(target_ent + 0x36) & 0x01)) return 0;
+    for (int i = 0; i < 16; i++) {
+        const uint8_t *slot = status_mgr + 0x38 + i * 0x110;
+        void *slot_target = *(void **)(slot - 0x18);
+        if (slot_target) {
+            uint32_t seq = *(const uint32_t *)(slot - 0x10);
+            void *real_ent = *(void **)slot_target;
+            if (real_ent && *(const uint32_t *)((const uint8_t *)real_ent + 0x44) == seq) {
+                if (real_ent == target_ent && *(const int32_t *)slot == 3) return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitNpcBind(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E1E80: (wait-npc-bind [npc] ...) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint8_t *ctrl = *(uint8_t **)(npc + 0x2638);
+    if (ctrl) {
+        ctrl = *(uint8_t **)(ctrl + 0x08);
+        if (ctrl) {
+            uint8_t *cover_mgr = *(uint8_t **)(ctrl + 0x40);
+            if (cover_mgr) {
+                *(int32_t *)(cover_mgr + 0x30) = 0;
+                *(uint8_t *)(cover_mgr + 0xc1) = 0;
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcUnbind(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E1D20: (npc-unbind [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint8_t *ctrl = *(uint8_t **)(npc + 0x2638);
+    if (!ctrl) return 0;
+    ctrl = *(uint8_t **)(ctrl + 0x08);
+    if (!ctrl) return 0;
+    uint8_t *cover_mgr = *(uint8_t **)(ctrl + 0x40);
+    if (!cover_mgr) return 0;
+    uint8_t *bound_info = *(uint8_t **)(npc + 0x4020);
+    if (bound_info && *(const uint32_t *)(bound_info + 0x10) == 0xDE65C4DD) {
+        *(int32_t *)(cover_mgr + 0x30) = 0;
+        if (cover_mgr[0xc1] != 0) {
+            typedef void (ABI *fn_a26620)(void *);
+            fn_a26620 f = (fn_a26620)(uintptr_t)(g_u2_image_base + 0x00A26620ull);
+            if (f) f(cover_mgr + 0x118);
+        }
+        cover_mgr[0xc1] = 0;
+        if (*(const uint32_t *)(cover_mgr + 0x14) <= 1) {
+            *(int32_t *)(npc + 0x2630) = 2;
+        }
+    } else {
+        if (cover_mgr[0xc1] != 0) {
+            typedef void (ABI *fn_a26620)(void *);
+            fn_a26620 f = (fn_a26620)(uintptr_t)(g_u2_image_base + 0x00A26620ull);
+            if (f) f(cover_mgr + 0x118);
+        }
+        cover_mgr[0xc1] = 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcTrackPlayerWhileBound(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E1C40: (npc-track-player-while-bound [npc] flag) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint8_t *ctrl = *(uint8_t **)(npc + 0x2638);
+    if (!ctrl) return 0;
+    ctrl = *(uint8_t **)(ctrl + 0x08);
+    if (!ctrl) return 0;
+    uint8_t *cover_mgr = *(uint8_t **)(ctrl + 0x40);
+    if (!cover_mgr) return 0;
+    int32_t flag = (argc >= 2 && argv && argv[1] != 0) ? 1 : 0;
+    uint8_t val = cover_mgr[0xc0];
+    if (flag) val |= 0x08;
+    else val &= (uint8_t)~0x08;
+    cover_mgr[0xc0] = val;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcAttachToBattleManager(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E0530: (npc-attach-to-battle-manager [npc] [battle-manager-id]) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t battle_mgr_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void *(ABI *get_bm_fn)(void *, uint32_t);
+    get_bm_fn get_bm = (get_bm_fn)(uintptr_t)(g_u2_image_base + 0x0056C7B0ull);
+    uint8_t *bm_ent = get_bm ? (uint8_t *)get_bm((void *)(g_u2_image_base + 0x01130390ull), battle_mgr_id) : NULL;
+    if (bm_ent) {
+        void **p_slot = *(void ***)(bm_ent + 0x30);
+        uint32_t seq = *(const uint32_t *)(bm_ent + 0x38);
+        if (p_slot && *p_slot) {
+            uint8_t *real_mgr = (uint8_t *)(*p_slot);
+            if (*(const uint32_t *)(real_mgr + 0x44) == seq) {
+                *(void **)(npc + 0x2548) = *(void **)(real_mgr + 0x38);
+                *(uint64_t *)(npc + 0x2550) = (uint64_t)seq;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetCommGroupId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E0430: (npc-set-comm-group-id [npc] comm-group-id) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    uint32_t comm_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    if (*(uint32_t *)(npc + 0x40ac) != comm_id) {
+        *(uint32_t *)(npc + 0x40ac) = comm_id;
+        *(uint64_t *)(npc + 0x2658) = 0;
+        *(uint32_t *)(npc + 0x2660) = 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetAccuracyMultiplier(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E00F0: (npc-set-accuracy-multiplier [npc] mult) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc(argc, argv);
+    if (!npc) return 0;
+    float mult = 1.0f;
+    if (argc >= 2 && argv) {
+        mult = *(const float *)&argv[1];
+    }
+    *(float *)(npc + 0x4044) = mult;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -749,6 +1108,26 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcSetPatrolRoute", 0x002DE620, (uintptr_t)detour_DcNpcSetPatrolRoute },
     { "DcNpcSetLeadDrakeSpline", 0x002DFEE0, (uintptr_t)detour_DcNpcSetLeadDrakeSpline },
     { "DcNpcIsPlayerInFrontP", 0x002DF270, (uintptr_t)detour_DcNpcIsPlayerInFrontP },
+    { "DcNpcMyBattleManagerId", 0x002E4EF0, (uintptr_t)detour_DcNpcMyBattleManagerId },
+    { "DcNpcUseClosestCover", 0x002E43B0, (uintptr_t)detour_DcNpcUseClosestCover },
+    { "DcWaitNpcUseClosestCover", 0x002E4130, (uintptr_t)detour_DcWaitNpcUseClosestCover },
+    { "DcCoverThrowGrenadeAnim", 0x002E4070, (uintptr_t)detour_DcCoverThrowGrenadeAnim },
+    { "DcNpcUseCap", 0x002E3F60, (uintptr_t)detour_DcNpcUseCap },
+    { "DcNpcAddSkill", 0x002E3E70, (uintptr_t)detour_DcNpcAddSkill },
+    { "DcNpcRemoveSkill", 0x002E3D70, (uintptr_t)detour_DcNpcRemoveSkill },
+    { "DcNpcUsingSkillP", 0x002E3CB0, (uintptr_t)detour_DcNpcUsingSkillP },
+    { "DcNpcSetAllowAdjustHeadToNavMap", 0x002E3C00, (uintptr_t)detour_DcNpcSetAllowAdjustHeadToNavMap },
+    { "DcNpcEnableBlockFirstTapDelay", 0x002E3B50, (uintptr_t)detour_DcNpcEnableBlockFirstTapDelay },
+    { "DcNpcSetZoneMarker", 0x002E3AA0, (uintptr_t)detour_DcNpcSetZoneMarker },
+    { "DcNpcSetHuntingZoneMarker", 0x002E3570, (uintptr_t)detour_DcNpcSetHuntingZoneMarker },
+    { "DcNpcThrowGrenadeAtPlayer", 0x002E2350, (uintptr_t)detour_DcNpcThrowGrenadeAtPlayer },
+    { "DcNpcHasConfirmedStatusP", 0x002E2160, (uintptr_t)detour_DcNpcHasConfirmedStatusP },
+    { "DcWaitNpcBind", 0x002E1E80, (uintptr_t)detour_DcWaitNpcBind },
+    { "DcNpcUnbind", 0x002E1D20, (uintptr_t)detour_DcNpcUnbind },
+    { "DcNpcTrackPlayerWhileBound", 0x002E1C40, (uintptr_t)detour_DcNpcTrackPlayerWhileBound },
+    { "DcNpcAttachToBattleManager", 0x002E0530, (uintptr_t)detour_DcNpcAttachToBattleManager },
+    { "DcNpcSetCommGroupId", 0x002E0430, (uintptr_t)detour_DcNpcSetCommGroupId },
+    { "DcNpcSetAccuracyMultiplier", 0x002E00F0, (uintptr_t)detour_DcNpcSetAccuracyMultiplier },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {
