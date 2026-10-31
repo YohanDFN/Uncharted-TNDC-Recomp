@@ -2153,6 +2153,78 @@ static int64_t ABI detour_DcSetHealthParameters(int32_t argc, uint64_t *argv, ui
     return 1;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 22 (Part 1): NPC Spawners & LookAt (4 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcCSpawnNpc(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E57B0: (c-spawn-npc [spawner-id]) -> npc-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t spawner_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint32_t (ABI *spawn_fn)(uint32_t);
+    spawn_fn fn = (spawn_fn)(uintptr_t)(g_u2_image_base + 0x002D8B90ull);
+    return fn ? (int64_t)fn(spawner_id) : 0;
+}
+
+static int64_t ABI detour_DcCSpawnNpcS(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E55A0: (c-spawn-npc-s [spawner-id]) -> npc-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t spawner_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint32_t (ABI *spawn_fn)(uint32_t);
+    spawn_fn fn = (spawn_fn)(uintptr_t)(g_u2_image_base + 0x002D8B90ull);
+    return fn ? (int64_t)fn(spawner_id) : 0;
+}
+
+static int64_t ABI detour_DcLookAtObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4A40: (look-at-object [npc] [target]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    uint32_t target_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *look_fn)(void *, uint32_t);
+        look_fn fn = (look_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor, target_id);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcClearLookAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4830: (clear-look-at [npc]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *clear_fn)(void *);
+        clear_fn fn = (clear_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor);
+    }
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -2275,6 +2347,11 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcWaitNpcLeaveScriptedAp", 0x002DDD20, (uintptr_t)detour_DcWaitNpcLeaveScriptedAp },
     /* Lot 20: NPC Health Parameters */
     { "DcSetHealthParameters", 0x002DAAA0, (uintptr_t)detour_DcSetHealthParameters },
+    /* Lot 22 (Part 1): NPC Spawners & LookAt (4 funcs) */
+    { "DcCSpawnNpc", 0x002E57B0, (uintptr_t)detour_DcCSpawnNpc },
+    { "DcCSpawnNpcS", 0x002E55A0, (uintptr_t)detour_DcCSpawnNpcS },
+    { "DcLookAtObject", 0x002E4A40, (uintptr_t)detour_DcLookAtObject },
+    { "DcClearLookAt", 0x002E4830, (uintptr_t)detour_DcClearLookAt },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

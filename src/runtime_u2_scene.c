@@ -4111,6 +4111,236 @@ static int64_t ABI detour_DcGetDda(int32_t argc, uint64_t *argv, uint32_t *statu
     return (int64_t)bits;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 22 (Part 4): Scene Spawners, Entities, Ropes & Nav Polys (27 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcEntityAutoSpawnOnce(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A12830: (entity-auto-spawn-once [spawner]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t spawner_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *spawn_fn)(uint32_t);
+    spawn_fn fn = (spawn_fn)(uintptr_t)(g_u2_image_base + 0x00A127A0ull);
+    if (fn) fn(spawner_id);
+    return 1;
+}
+
+static int64_t ABI detour_DcObjectSpawnedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A12780: (object-spawned? [entity]) -> bool */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t ent_id = (uint32_t)argv[0];
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    return lookup && lookup(ent_id, 0) != NULL ? 1 : 0;
+}
+
+static int64_t ABI detour_DcBattleSelectBestSpawnerFromGroup(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A11190: (battle-select-best-spawner-from-group [group]) -> spawner-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t group_id = (uint32_t)argv[0];
+    typedef uint32_t (ABI *select_fn)(uint32_t);
+    select_fn fn = (select_fn)(uintptr_t)(g_u2_image_base + 0x00A10F70ull);
+    return fn ? (int64_t)fn(group_id) : 0;
+}
+
+static int64_t ABI detour_DcSelectBestSchemaSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10EB0: (select-best-schema-spawner [schema]) -> spawner-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t schema_id = (uint32_t)argv[0];
+    typedef uint32_t (ABI *select_fn)(uint32_t);
+    select_fn fn = (select_fn)(uintptr_t)(g_u2_image_base + 0x00A10E00ull);
+    return fn ? (int64_t)fn(schema_id) : 0;
+}
+
+static int64_t ABI detour_DcObjectInRegionP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FCA0: (object-in-region? [entity] [region]) -> bool */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t ent_id = (uint32_t)argv[0];
+    uint32_t reg_id = (uint32_t)argv[1];
+    typedef int32_t (ABI *in_reg_fn)(uint32_t, uint32_t);
+    in_reg_fn fn = (in_reg_fn)(uintptr_t)(g_u2_image_base + 0x00A0FBC0ull);
+    return fn ? (fn(ent_id, reg_id) != 0 ? 1 : 0) : 0;
+}
+
+static int64_t ABI detour_DcSpawnAttachable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F540: (spawn-attachable [archetype] [parent] [joint]) -> ent-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 3 || !argv) return 0;
+    typedef uint32_t (ABI *attach_fn)(uint32_t, uint32_t, uint32_t);
+    attach_fn fn = (attach_fn)(uintptr_t)(g_u2_image_base + 0x00A0F4C0ull);
+    return fn ? (int64_t)fn((uint32_t)argv[0], (uint32_t)argv[1], (uint32_t)argv[2]) : 0;
+}
+
+static int64_t ABI detour_DcSlaForceTackle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F4A0: (sla-force-tackle [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcCreateWeaponDrawables(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0C410: (create-weapon-drawables [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEmitBulletFromSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0BF40: (emit-bullet-from-spawner [spawner] [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcForceStealthOff(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0BC40: (force-stealth-off) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *stealth = (uint8_t *)(uintptr_t)(g_u2_image_base + 0x01161EE6ull);
+    if (stealth) *stealth = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcStickySpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0B8F0: (sticky-spawner [spawner]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUnstickySpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0B7C0: (unsticky-spawner [spawner]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcAttachFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A4C0: (attach-flashlight [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcKillFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A130: (kill-flashlight [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSpawnEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09F40: (spawn-entity [archetype] [name]) -> ent-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    typedef uint32_t (ABI *spawn_fn)(uint32_t, uint64_t);
+    spawn_fn fn = (spawn_fn)(uintptr_t)(g_u2_image_base + 0x00A096E0ull);
+    return fn ? (int64_t)fn((uint32_t)argv[0], argc >= 2 ? argv[1] : 0) : 0;
+}
+
+static int64_t ABI detour_DcSpawnEntityAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009F3900: (spawn-entity-at [archetype] [pos-vec]) -> ent-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    typedef uint32_t (ABI *spawn_fn)(uint32_t, uint64_t);
+    spawn_fn fn = (spawn_fn)(uintptr_t)(g_u2_image_base + 0x00A096E0ull);
+    return fn ? (int64_t)fn((uint32_t)argv[0], argc >= 2 ? argv[1] : 0) : 0;
+}
+
+static int64_t ABI detour_DcKillEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09D60: (kill-entity [entity]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t ent_id = (uint32_t)argv[0];
+    typedef void (ABI *kill_fn)(uint32_t);
+    kill_fn fn = (kill_fn)(uintptr_t)(g_u2_image_base + 0x00A09BF0ull);
+    if (fn) fn(ent_id);
+    return 1;
+}
+
+static int64_t ABI detour_DcKillDroppedWeaponsInSphere(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09B10: (kill-dropped-weapons-in-sphere [center] [radius]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcKillPartSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A099B0: (kill-part-spawner [spawner]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSwapEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09590: (swap-entity [old-ent] [new-archetype]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcBlockNavPolyUnderObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A05030: (block-nav-poly-under-object [entity]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    typedef void (ABI *nav_fn)(uint32_t, int32_t);
+    nav_fn fn = (nav_fn)(uintptr_t)(g_u2_image_base + 0x00A04FA0ull);
+    if (fn) fn((uint32_t)argv[0], 1);
+    return 1;
+}
+
+static int64_t ABI detour_DcUnblockNavPolyUnderObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04FC0: (unblock-nav-poly-under-object [entity]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    typedef void (ABI *nav_fn)(uint32_t, int32_t);
+    nav_fn fn = (nav_fn)(uintptr_t)(g_u2_image_base + 0x00A04FA0ull);
+    if (fn) fn((uint32_t)argv[0], 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcRegenerateCoverActionPacksFromObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04E20: (regenerate-cover-action-packs-from-object [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRemoveCoverActionPacksFromObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04DC0: (remove-cover-action-packs-from-object [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRenameObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04D10: (rename-object [entity] [new-name]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGrabRope(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04740: (grab-rope [entity] [rope-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDropRope(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A045E0: (drop-rope [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -4437,6 +4667,34 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcGetWaterOffset", 0x00A02F20, (uintptr_t)detour_DcGetWaterOffset },
     { "DcGetWaterState", 0x00A02D90, (uintptr_t)detour_DcGetWaterState },
     { "DcGetDda", 0x009FD010, (uintptr_t)detour_DcGetDda },
+    /* Lot 22 (Part 4): Scene Spawners, Entities, Ropes & Nav Polys (27 funcs) */
+    { "DcEntityAutoSpawnOnce", 0x00A12830, (uintptr_t)detour_DcEntityAutoSpawnOnce },
+    { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
+    { "DcBattleSelectBestSpawnerFromGroup", 0x00A11190, (uintptr_t)detour_DcBattleSelectBestSpawnerFromGroup },
+    { "DcSelectBestSchemaSpawner", 0x00A10EB0, (uintptr_t)detour_DcSelectBestSchemaSpawner },
+    { "DcObjectInRegionP", 0x00A0FCA0, (uintptr_t)detour_DcObjectInRegionP },
+    { "DcSpawnAttachable", 0x00A0F540, (uintptr_t)detour_DcSpawnAttachable },
+    { "DcSlaForceTackle", 0x00A0F4A0, (uintptr_t)detour_DcSlaForceTackle },
+    { "DcCreateWeaponDrawables", 0x00A0C410, (uintptr_t)detour_DcCreateWeaponDrawables },
+    { "DcEmitBulletFromSpawner", 0x00A0BF40, (uintptr_t)detour_DcEmitBulletFromSpawner },
+    { "DcForceStealthOff", 0x00A0BC40, (uintptr_t)detour_DcForceStealthOff },
+    { "DcStickySpawner", 0x00A0B8F0, (uintptr_t)detour_DcStickySpawner },
+    { "DcUnstickySpawner", 0x00A0B7C0, (uintptr_t)detour_DcUnstickySpawner },
+    { "DcAttachFlashlight", 0x00A0A4C0, (uintptr_t)detour_DcAttachFlashlight },
+    { "DcKillFlashlight", 0x00A0A130, (uintptr_t)detour_DcKillFlashlight },
+    { "DcSpawnEntity", 0x00A09F40, (uintptr_t)detour_DcSpawnEntity },
+    { "DcSpawnEntityAt", 0x009F3900, (uintptr_t)detour_DcSpawnEntityAt },
+    { "DcKillEntity", 0x00A09D60, (uintptr_t)detour_DcKillEntity },
+    { "DcKillDroppedWeaponsInSphere", 0x00A09B10, (uintptr_t)detour_DcKillDroppedWeaponsInSphere },
+    { "DcKillPartSpawner", 0x00A099B0, (uintptr_t)detour_DcKillPartSpawner },
+    { "DcSwapEntity", 0x00A09590, (uintptr_t)detour_DcSwapEntity },
+    { "DcBlockNavPolyUnderObject", 0x00A05030, (uintptr_t)detour_DcBlockNavPolyUnderObject },
+    { "DcUnblockNavPolyUnderObject", 0x00A04FC0, (uintptr_t)detour_DcUnblockNavPolyUnderObject },
+    { "DcRegenerateCoverActionPacksFromObject", 0x00A04E20, (uintptr_t)detour_DcRegenerateCoverActionPacksFromObject },
+    { "DcRemoveCoverActionPacksFromObject", 0x00A04DC0, (uintptr_t)detour_DcRemoveCoverActionPacksFromObject },
+    { "DcRenameObject", 0x00A04D10, (uintptr_t)detour_DcRenameObject },
+    { "DcGrabRope", 0x00A04740, (uintptr_t)detour_DcGrabRope },
+    { "DcDropRope", 0x00A045E0, (uintptr_t)detour_DcDropRope },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

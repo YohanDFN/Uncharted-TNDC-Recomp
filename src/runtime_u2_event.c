@@ -688,6 +688,33 @@ static int64_t ABI detour_DcGetBoolean(int32_t argc, uint64_t *argv, uint32_t *s
     return fn ? (fn(sym) != 0 ? 1 : 0) : 0;
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 22 (Part 2): Event Spawn Messages (2 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcSpawnMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DC7B0: (spawn-message [msg-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *msg_fn)(uint32_t);
+    msg_fn fn = (msg_fn)(uintptr_t)(g_u2_image_base + 0x005DC700ull);
+    if (fn) fn(msg_id);
+    return 1;
+}
+
+static int64_t ABI detour_DcDespawnMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DC8C0: (despawn-message [msg-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *msg_fn)(uint32_t);
+    msg_fn fn = (msg_fn)(uintptr_t)(g_u2_image_base + 0x005DC700ull);
+    if (fn) fn(msg_id);
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -762,6 +789,9 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcGetFloat", 0x00A43170, (uintptr_t)detour_DcGetFloat },
     { "DcGetInt32", 0x00A42EB0, (uintptr_t)detour_DcGetInt32 },
     { "DcGetBoolean", 0x00A42BF0, (uintptr_t)detour_DcGetBoolean },
+    /* Lot 22 (Part 2): Event Spawn Messages (2 funcs) */
+    { "DcSpawnMessage", 0x005DC7B0, (uintptr_t)detour_DcSpawnMessage },
+    { "DcDespawnMessage", 0x005DC8C0, (uintptr_t)detour_DcDespawnMessage },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

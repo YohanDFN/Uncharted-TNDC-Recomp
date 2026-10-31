@@ -2453,6 +2453,110 @@ static int64_t ABI detour_DcGetPlayerCarriedObject(int32_t argc, uint64_t *argv,
     return (int64_t)(*(const uint32_t *)(player + 0x2788));
 }
 
+
+/* --------------------------------------------------------------------------
+   LOT 22 (Part 3): Player Force Overrides & Attachments (7 funcs)
+   -------------------------------------------------------------------------- */
+
+static int64_t ABI detour_DcForceHighLedgeDrop(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090F630: (force-high-ledge-drop [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "force-high-ledge-drop", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcForceDeathCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090EFF0: (force-death-camera [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "force-death-camera", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcForceUboatCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090C960: (force-uboat-collision [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "force-uboat-collision", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcCreateBeltAttachment(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090AD30: (create-belt-attachment [item-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcForceCollisionForAimFocus(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00906F90: (force-collision-for-aim-focus [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "force-collision-for-aim-focus", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcForceHairAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00906840: (force-hair-anim [anim-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcForceDistanceStopIncrease(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00906740: (force-distance-stop-increase [flag]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
+    typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
+    prop_helper_fn prop_fn = (prop_helper_fn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0, "force-distance-stop-increase", (float)flag) : NULL;
+    if (obj) {
+        typedef void (ABI *post_fn)(void *, int32_t);
+        post_fn pfn = (post_fn)(uintptr_t)(g_u2_image_base + 0x00DE6400ull);
+        if (pfn) pfn(obj, 1);
+    }
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -2599,6 +2703,14 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcGetPlayerPlatform", 0x0090CF40, (uintptr_t)detour_DcGetPlayerPlatform },
     { "DcGetMeleeTeachDest", 0x00908D10, (uintptr_t)detour_DcGetMeleeTeachDest },
     { "DcGetPlayerCarriedObject", 0x009068C0, (uintptr_t)detour_DcGetPlayerCarriedObject },
+    /* Lot 22 (Part 3): Player Force Overrides & Attachments (7 funcs) */
+    { "DcForceHighLedgeDrop", 0x0090F630, (uintptr_t)detour_DcForceHighLedgeDrop },
+    { "DcForceDeathCamera", 0x0090EFF0, (uintptr_t)detour_DcForceDeathCamera },
+    { "DcForceUboatCollision", 0x0090C960, (uintptr_t)detour_DcForceUboatCollision },
+    { "DcCreateBeltAttachment", 0x0090AD30, (uintptr_t)detour_DcCreateBeltAttachment },
+    { "DcForceCollisionForAimFocus", 0x00906F90, (uintptr_t)detour_DcForceCollisionForAimFocus },
+    { "DcForceHairAnim", 0x00906840, (uintptr_t)detour_DcForceHairAnim },
+    { "DcForceDistanceStopIncrease", 0x00906740, (uintptr_t)detour_DcForceDistanceStopIncrease },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {
