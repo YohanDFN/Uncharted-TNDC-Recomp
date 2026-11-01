@@ -1209,6 +1209,79 @@ static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size)
             fflush(stdout);
         }
     }
+
+    /*
+     * Patch 0x009BD290: IntroState vtable[0xc0] transition check
+     * Original at 0x009BD290:
+     *   80 4f 34 20   orb $0x20, 0x34(%rdi)
+     *   31 c0         xor %eax, %eax
+     *   c3            retq
+     * When returning 0, IntroState_SkipOrAdvance (0x00A63460) aborts without posting
+     * transition event to state_mgr (0x50(rdi)), staying trapped in IntroState.
+     * We patch 31 c0 to b0 01 (mov $1, %al) so the transition handler proceeds.
+     */
+    if (image && image_size >= 0x009BD290 + 7) {
+        static const uint8_t orig_intro_check[7] = { 0x80, 0x4F, 0x34, 0x20, 0x31, 0xC0, 0xC3 };
+        static const uint8_t patch_intro_check[7] = { 0x80, 0x4F, 0x34, 0x20, 0xB0, 0x01, 0xC3 };
+        if (memcmp(image + 0x009BD290, orig_intro_check, sizeof(orig_intro_check)) == 0) {
+            memcpy(image + 0x009BD290, patch_intro_check, sizeof(patch_intro_check));
+            printf("[U2 Engine] Patched IntroState vtable[0xc0] at 0x009BD290 -> return 1 (allow state transition)\n");
+            fflush(stdout);
+        }
+    }
+
+    /* Set bp_skipintromovie = 1 at 0x0105DE94 */
+    if (image && image_size > 0x0105DE94) {
+        image[0x0105DE94] = 1;
+        printf("[U2 Engine] Set bp_skipintromovie = 1 at 0x0105DE94\n");
+        fflush(stdout);
+    }
+}
+
+/* ============================================================================
+ * IntroState / Boot Cutscene Bypass
+ * ============================================================================ */
+
+static void ABI detour_IntroState_Update(void *this_ptr) {
+    if (!this_ptr || !g_u2_image_base) return;
+
+    static uint32_t s_intro_frame_count = 0;
+    static bool s_transitioned = false;
+    ++s_intro_frame_count;
+
+    /* Clear MovieManager playback flags since PS4 hardware videodec is absent on PC */
+    void **movie_mgr_slot = (void **)(g_u2_image_base + 0x010608E0);
+    if (movie_mgr_slot && *movie_mgr_slot) {
+        uint8_t *movie_mgr = (uint8_t *)*movie_mgr_slot;
+        *(uint32_t *)(movie_mgr + 0x2256C) = 0;
+        *(uint8_t *)(movie_mgr + 0x22570) = 0;
+    }
+
+    if (s_transitioned) return;
+
+    /* Poll pad input: 0x6008 = Start (0x0008), Cross (0x2000), Enter (0x4000) */
+    uint32_t pad_buttons = *(uint32_t *)(g_u2_image_base + 0x01116180 + 0x864);
+
+    /* After 15 frames warmup or immediately upon user confirmation, advance to main menu */
+    if (s_intro_frame_count >= 15 || (pad_buttons & 0x6008) != 0) {
+        s_transitioned = true;
+        printf("[U2 Boot] IntroState completed (frame %u, pad=0x%04x) -> advancing to Main Menu\n",
+               s_intro_frame_count, pad_buttons & 0xFFFF);
+        fflush(stdout);
+
+        /* Trigger state transition via official handler at 0x00A63460 */
+        typedef void (ABI *IntroAdvanceFn)(void *state);
+        IntroAdvanceFn advance = (IntroAdvanceFn)(g_u2_image_base + 0x00A63460);
+        advance(this_ptr);
+
+        /* Guarantee transition event posting to state manager */
+        uint8_t *state = (uint8_t *)this_ptr;
+        *(uint16_t *)(state + 0x34) |= 0x100;
+        void *state_mgr = *(void **)(state + 0x50);
+        if (state_mgr) {
+            *(void **)((uint8_t *)state_mgr + 0x8) = (void *)(g_u2_image_base + 0x0153E2E0);
+        }
+    }
 }
 
 /* ============================================================================
@@ -1272,6 +1345,8 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     write_detour_jmp64(image + 0x00552C70, (uintptr_t)detour_Hud_ReadConfigFile);
     ++installed;
     write_detour_jmp64(image + 0x00415700, (uintptr_t)detour_Entity_UpdateExtents);
+    ++installed;
+    write_detour_jmp64(image + 0x00A551B0, (uintptr_t)detour_IntroState_Update);
     ++installed;
 
     if (image_size > 0x1130008 + 0x318) {

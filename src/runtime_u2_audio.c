@@ -176,7 +176,8 @@ static int64_t ABI detour_DcPlayMovie(int32_t argc, uint64_t *argv, uint32_t *st
     if (vtable) {
         typedef uint8_t (ABI *IsPlayingFn)(void *);
         IsPlayingFn is_playing = (IsPlayingFn)vtable[7];
-        if (is_playing && !is_playing(movie_mgr)) {
+        uint8_t playing = is_playing ? is_playing(movie_mgr) : 0;
+        if (!playing) {
             typedef void (ABI *PlayMovieFn)(void *, uint64_t, uint32_t, float);
             PlayMovieFn play_fn = (PlayMovieFn)vtable[2];
             if (play_fn) play_fn(movie_mgr, argv[0], 0, 0.0f);
