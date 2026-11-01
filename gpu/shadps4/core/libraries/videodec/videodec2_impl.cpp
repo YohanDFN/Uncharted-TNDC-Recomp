@@ -94,6 +94,13 @@ s32 VdecDecoder::Decode(const OrbisVideodec2InputData& input_data,
         return ORBIS_VIDEODEC2_ERROR_API_FAIL;
     }
 
+    static uint64_t s_vdec_frames = 0;
+    if (++s_vdec_frames <= 10 || s_vdec_frames % 60 == 0) {
+        std::printf("[Videodec] Decoded movie frame #%llu (%dx%d, pts=%" PRId64 ")\n",
+                    (unsigned long long)s_vdec_frames, frame->width, frame->height, (int64_t)frame->pts);
+        std::fflush(stdout);
+    }
+
     if (frame->flags & AV_FRAME_FLAG_INTERLACED) {
         LOG_ERROR(Lib_Vdec2, "Interlaced video output is not suported.");
     }

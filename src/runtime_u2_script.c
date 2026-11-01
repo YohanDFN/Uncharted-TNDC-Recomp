@@ -1210,36 +1210,40 @@ static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size)
         }
     }
 
-    /* Set bp_skipintromovie = 1 at 0x0105DE94 */
-    if (image && image_size > 0x0105DE94) {
-        image[0x0105DE94] = 1;
-        printf("[U2 Engine] Set bp_skipintromovie = 1 at 0x0105DE94\n");
+    /* Set bp_skipintromovie = 1 only if explicitly requested via BB_U2_SKIP_INTRO=1 */
+    const char *skip_intro_env = getenv("BB_U2_SKIP_INTRO");
+    if (skip_intro_env && *skip_intro_env && *skip_intro_env != '0') {
+        if (image && image_size > 0x0105DE94) {
+            image[0x0105DE94] = 1;
+            printf("[U2 Engine] Set bp_skipintromovie = 1 at 0x0105DE94 (via BB_U2_SKIP_INTRO=1)\n");
+            fflush(stdout);
+        }
+    } else {
+        printf("[U2 Engine] Cinematic playback enabled (bp_skipintromovie = 0)\n");
         fflush(stdout);
     }
 
     /*
-     * Transition UCCApp to Title Screen (state 7) at boot.
-     * When state < 7:
-     *   - UCCApp::Update (0x00D5A930) skips all game updates (ja 0xd5b12d at 0x00D5A95F)
-     *   - UCCApp::Render (0x00D59A50) skips all rendering (ja 0xd5a8d4 at 0x00D59A8E)
-     *   - Scene renderer (0x005CF5B0) skips world rendering (jz 0x5d0013)
-     * We initialize state = 7 (Title Screen) and flag = 1, and patch the skip branch
-     * at 0x00D5A95F so UCCApp::Update always executes normally.
+     * Fast-forward UCCApp to Title Screen (state 7) only if explicitly requested via BB_U2_FAST_TITLE=1.
+     * By default, let the engine naturally run its boot and intro cinematic sequence.
      */
-    if (image && image_size > 0x010532D0 + 0x20) {
-        *(uint32_t *)(image + 0x010532D0) = 7;
-        *(uint8_t *)(image + 0x010532D0 + 0x14) = 1;
-        printf("[U2 Engine] Initialized UCCApp state = 7 (Title Screen) at 0x010532D0\n");
-        fflush(stdout);
-    }
-
-    if (image && image_size >= 0x00D5A95F + 6) {
-        static const uint8_t orig_ucc_skip[6] = { 0x0F, 0x87, 0xC8, 0x07, 0x00, 0x00 };
-        static const uint8_t nop_ucc_skip[6]  = { 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00 };
-        if (memcmp(image + 0x00D5A95F, orig_ucc_skip, sizeof(orig_ucc_skip)) == 0) {
-            memcpy(image + 0x00D5A95F, nop_ucc_skip, sizeof(nop_ucc_skip));
-            printf("[U2 Engine] Patched UCCApp::Update at 0x00D5A95F -> bypass state < 7 skip\n");
+    const char *fast_title_env = getenv("BB_U2_FAST_TITLE");
+    if (fast_title_env && *fast_title_env && *fast_title_env != '0') {
+        if (image && image_size > 0x010532D0 + 0x20) {
+            *(uint32_t *)(image + 0x010532D0) = 7;
+            *(uint8_t *)(image + 0x010532D0 + 0x14) = 1;
+            printf("[U2 Engine] Initialized UCCApp state = 7 (Title Screen) at 0x010532D0 (via BB_U2_FAST_TITLE=1)\n");
             fflush(stdout);
+        }
+
+        if (image && image_size >= 0x00D5A95F + 6) {
+            static const uint8_t orig_ucc_skip[6] = { 0x0F, 0x87, 0xC8, 0x07, 0x00, 0x00 };
+            static const uint8_t nop_ucc_skip[6]  = { 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00 };
+            if (memcmp(image + 0x00D5A95F, orig_ucc_skip, sizeof(orig_ucc_skip)) == 0) {
+                memcpy(image + 0x00D5A95F, nop_ucc_skip, sizeof(nop_ucc_skip));
+                printf("[U2 Engine] Patched UCCApp::Update at 0x00D5A95F -> bypass state < 7 skip\n");
+                fflush(stdout);
+            }
         }
     }
 }
@@ -1298,6 +1302,181 @@ static void ABI detour_IntroState_Update(void *this_ptr) {
             }
         }
     }
+}
+
+/* ============================================================================
+ * GPU Sync & EOP Tick Advancement Detour (guest offset 0x00B29F10)
+ * ============================================================================ */
+
+/* Naughty Dog GfxWaitEopFence (guest offset 0x00B29F10):
+ * On PS4, AMD GCN GPU writes the end-of-pipe fence tick to *(sync_obj + 0x20)
+ * via EVENT_WRITE_EOP packets.
+ * On PC Vulkan, host memory is not directly updated by GCN packets, causing
+ * the engine main thread to spin-wait forever in usleep(1000) at 0x00B29FF0.
+ * Advancing *(sync_obj + 0x20) to target_tick satisfies the fence condition
+ * and unblocks the CPU render loop to submit frames to Vulkan.
+ */
+static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uint32_t mode) {
+    (void)mode;
+    if (!sync_obj) return;
+    uint64_t *cur_tick = (uint64_t *)((uint8_t *)sync_obj + 0x20);
+    if (*cur_tick < target_tick) {
+        *cur_tick = target_tick;
+    }
+    static uint64_t s_sync_calls = 0;
+    static uint32_t s_last_ucc_state = 0xFFFFFFFF;
+    s_sync_calls++;
+
+    uint32_t cur_state = 0;
+    if (g_u2_image_base) {
+        cur_state = *(uint32_t *)(g_u2_image_base + 0x010532D0);
+        if (cur_state != s_last_ucc_state) {
+            printf("[U2 Engine] State Transition: UCCApp State %u -> %u\n", s_last_ucc_state, cur_state);
+            fflush(stdout);
+            s_last_ucc_state = cur_state;
+        }
+    }
+
+    if ((s_sync_calls <= 10) || (s_sync_calls % 60 == 0)) {
+        uint32_t pad = 0;
+        if (g_u2_image_base) {
+            pad = *(uint32_t *)(g_u2_image_base + 0x01116180 + 0x864);
+        }
+        printf("[U2 Loop] Frame #%" PRIu64 " | UCCApp State=%u | Pad=0x%04x | EOP Tick=%" PRIu64 "\n",
+               s_sync_calls, cur_state, pad & 0xFFFF, target_tick);
+        fflush(stdout);
+    }
+}
+
+/* ============================================================================
+ * JSON Parser Fallback for Ingame Shaders (0x00C2C230 / 0x00C2C0D0)
+ * ============================================================================ */
+
+static struct {
+    uint32_t type;       /* +0x00: 5 (JSON Object) */
+    uint32_t pad04;      /* +0x04 */
+    void    *obj_data;   /* +0x08 */
+} s_dummy_json_root;
+
+static struct {
+    uint64_t pad00;      /* +0x00 */
+    uint32_t count;      /* +0x08: 0 children */
+    uint32_t pad0c;      /* +0x0c */
+    void    *first_child;/* +0x10: NULL */
+} s_dummy_json_obj;
+
+static void * ABI detour_JsonParseFiles(void *ctx) {
+    (void)ctx;
+    s_dummy_json_root.type = 5;
+    s_dummy_json_root.pad04 = 0;
+    s_dummy_json_root.obj_data = &s_dummy_json_obj;
+    s_dummy_json_obj.pad00 = 0;
+    s_dummy_json_obj.count = 0;
+    s_dummy_json_obj.pad0c = 0;
+    s_dummy_json_obj.first_child = NULL;
+    printf("[U2 Engine] JsonParseFiles -> returning dummy empty JSON root\n");
+    fflush(stdout);
+    return &s_dummy_json_root;
+}
+
+static void ABI detour_JsonFreeNode(void *node) {
+    (void)node;
+}
+
+static void ABI detour_Renderer_InitParticles(void) {
+    printf("[U2 Engine] Renderer::InitParticles at 0x0050E150 (stubbed)\n");
+    fflush(stdout);
+}
+
+/* ============================================================================
+ * StringIdToStringInternal Detour (guest offset 0x00CE33A0)
+ * ============================================================================ */
+
+static const char * ABI detour_StringIdToStringInternal(uint32_t id, uint32_t flag) {
+    (void)flag;
+    if (id == 0) return "";
+    static char s_str_buffers[16][64];
+    static uint32_t s_str_idx = 0;
+    uint32_t slot = (s_str_idx++) & 15;
+    snprintf(s_str_buffers[slot], sizeof(s_str_buffers[slot]), "str_%08x", id);
+    return s_str_buffers[slot];
+}
+
+/* ============================================================================
+ * Dummy Profiler / Performance Marker Vtable (0x01086740)
+ * ============================================================================ */
+
+static uint64_t ABI dummy_profiler_noop(void) {
+    return 0;
+}
+
+static void *s_dummy_profiler_vtable[32];
+static void *s_dummy_profiler_instance = s_dummy_profiler_vtable;
+
+/* ============================================================================
+ * Safe Job Dispatcher Guard (guest offset 0x00B3DB04)
+ * ============================================================================ */
+
+uint32_t s_tcb_offset = 0;
+uintptr_t s_job_dispatch_ret = 0;
+uintptr_t g_guest_code_base = 0;
+uintptr_t g_guest_code_limit = 0;
+uintptr_t g_host_code_base = 0;
+uintptr_t g_host_code_limit = 0;
+uintptr_t s_last_job_fn = 0;
+void     *s_last_job_arg = NULL;
+uint32_t runtime_thread_tcb_offset(void);
+
+__attribute__((naked)) static void hook_JobDispatch(void) {
+    __asm__ volatile (
+        "movq -0x88(%%rbp), %%rdi\n\t"
+        "cmpq g_guest_code_base(%%rip), %%r15\n\t"
+        "jb 3f\n\t"
+        "cmpq g_guest_code_limit(%%rip), %%r15\n\t"
+        "jb 2f\n\t"
+        "3:\n\t"
+        "cmpq g_host_code_base(%%rip), %%r15\n\t"
+        "jb 1f\n\t"
+        "cmpq g_host_code_limit(%%rip), %%r15\n\t"
+        "jae 1f\n\t"
+        "2:\n\t"
+        "movq %%r15, s_last_job_fn(%%rip)\n\t"
+        "movq %%rdi, s_last_job_arg(%%rip)\n\t"
+        "callq *%%r15\n\t"
+        "1:\n\t"
+        "movl s_tcb_offset(%%rip), %%eax\n\t"
+        "movq %%gs:(%%rax), %%rax\n\t"
+        "jmpq *s_job_dispatch_ret(%%rip)\n\t"
+        :
+        :
+        : "memory"
+    );
+}
+
+/* ============================================================================
+ * Safe Particle / Effect Emitter Guard (guest offset 0x001E2110)
+ * ============================================================================ */
+
+uintptr_t s_1e2110_cont = 0;
+
+__attribute__((naked)) static void hook_1e2110(void) {
+    __asm__ volatile (
+        "cmpq $0x1000, %%rdi\n\t"
+        "jb 1f\n\t"
+        "pushq %%rbp\n\t"
+        "movq %%rsp, %%rbp\n\t"
+        "pushq %%r15\n\t"
+        "pushq %%r14\n\t"
+        "pushq %%r12\n\t"
+        "pushq %%rbx\n\t"
+        "movq %%r8, %%rbx\n\t"
+        "jmpq *s_1e2110_cont(%%rip)\n\t"
+        "1:\n\t"
+        "retq\n\t"
+        :
+        :
+        : "memory"
+    );
 }
 
 /* ============================================================================
@@ -1362,12 +1541,69 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     ++installed;
     write_detour_jmp64(image + 0x00415700, (uintptr_t)detour_Entity_UpdateExtents);
     ++installed;
-    write_detour_jmp64(image + 0x00A551B0, (uintptr_t)detour_IntroState_Update);
+    const char *fast_intro_env = getenv("BB_U2_FAST_INTRO");
+    if (fast_intro_env && *fast_intro_env && *fast_intro_env != '0') {
+        write_detour_jmp64(image + 0x00A551B0, (uintptr_t)detour_IntroState_Update);
+        ++installed;
+        printf("[U2 Engine] Fast intro bypass detour installed (BB_U2_FAST_INTRO=1)\n");
+        fflush(stdout);
+    }
+    write_detour_jmp64(image + 0x00B29F10, (uintptr_t)detour_GfxWaitEopFence);
     ++installed;
+    write_detour_jmp64(image + 0x00C2C230, (uintptr_t)detour_JsonParseFiles);
+    ++installed;
+    write_detour_jmp64(image + 0x00C2C0D0, (uintptr_t)detour_JsonFreeNode);
+    ++installed;
+    write_detour_jmp64(image + 0x0050E150, (uintptr_t)detour_Renderer_InitParticles);
+    ++installed;
+    write_detour_jmp64(image + 0x00CE33A0, (uintptr_t)detour_StringIdToStringInternal);
+    ++installed;
+
+    /* Install hook_JobDispatch to protect fiber/job invocation at 0x00B3DB04 against invalid handles */
+    if (image_size > 0x00B3DB17) {
+        g_guest_code_base = (uintptr_t)image;
+        g_guest_code_limit = (uintptr_t)image + 0x01870000ULL;
+        g_host_code_base = (uintptr_t)GetModuleHandle(NULL);
+        g_host_code_limit = g_host_code_base + 0x10000000ULL;
+        s_tcb_offset = runtime_thread_tcb_offset();
+        s_job_dispatch_ret = (uintptr_t)(image + 0x00B3DB17);
+        write_detour_jmp64(image + 0x00B3DB04, (uintptr_t)hook_JobDispatch);
+        memset(image + 0x00B3DB04 + 12, 0x90, 7);
+        ++installed;
+        printf("[U2 Engine] Installed hook_JobDispatch at 0x00B3DB04 (tcb_offset=0x%x, guest=[%p..%p], host=[%p..%p])\n",
+               s_tcb_offset, (void *)g_guest_code_base, (void *)g_guest_code_limit,
+               (void *)g_host_code_base, (void *)g_host_code_limit);
+        fflush(stdout);
+    }
+
+    /* Install hook_1e2110 to protect particle/effect emitter update at 0x001E2110 against low pointer fault */
+    if (image_size > 0x001E211E) {
+        s_1e2110_cont = (uintptr_t)(image + 0x001E211E);
+        write_detour_jmp64(image + 0x001E2110, (uintptr_t)hook_1e2110);
+        memset(image + 0x001E2110 + 12, 0x90, 2);
+        ++installed;
+        printf("[U2 Engine] Installed hook_1e2110 at 0x001E2110\n");
+        fflush(stdout);
+    }
+
+    if (image_size > 0x16c06b0) {
+        *(uint8_t *)(image + 0x16c06b0) = 1; /* g_bStringInitCalled = true */
+    }
 
     if (image_size > 0x1130008 + 0x318) {
         memset(&s_dummy_hud_sub_obj, 0, sizeof(s_dummy_hud_sub_obj));
         *(void **)(image + 0x1130008 + 0x310) = &s_dummy_hud_sub_obj;
+    }
+
+    for (size_t i = 0; i < sizeof(s_dummy_profiler_vtable)/sizeof(s_dummy_profiler_vtable[0]); ++i) {
+        s_dummy_profiler_vtable[i] = (void *)dummy_profiler_noop;
+    }
+    if (image_size > 0x01086740 + 8) {
+        if (*(void **)(image + 0x01086740) == NULL) {
+            *(void **)(image + 0x01086740) = &s_dummy_profiler_instance;
+            printf("[U2 Engine] Initialized dummy profiler/tracker at 0x01086740\n");
+            fflush(stdout);
+        }
     }
 
     /* Patch 0x003C03E7: skip 8-iteration table scan when r13 is NULL to avoid fault at 0x3c0400 */
@@ -1394,6 +1630,51 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         ++installed;
     }
 
+    /* Patch 0x0057674B: Force boot initialization success (eb 11 instead of jg 11) to prevent false shutdown & memory unmap */
+    if (image_size > 0x0057674B + 2) {
+        static const uint8_t s_patch_57674b[2] = { 0xeb, 0x11 };
+        memcpy(image + 0x0057674B, s_patch_57674b, sizeof(s_patch_57674b));
+        printf("[U2 Engine] Applied patch 0x0057674B: Force boot initialization success\n");
+        fflush(stdout);
+        ++installed;
+    }
+
+    /* Patch 0x001D30A4: Guard atomic bitmask clear against NULL rdx in animation/job helper */
+    if (image_size > 0x001D30A4 + 12) {
+        static const uint8_t s_patch_1d30a4[12] = {
+            0x48, 0x85, 0xd2,                               /* testq %rdx, %rdx */
+            0x74, 0x18,                                     /* jz 0x1d30c1 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90        /* 7x nop */
+        };
+        memcpy(image + 0x001D30A4, s_patch_1d30a4, sizeof(s_patch_1d30a4));
+        ++installed;
+        printf("[U2 Engine] Applied patch 0x001D30A4: Guard atomic bitmask clear against NULL rdx\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x001DE714: Guard atomic bitmask clear against NULL rdx in job completion helper */
+
+    if (image_size > 0x001DE714 + 12) {
+        static const uint8_t s_patch_1de714[12] = {
+            0x48, 0x85, 0xd2,                               /* testq %rdx, %rdx */
+            0x74, 0x1d,                                     /* jz 0x1de736 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90        /* 7x nop */
+        };
+        memcpy(image + 0x001DE714, s_patch_1de714, sizeof(s_patch_1de714));
+        ++installed;
+    }
+
+    /* Patch 0x001DE841: Guard atomic bitmask clear against NULL rdx in job completion helper #2 */
+    if (image_size > 0x001DE841 + 15) {
+        static const uint8_t s_patch_1de841[15] = {
+            0x48, 0x85, 0xd2,                               /* testq %rdx, %rdx */
+            0x74, 0x20,                                     /* jz 0x1de866 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 /* 10x nop */
+        };
+        memcpy(image + 0x001DE841, s_patch_1de841, sizeof(s_patch_1de841));
+        ++installed;
+    }
+
     /* Patch 0x00A578D2: zero accessory outputs when rbx is NULL to prevent fault at 0x88(rbx) */
     if (image_size > 0x00A578D2 + 13) {
         static const uint8_t s_patch_a578d2[13] = {
@@ -1404,6 +1685,62 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         };
         memcpy(image + 0x00A578D2, s_patch_a578d2, sizeof(s_patch_a578d2));
         ++installed;
+    }
+
+    /* Patch 0x00B77B95: Return true if chunk set name is not found in IsChunkSetEntirelyWithin to avoid NULL dereference */
+    if (image_size > 0x00B77B95 + 7) {
+        static const uint8_t s_patch_b77b95[7] = {
+            0xb0, 0x01,                                     /* mov $1, %al */
+            0x5b,                                           /* pop %rbx */
+            0x41, 0x5e,                                     /* pop %r14 */
+            0x5d,                                           /* pop %rbp */
+            0xc3                                            /* retq */
+        };
+        memcpy(image + 0x00B77B95, s_patch_b77b95, sizeof(s_patch_b77b95));
+        ++installed;
+        printf("[U2 Engine] Applied patch 0x00B77B95: Safe return on unknown chunk set in IsChunkSetEntirelyWithin\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00A17E52 / 0x00A17E6A: Ensure symbol table size at 0x01534210 is >= 1 to prevent divide by zero */
+    if (image_size > 0x00A17E6A + 6) {
+        static const uint8_t s_patch_a17e52[14] = {
+            0x85, 0xdb,                                     /* testl %ebx, %ebx */
+            0x75, 0x02,                                     /* jne 0xa17e58 */
+            0xff, 0xc3,                                     /* incl %ebx */
+            0x89, 0x1d, 0xb2, 0xc3, 0xb1, 0x00,             /* movl %ebx, 0x1534210(%rip) */
+            0xeb, 0x10                                      /* jmp 0xa17e70 */
+        };
+        static const uint8_t s_patch_a17e6a[6] = {
+            0xeb, 0xe6,                                     /* jmp 0xa17e52 */
+            0x90, 0x90, 0x90, 0x90                          /* 4x nop */
+        };
+        memcpy(image + 0x00A17E52, s_patch_a17e52, sizeof(s_patch_a17e52));
+        memcpy(image + 0x00A17E6A, s_patch_a17e6a, sizeof(s_patch_a17e6a));
+        installed += 2;
+        printf("[U2 Engine] Applied patch 0x00A17E52: Ensure symbol table size >= 1\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00A1888C: Round symbol rehash bucket count up to at least 16 (0x1f instead of 0x0f) */
+    if (image_size > 0x00A1888C) {
+        image[0x00A1888C] = 0x1f;
+        ++installed;
+        printf("[U2 Engine] Applied patch 0x00A1888C: Min 16 buckets in ScriptManager rehash\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00A188CC, 0x00A188DA, 0x00A1890A: If table allocation or context is NULL, skip to 0x00A18CBE to avoid divide by zero at 0x00A18B1B */
+    if (image_size > 0x00A1890A + 6) {
+        static const uint8_t s_patch_a188cc[6] = { 0x0f, 0x84, 0xec, 0x03, 0x00, 0x00 }; /* je 0x00a18cbe */
+        static const uint8_t s_patch_a188da[6] = { 0x0f, 0x84, 0xde, 0x03, 0x00, 0x00 }; /* je 0x00a18cbe */
+        static const uint8_t s_patch_a1890a[6] = { 0x0f, 0x84, 0xae, 0x03, 0x00, 0x00 }; /* je 0x00a18cbe */
+        memcpy(image + 0x00A188CC, s_patch_a188cc, sizeof(s_patch_a188cc));
+        memcpy(image + 0x00A188DA, s_patch_a188da, sizeof(s_patch_a188da));
+        memcpy(image + 0x00A1890A, s_patch_a1890a, sizeof(s_patch_a1890a));
+        installed += 3;
+        printf("[U2 Engine] Applied patches at 0x00A188CC/DA/90A: Skip unallocated table in ScriptManager to prevent divide by zero\n");
+        fflush(stdout);
     }
 
     const char *native_vm_env = getenv("BB_U2_NATIVE_VM");

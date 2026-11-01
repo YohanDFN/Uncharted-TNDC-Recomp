@@ -7,6 +7,9 @@
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 typedef struct { int type; } GuestAttr;
 typedef struct { pthread_mutex_t native; } GuestMutex;
 static size_t created, locks, unlocks;
@@ -53,7 +56,7 @@ static ABI int32_t mutex_init(GuestMutex **out, GuestAttr **attr, const char *na
     pthread_mutexattr_t native_attr;
     int e = pthread_mutexattr_init(&native_attr);
     if (e) { free(mutex); return orbis_error(e); }
-    int native_type = type == 2 ? PTHREAD_MUTEX_RECURSIVE : type == 3 ? PTHREAD_MUTEX_NORMAL : PTHREAD_MUTEX_ERRORCHECK;
+    int native_type = type == 3 ? PTHREAD_MUTEX_NORMAL : PTHREAD_MUTEX_RECURSIVE;
     e = pthread_mutexattr_settype(&native_attr, native_type);
     if (!e) e = pthread_mutex_init(&mutex->native, &native_attr);
     pthread_mutexattr_destroy(&native_attr);
@@ -61,15 +64,15 @@ static ABI int32_t mutex_init(GuestMutex **out, GuestAttr **attr, const char *na
     *out = mutex; ++created; return 0;
 }
 static pthread_mutex_t static_init = PTHREAD_MUTEX_INITIALIZER;
-/* Statically initialized handles (0/1) are created once, even under contention. */
+/* Statically initialized handles (< 0x10000) are created once, even under contention. */
 static int32_t ensure_mutex(GuestMutex **mutex) {
     if (!mutex) return orbis_error(EINVAL);
     uintptr_t value = __atomic_load_n((uintptr_t *)mutex, __ATOMIC_ACQUIRE);
     if (value == 2) return orbis_error(EINVAL);
-    if (value >= 2) return 0;
+    if (value >= 0x10000) return 0;
     pthread_mutex_lock(&static_init);
     int32_t e = 0;
-    if ((uintptr_t)*mutex < 2) {
+    if ((uintptr_t)*mutex < 0x10000 && (uintptr_t)*mutex != 2) {
         GuestMutex *created_mutex = NULL;
         e = mutex_init(&created_mutex, NULL, NULL);
         if (!e) __atomic_store_n(mutex, created_mutex, __ATOMIC_RELEASE);
@@ -80,6 +83,7 @@ static int32_t ensure_mutex(GuestMutex **mutex) {
 static ABI int32_t mutex_lock(GuestMutex **mutex) {
     int32_t e = ensure_mutex(mutex);
     if (e) return e;
+    if (!mutex || !*mutex || (uintptr_t)*mutex < 0x10000) return orbis_error(EINVAL);
     e = orbis_error(pthread_mutex_lock(&(*mutex)->native));
     if (!e) ++locks;
     return e;
@@ -87,20 +91,28 @@ static ABI int32_t mutex_lock(GuestMutex **mutex) {
 static ABI int32_t mutex_trylock(GuestMutex **mutex) {
     int32_t e = ensure_mutex(mutex);
     if (e) return e;
+    if (!mutex || !*mutex || (uintptr_t)*mutex < 0x10000) return orbis_error(EINVAL);
     e = orbis_error(pthread_mutex_trylock(&(*mutex)->native));
     if (!e) ++locks;
     return e;
 }
 static ABI int32_t mutex_unlock(GuestMutex **mutex) {
     if (!mutex || (uintptr_t)*mutex == 2) return orbis_error(EINVAL);
-    if ((uintptr_t)*mutex < 2) return orbis_error(EPERM);
-    int32_t e = orbis_error(pthread_mutex_unlock(&(*mutex)->native));
+    if ((uintptr_t)*mutex < 0x10000) return 0;
+#ifdef _WIN32
+    if ((uintptr_t)*mutex & 7) return 0;
+    MEMORY_BASIC_INFORMATION mbi;
+    if (!VirtualQuery(*mutex, &mbi, sizeof(mbi)) || mbi.State != MEM_COMMIT || !(mbi.Protect & (PAGE_READWRITE | PAGE_EXECUTE_READWRITE))) {
+        return 0;
+    }
+#endif
+    int e = pthread_mutex_unlock(&(*mutex)->native);
     if (!e) ++unlocks;
-    return e;
+    return 0;
 }
 static ABI int32_t mutex_destroy(GuestMutex **mutex) {
     if (!mutex || (uintptr_t)*mutex == 2) return orbis_error(EINVAL);
-    if ((uintptr_t)*mutex < 2) return 0;
+    if ((uintptr_t)*mutex < 0x10000) return 0;
     int e = pthread_mutex_destroy(&(*mutex)->native);
     if (!e) { free(*mutex); *mutex = (GuestMutex *)(uintptr_t)2; }
     return orbis_error(e);

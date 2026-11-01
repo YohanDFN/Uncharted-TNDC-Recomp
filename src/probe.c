@@ -163,14 +163,28 @@ static LONG fatal_exception(EXCEPTION_POINTERS *info) {
     const CONTEXT *c=info->ContextRecord;
     char where[MAX_PATH+64];
     describe_address(where,sizeof(where),(uintptr_t)c->Rip);
-    if (record->ExceptionCode==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2)
+    if (record->ExceptionCode==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         fprintf(stderr,"Fault: %s access to %p at %s (thread %lu)\n",
                 record->ExceptionInformation[0]==1 ? "write" : record->ExceptionInformation[0]==8 ? "execute" : "read",
                 (void *)record->ExceptionInformation[1],where,GetCurrentThreadId());
-    else
+        MEMORY_BASIC_INFORMATION mbi;
+        if (VirtualQuery((void *)record->ExceptionInformation[1], &mbi, sizeof(mbi))) {
+            fprintf(stderr, "  Memory info: Base=%p Size=0x%llx State=0x%lx Protect=0x%lx AllocProtect=0x%lx Type=0x%lx\n",
+                    mbi.BaseAddress, (unsigned long long)mbi.RegionSize, (unsigned long)mbi.State, (unsigned long)mbi.Protect, (unsigned long)mbi.AllocationProtect, (unsigned long)mbi.Type);
+        }
+    } else
         fprintf(stderr,"Fault: exception 0x%08lx at %s (thread %lu)\n",record->ExceptionCode,where,GetCurrentThreadId());
-    fprintf(stderr,"  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n",
-            c->Rax,c->Rbx,c->Rcx,c->Rdx,c->Rsi,c->Rdi,c->Rbp,c->Rsp);
+    fprintf(stderr,"  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n  r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx\n  r12=%016llx r13=%016llx r14=%016llx r15=%016llx\n",
+            c->Rax,c->Rbx,c->Rcx,c->Rdx,c->Rsi,c->Rdi,c->Rbp,c->Rsp,
+            c->R8,c->R9,c->R10,c->R11,c->R12,c->R13,c->R14,c->R15);
+    extern uintptr_t s_last_job_fn;
+    extern void     *s_last_job_arg;
+    if (s_last_job_fn) {
+        fprintf(stderr, "  Last Job dispatched: fn=%p (guest offset %#llx), arg=%p\n",
+                (void *)s_last_job_fn,
+                image ? (unsigned long long)(s_last_job_fn - (uintptr_t)image) : 0ULL,
+                s_last_job_arg);
+    }
     if (gpu_enabled) bbgpu_dump_guest_writes(info);
     /* rbp chain (guest and host code keep frame pointers). */
     uintptr_t rbp=(uintptr_t)c->Rbp;
@@ -192,6 +206,22 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
     if (code==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         /* GPU page tracking (write-protected guest pages) is resolved first. */
         if (gpu_enabled && bbgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
+        /* If a guest direct/flexible memory write faulted due to GPU page protection outside mapped_ranges, restore write access */
+        void *fault_addr = (void *)record->ExceptionInformation[1];
+        uintptr_t fault_u = (uintptr_t)fault_addr;
+        if (record->ExceptionInformation[0] == 1 && fault_u >= 0x1000000000ULL && fault_u < 0x2000000000ULL) {
+            DWORD old_prot;
+            uintptr_t page_addr = fault_u & ~(uintptr_t)0xFFF;
+            if (VirtualProtect((void *)page_addr, 0x1000, PAGE_READWRITE, &old_prot)) {
+                static uint64_t s_recovered_faults = 0;
+                if (++s_recovered_faults <= 10) {
+                    fprintf(stderr, "[GPU PageTrack] Restored write access to %p (old_prot=0x%lx)\n",
+                            (void *)fault_u, (unsigned long)old_prot);
+                    fflush(stderr);
+                }
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+        }
         if (runtime_fault_recover) {
             /* A speculative guest memory read (GPU draw preparation) faulted: the thread resumes
              * in bb_longjmp, outside the exception dispatcher, back at its recovery point. */
@@ -205,27 +235,23 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
             return EXCEPTION_CONTINUE_EXECUTION;
         }
     }
-    if (code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_PRIV_INSTRUCTION) {
+    if ((code == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters >= 2 && record->ExceptionInformation[1] == (ULONG_PTR)-1) ||
+        code == EXCEPTION_PRIV_INSTRUCTION) {
         uintptr_t rip = (uintptr_t)info->ContextRecord->Rip;
-        const uint8_t *insn = (const uint8_t *)rip;
-        if (insn && insn[0] == 0xCD && insn[1] == 0x41) {
-            fprintf(stderr, "[U2 Trap] Bypassing PS4 debug assertion (int $0x41) at rip=%p (offset=%#llx)\n",
-                    (void *)rip, (unsigned long long)(image ? rip - (uintptr_t)image : 0));
-            fflush(stderr);
-            info->ContextRecord->Rip += 2;
-            return EXCEPTION_CONTINUE_EXECUTION;
+        if (image && rip >= (uintptr_t)image && rip < (uintptr_t)image + 0x20000000) {
+            const uint8_t *insn = (const uint8_t *)rip;
+            if (insn[0] == 0xCD && insn[1] == 0x41) {
+                fprintf(stderr, "[U2 Trap] Bypassing PS4 debug assertion (int $0x41) at rip=%p (offset=%#llx)\n",
+                        (void *)rip, (unsigned long long)(rip - (uintptr_t)image));
+                fflush(stderr);
+                info->ContextRecord->Rip += 2;
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
         }
     }
     if (code==EXCEPTION_ACCESS_VIOLATION || code==EXCEPTION_ILLEGAL_INSTRUCTION || code==EXCEPTION_PRIV_INSTRUCTION ||
         code==EXCEPTION_STACK_OVERFLOW || code==EXCEPTION_INT_DIVIDE_BY_ZERO || code==EXCEPTION_DATATYPE_MISALIGNMENT) {
-        /* Faults in guest code, the loader or the runtime end the process with a report; drivers
-         * and system libraries may handle their own exceptions. */
-        uintptr_t rip=(uintptr_t)info->ContextRecord->Rip;
-        HMODULE self=GetModuleHandleA(NULL), module=NULL;
-        int ours=(image && rip-(uintptr_t)image<0x20000000) ||
-                 (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,(LPCSTR)rip,&module) && module==self) ||
-                 !module;
-        if (ours) return fatal_exception(info);
+        return fatal_exception(info);
     }
     /* BB_STRICT_HANDLES=1: a closed or invalid handle used anywhere is reported (diagnostics). */
     if (code==0xC0000008 /* STATUS_INVALID_HANDLE */) return fatal_exception(info);

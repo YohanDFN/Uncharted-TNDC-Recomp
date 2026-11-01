@@ -609,6 +609,13 @@ bool VideoOutDriver::SubmitFlip(VideoOutPort* port, s32 index, s64 flip_arg,
         eop_flip_cv.notify_all();
     }
 
+    static uint64_t s_total_flips = 0;
+    if (++s_total_flips <= 5 || s_total_flips % 60 == 0) {
+        std::printf("[VideoOut] Submitted flip #%llu (buf=%d, is_eop=%d)\n",
+                    (unsigned long long)s_total_flips, index, is_eop ? 1 : 0);
+        std::fflush(stdout);
+    }
+
     return true;
 }
 

@@ -138,14 +138,41 @@ static void region_erase(size_t at, size_t n) {
 /* The guest range is reserved before anything else can be placed there (runtime_start). */
 void runtime_memory_reserve(void) {
     if (region_count) return;
-    if (!VirtualAlloc2(NULL,(void *)USER_MIN,USER_MAX-USER_MIN,MEM_RESERVE|MEM_RESERVE_PLACEHOLDER,PAGE_NOACCESS,NULL,0))
+    if (VirtualAlloc2(NULL,(void *)USER_MIN,USER_MAX-USER_MIN,MEM_RESERVE|MEM_RESERVE_PLACEHOLDER,PAGE_NOACCESS,NULL,0)) {
+        region_insert(0,(HostRegion){USER_MIN,USER_MAX,0,0});
+        return;
+    }
+    /* Fallback: piecewise reservation for all free blocks in [USER_MIN, USER_MAX) */
+    uintptr_t scan = USER_MIN;
+    while (scan < USER_MAX) {
+        MEMORY_BASIC_INFORMATION mbi;
+        if (!VirtualQuery((void *)scan, &mbi, sizeof(mbi))) break;
+        uintptr_t block_start = (uintptr_t)mbi.BaseAddress;
+        uintptr_t block_end = block_start + mbi.RegionSize;
+        if (block_start < scan) block_start = scan;
+        if (block_end > USER_MAX) block_end = USER_MAX;
+        if (mbi.State == MEM_FREE && block_end > block_start) {
+            size_t size = block_end - block_start;
+            if (VirtualAlloc2(NULL, (void *)block_start, size, MEM_RESERVE|MEM_RESERVE_PLACEHOLDER, PAGE_NOACCESS, NULL, 0)) {
+                region_insert(region_count, (HostRegion){block_start, block_end, 0, 0});
+            }
+        }
+        scan = block_end;
+    }
+    if (!region_count) {
         win_fail("reserving the PS4 address range (link with --disable-high-entropy-va)",USER_MIN,USER_MAX-USER_MIN);
-    region_insert(0,(HostRegion){USER_MIN,USER_MAX,0,0});
+    }
 }
+static int memory_log(void);
+
 static void view_map(const HostRegion *r, DWORD protect) {
     DWORD initial=protect==PAGE_NOACCESS ? PAGE_READWRITE : protect, old;
     if (!MapViewOfFile3(section,GetCurrentProcess(),(void *)r->start,r->phys,r->end-r->start,MEM_REPLACE_PLACEHOLDER,initial,NULL,0))
         win_fail("MapViewOfFile3",r->start,r->end-r->start);
+    VirtualAlloc((void *)r->start, r->end - r->start, MEM_COMMIT, initial);
+    if (backing_base) {
+        VirtualAlloc((void *)(backing_base + r->phys), r->end - r->start, MEM_COMMIT, PAGE_READWRITE);
+    }
     if (initial!=protect && !VirtualProtect((void *)r->start,r->end-r->start,protect,&old))
         win_fail("VirtualProtect",r->start,r->end-r->start);
 }
@@ -163,7 +190,9 @@ static size_t save_protections(uintptr_t start, uintptr_t end, ProtRun **runs, s
 }
 /* Leaves [a,b) as exactly one unmapped placeholder; returns its region index. */
 static size_t carve_host(uintptr_t a, uintptr_t b) {
+    if (memory_log()) printf("Host: carve_host [%p, %p)\n", (void *)a, (void *)b);
     size_t first=region_index(a), last=first;
+
     if (first==region_count || regions[first].start>a) win_fail("guest range outside the reservation",a,b-a);
     while (last<region_count && regions[last].start<b) ++last;
     if (regions[last-1].end<b) win_fail("guest range outside the reservation",a,b-a);
@@ -230,13 +259,21 @@ static int host_protect(uintptr_t address, uint64_t size, int prot) {
     return 0;
 }
 /* Released pages read as zero when reused, like the memfd's punched holes. */
-static void host_discard(uint64_t phys, uint64_t size) { memset(backing_base+phys,0,size); }
+static void host_discard(uint64_t phys, uint64_t size) {
+    if (backing_base) {
+        VirtualAlloc((void *)(backing_base + phys), size, MEM_COMMIT, PAGE_READWRITE);
+        memset(backing_base+phys,0,size);
+    }
+}
 /* Direct memory occupies [0,POOL_SIZE) of the section, flexible memory [POOL_SIZE,+FLEX_SPAN). */
 static int pool(void) {
     if (backing_base) return 0;
     runtime_memory_reserve();
     uint64_t bytes=POOL_SIZE+FLEX_SPAN;
     section=CreateFileMapping2(INVALID_HANDLE_VALUE,NULL,FILE_MAP_ALL_ACCESS,PAGE_EXECUTE_READWRITE,SEC_COMMIT,bytes,NULL,NULL,0);
+    if (!section) {
+        section=CreateFileMapping2(INVALID_HANDLE_VALUE,NULL,FILE_MAP_ALL_ACCESS,PAGE_EXECUTE_READWRITE,SEC_RESERVE,bytes,NULL,NULL,0);
+    }
     if (!section) { fprintf(stderr,"Runtime: cannot create %" PRIu64 " MiB of guest memory (error %lu); is the page file large enough?\n",bytes>>20,GetLastError()); return -1; }
     backing_base=MapViewOfFile3(section,GetCurrentProcess(),NULL,0,bytes,0,PAGE_READWRITE,NULL,0);
     return backing_base ? 0 : -1;

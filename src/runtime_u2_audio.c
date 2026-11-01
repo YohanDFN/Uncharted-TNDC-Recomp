@@ -410,6 +410,24 @@ static int64_t ABI detour_DcRailOverrideSpeedForAudio(int32_t argc, uint64_t *ar
 }
 
 /* Table of detours provided by this module */
+static void ABI detour_AudioJobDispatch(void *packet) {
+    if (!packet || !g_u2_image_base) return;
+    uintptr_t fn_ptr = *(uintptr_t *)packet;
+    if (fn_ptr >= (uintptr_t)g_u2_image_base && fn_ptr < (uintptr_t)g_u2_image_base + 0x01870000ULL) {
+        typedef void (ABI *JobFn)(void *, void *, void *, uint32_t, void *);
+        JobFn fn = (JobFn)fn_ptr;
+        void *arg1 = *(void **)((uint8_t *)packet + 0x8);
+        void *arg2 = *(void **)((uint8_t *)packet + 0x10);
+        void *arg3 = *(void **)((uint8_t *)packet + 0x18);
+        uint32_t arg4 = *(uint32_t *)((uint8_t *)packet + 0x20);
+        void *arg5 = *(void **)((uint8_t *)packet + 0x28);
+        fn(arg1, arg2, arg3, arg4, arg5);
+    }
+    typedef int32_t (ABI *UnlockFn)(void *);
+    UnlockFn unlock = (UnlockFn)(uintptr_t)(g_u2_image_base + 0x00DE6950);
+    if (unlock) unlock((void *)(g_u2_image_base + 0x010FF1F0));
+}
+
 static const U2NativeDetour s_audio_detours[] = {
     { "DcSyncAudioMetaData", 0x009FD560, (uintptr_t)detour_DcSyncAudioMetaData },
     { "DcUseAudioRainLevel", 0x00A009F0, (uintptr_t)detour_DcUseAudioRainLevel },
@@ -437,6 +455,7 @@ static const U2NativeDetour s_audio_detours[] = {
     { "DcSayPreRoll", 0x00A019F0, (uintptr_t)detour_DcSayPreRoll },
     { "DcSay", 0x00A01A80, (uintptr_t)detour_DcSay },
     { "DcRailOverrideSpeedForAudio", 0x00AB9120, (uintptr_t)detour_DcRailOverrideSpeedForAudio },
+    { "AudioJobDispatch", 0x003C8A60, (uintptr_t)detour_AudioJobDispatch },
 };
 
 size_t u2_get_audio_detours(const U2NativeDetour **out) {

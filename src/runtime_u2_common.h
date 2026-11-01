@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
