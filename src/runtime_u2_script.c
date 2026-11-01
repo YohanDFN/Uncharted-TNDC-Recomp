@@ -1210,26 +1210,6 @@ static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size)
         }
     }
 
-    /*
-     * Patch 0x009BD290: IntroState vtable[0xc0] transition check
-     * Original at 0x009BD290:
-     *   80 4f 34 20   orb $0x20, 0x34(%rdi)
-     *   31 c0         xor %eax, %eax
-     *   c3            retq
-     * When returning 0, IntroState_SkipOrAdvance (0x00A63460) aborts without posting
-     * transition event to state_mgr (0x50(rdi)), staying trapped in IntroState.
-     * We patch 31 c0 to b0 01 (mov $1, %al) so the transition handler proceeds.
-     */
-    if (image && image_size >= 0x009BD290 + 7) {
-        static const uint8_t orig_intro_check[7] = { 0x80, 0x4F, 0x34, 0x20, 0x31, 0xC0, 0xC3 };
-        static const uint8_t patch_intro_check[7] = { 0x80, 0x4F, 0x34, 0x20, 0xB0, 0x01, 0xC3 };
-        if (memcmp(image + 0x009BD290, orig_intro_check, sizeof(orig_intro_check)) == 0) {
-            memcpy(image + 0x009BD290, patch_intro_check, sizeof(patch_intro_check));
-            printf("[U2 Engine] Patched IntroState vtable[0xc0] at 0x009BD290 -> return 1 (allow state transition)\n");
-            fflush(stdout);
-        }
-    }
-
     /* Set bp_skipintromovie = 1 at 0x0105DE94 */
     if (image && image_size > 0x0105DE94) {
         image[0x0105DE94] = 1;
@@ -1269,17 +1249,27 @@ static void ABI detour_IntroState_Update(void *this_ptr) {
                s_intro_frame_count, pad_buttons & 0xFFFF);
         fflush(stdout);
 
-        /* Trigger state transition via official handler at 0x00A63460 */
-        typedef void (ABI *IntroAdvanceFn)(void *state);
-        IntroAdvanceFn advance = (IntroAdvanceFn)(g_u2_image_base + 0x00A63460);
-        advance(this_ptr);
-
-        /* Guarantee transition event posting to state manager */
+        /* Apply IntroState -> NextState transition directly:
+         * 1. Set bit 0x100 on IntroState status word (+0x34)
+         * 2. Post transition event (0x0153E2E0) into state manager (+0x50, event at +0x8)
+         */
         uint8_t *state = (uint8_t *)this_ptr;
         *(uint16_t *)(state + 0x34) |= 0x100;
         void *state_mgr = *(void **)(state + 0x50);
         if (state_mgr) {
             *(void **)((uint8_t *)state_mgr + 0x8) = (void *)(g_u2_image_base + 0x0153E2E0);
+        }
+
+        /* 3. Clear active player pending movie field if present (matches 0x00A63460) */
+        void **active_player_slot = (void **)(g_u2_image_base + 0x0115BD20);
+        if (active_player_slot && *active_player_slot) {
+            uint32_t player_tag = *(uint32_t *)(g_u2_image_base + 0x0115BD28);
+            if (player_tag != 0) {
+                uint8_t *player = *(uint8_t **)(*active_player_slot);
+                if (player && *(uint32_t *)(player + 0x44) == player_tag) {
+                    *(uint32_t *)(player + 0x2A5C) = 0;
+                }
+            }
         }
     }
 }
