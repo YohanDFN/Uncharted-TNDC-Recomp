@@ -1283,42 +1283,14 @@ static void ABI detour_IntroState_Update(void *this_ptr) {
     /* After 15 frames warmup or immediately upon user confirmation, advance to main menu */
     if (s_intro_frame_count >= 15 || (pad_buttons & 0x6008) != 0) {
         s_transitioned = true;
-        printf("[U2 Boot] IntroState completed (frame %u, pad=0x%04x) -> advancing to Main Menu\n",
+        printf("[U2 Boot] IntroState completed (frame %u, pad=0x%04x) -> calling AdvanceToTitle (0x00A62BC0)\n",
                s_intro_frame_count, pad_buttons & 0xFFFF);
         fflush(stdout);
 
-        /* Apply IntroState -> NextState transition directly:
-         * 1. Set bit 0x100 on IntroState status word (+0x34)
-         * 2. Post transition event (0x0153E2E0) into state manager (+0x50, event at +0x8)
-         */
-        uint8_t *state = (uint8_t *)this_ptr;
-        *(uint16_t *)(state + 0x34) |= 0x100;
-        void *state_mgr = *(void **)(state + 0x50);
-        if (state_mgr) {
-            *(void **)((uint8_t *)state_mgr + 0x8) = (void *)(g_u2_image_base + 0x0153E2E0);
-        }
-
-        /* 3. Also invoke native transition vtable if present */
-        void **vtable = *(void ***)state;
-        if (vtable) {
-            typedef void (ABI *TransitionFn)(void *);
-            TransitionFn fn = (TransitionFn)vtable[0xd8 / 8];
-            if (fn && (uintptr_t)fn > 0x10000) {
-                fn(state);
-            }
-        }
-
-        /* 4. Clear active player pending movie field if present (matches 0x00A63460) */
-        void **active_player_slot = (void **)(g_u2_image_base + 0x0115BD20);
-        if (active_player_slot && *active_player_slot) {
-            uint32_t player_tag = *(uint32_t *)(g_u2_image_base + 0x0115BD28);
-            if (player_tag != 0) {
-                uint8_t *player = *(uint8_t **)(*active_player_slot);
-                if (player && *(uint32_t *)(player + 0x44) == player_tag) {
-                    *(uint32_t *)(player + 0x2A5C) = 0;
-                }
-            }
-        }
+        /* Invoke the official AdvanceToTitle function (0x00A62BC0) */
+        typedef void (ABI *AdvanceFn)(void *);
+        AdvanceFn advance_title = (AdvanceFn)(g_u2_image_base + 0x00A62BC0);
+        advance_title(this_ptr);
     }
 }
 
@@ -1382,39 +1354,8 @@ static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uin
 }
 
 /* ============================================================================
- * JSON Parser Fallback for Ingame Shaders (0x00C2C230 / 0x00C2C0D0)
+ * Renderer Stubs & Utility Detours
  * ============================================================================ */
-
-static struct {
-    uint32_t type;       /* +0x00: 5 (JSON Object) */
-    uint32_t pad04;      /* +0x04 */
-    void    *obj_data;   /* +0x08 */
-} s_dummy_json_root;
-
-static struct {
-    uint64_t pad00;      /* +0x00 */
-    uint32_t count;      /* +0x08: 0 children */
-    uint32_t pad0c;      /* +0x0c */
-    void    *first_child;/* +0x10: NULL */
-} s_dummy_json_obj;
-
-static void * ABI detour_JsonParseFiles(void *ctx) {
-    (void)ctx;
-    s_dummy_json_root.type = 5;
-    s_dummy_json_root.pad04 = 0;
-    s_dummy_json_root.obj_data = &s_dummy_json_obj;
-    s_dummy_json_obj.pad00 = 0;
-    s_dummy_json_obj.count = 0;
-    s_dummy_json_obj.pad0c = 0;
-    s_dummy_json_obj.first_child = NULL;
-    printf("[U2 Engine] JsonParseFiles -> returning dummy empty JSON root\n");
-    fflush(stdout);
-    return &s_dummy_json_root;
-}
-
-static void ABI detour_JsonFreeNode(void *node) {
-    (void)node;
-}
 
 static void ABI detour_Renderer_InitParticles(void) {
     printf("[U2 Engine] Renderer::InitParticles at 0x0050E150 (stubbed)\n");
@@ -1584,10 +1525,6 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     write_detour_jmp64(image + 0x00C24250, (uintptr_t)detour_MapComputeQueue);
     ++installed;
     write_detour_jmp64(image + 0x00B29F10, (uintptr_t)detour_GfxWaitEopFence);
-    ++installed;
-    write_detour_jmp64(image + 0x00C2C230, (uintptr_t)detour_JsonParseFiles);
-    ++installed;
-    write_detour_jmp64(image + 0x00C2C0D0, (uintptr_t)detour_JsonFreeNode);
     ++installed;
     write_detour_jmp64(image + 0x0050E150, (uintptr_t)detour_Renderer_InitParticles);
     ++installed;
@@ -1796,6 +1733,47 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         memcpy(image + 0x00A1890A, s_patch_a1890a, sizeof(s_patch_a1890a));
         installed += 3;
         printf("[U2 Engine] Applied patches at 0x00A188CC/DA/90A: Skip unallocated table in ScriptManager to prevent divide by zero\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00C2C2DE & 0x00C2C31D: Guard PopAllocator in JsonParseFiles (0x00C2C230)
+     * When pAllocStack is NULL or stack count is 0, skip to 0x00C2C392 to safely return
+     * the parsed JSON root (%r14). This enables the engine to load ingame-shaders.json
+     * and register all vertex, pixel, and compute shaders.
+     */
+    if (image_size > 0x00C2C31D + 2) {
+        static const uint8_t s_patch_c2c2de[2] = { 0x74, 0xb2 }; /* je 0xc2c392 */
+        static const uint8_t s_patch_c2c31d[2] = { 0x74, 0x73 }; /* je 0xc2c392 */
+        memcpy(image + 0x00C2C2DE, s_patch_c2c2de, sizeof(s_patch_c2c2de));
+        memcpy(image + 0x00C2C31D, s_patch_c2c31d, sizeof(s_patch_c2c31d));
+        installed += 2;
+        printf("[U2 Engine] Applied patches at 0x00C2C2DE/0x00C2C31D: Guard PopAllocator in JsonParseFiles (full shader loading enabled)\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00A62C5C & 0x00A634FC: Bypass vtable[0xc0] abort in IntroState::Advance routines
+     * NOP out the conditional jump after callq *0xc0(%rax) so the state machine successfully
+     * posts transition event 0x153e2b8 (or 0x153e2e0) into StateManager.
+     */
+    if (image_size > 0x00A634FC + 2) {
+        static const uint8_t s_nop2[2] = { 0x90, 0x90 };
+        memcpy(image + 0x00A62C5C, s_nop2, sizeof(s_nop2));
+        memcpy(image + 0x00A634FC, s_nop2, sizeof(s_nop2));
+        installed += 2;
+        printf("[U2 Engine] Applied patches at 0x00A62C5C/0x00A634FC: Bypass IntroState transition abort\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00A55229 & 0x00A5524E: Bypass intro movie wait loop in native IntroState::Update
+     * 0x00A55229: NOP 'je 0xa55261' so execution always proceeds to the AdvanceToTitle call.
+     * 0x00A5524E: NOP 'jl 0xa5525c' so it does not wait 300 frames before calling AdvanceToTitle (*0x158(%rax)).
+     */
+    if (image_size > 0x00A5524E + 2) {
+        static const uint8_t s_nop2[2] = { 0x90, 0x90 };
+        memcpy(image + 0x00A55229, s_nop2, sizeof(s_nop2));
+        memcpy(image + 0x00A5524E, s_nop2, sizeof(s_nop2));
+        installed += 2;
+        printf("[U2 Engine] Applied patches at 0x00A55229/0x00A5524E: Immediate IntroState transition\n");
         fflush(stdout);
     }
 
