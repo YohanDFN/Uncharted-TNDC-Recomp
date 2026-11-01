@@ -1267,6 +1267,14 @@ static void ABI detour_IntroState_Update(void *this_ptr) {
         *(uint8_t *)(movie_mgr + 0x22570) = 0;
     }
 
+    /* Print periodic progress to console */
+    if (s_intro_frame_count <= 20 || s_intro_frame_count % 60 == 0) {
+        uint32_t pad_buttons = *(uint32_t *)(g_u2_image_base + 0x01116180 + 0x864);
+        printf("[U2 Boot] IntroState_Update frame %u (pad=0x%04x, transitioned=%d)\n",
+               s_intro_frame_count, pad_buttons & 0xFFFF, (int)s_transitioned);
+        fflush(stdout);
+    }
+
     if (s_transitioned) return;
 
     /* Poll pad input: 0x6008 = Start (0x0008), Cross (0x2000), Enter (0x4000) */
@@ -1290,7 +1298,17 @@ static void ABI detour_IntroState_Update(void *this_ptr) {
             *(void **)((uint8_t *)state_mgr + 0x8) = (void *)(g_u2_image_base + 0x0153E2E0);
         }
 
-        /* 3. Clear active player pending movie field if present (matches 0x00A63460) */
+        /* 3. Also invoke native transition vtable if present */
+        void **vtable = *(void ***)state;
+        if (vtable) {
+            typedef void (*TransitionFn)(void *);
+            TransitionFn fn = (TransitionFn)vtable[0xd8 / 8];
+            if (fn && (uintptr_t)fn > 0x10000) {
+                fn(state);
+            }
+        }
+
+        /* 4. Clear active player pending movie field if present (matches 0x00A63460) */
         void **active_player_slot = (void **)(g_u2_image_base + 0x0115BD20);
         if (active_player_slot && *active_player_slot) {
             uint32_t player_tag = *(uint32_t *)(g_u2_image_base + 0x0115BD28);
@@ -1541,11 +1559,11 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     ++installed;
     write_detour_jmp64(image + 0x00415700, (uintptr_t)detour_Entity_UpdateExtents);
     ++installed;
-    const char *fast_intro_env = getenv("BB_U2_FAST_INTRO");
-    if (fast_intro_env && *fast_intro_env && *fast_intro_env != '0') {
+    const char *disable_intro = getenv("BB_U2_DISABLE_INTRO_DETOUR");
+    if (!disable_intro || *disable_intro == '0') {
         write_detour_jmp64(image + 0x00A551B0, (uintptr_t)detour_IntroState_Update);
         ++installed;
-        printf("[U2 Engine] Fast intro bypass detour installed (BB_U2_FAST_INTRO=1)\n");
+        printf("[U2 Engine] Intro cutscene detour installed (automatic movie bypass)\n");
         fflush(stdout);
     }
     write_detour_jmp64(image + 0x00B29F10, (uintptr_t)detour_GfxWaitEopFence);
@@ -1673,6 +1691,19 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         };
         memcpy(image + 0x001DE841, s_patch_1de841, sizeof(s_patch_1de841));
         ++installed;
+    }
+
+    /* Patch 0x001D7A40: Guard vertex/bone array pointer against NULL rdx before add $0x30 */
+    if (image_size > 0x001D7A40 + 9) {
+        static const uint8_t s_patch_1d7a40[9] = {
+            0x48, 0x85, 0xd2,                               /* testq %rdx, %rdx */
+            0x74, 0x7a,                                     /* jz 0x1d7abf */
+            0x48, 0x83, 0xc2, 0x30                           /* addq $0x30, %rdx */
+        };
+        memcpy(image + 0x001D7A40, s_patch_1d7a40, sizeof(s_patch_1d7a40));
+        ++installed;
+        printf("[U2 Engine] Applied patch 0x001D7A40: Guard NULL rdx array in skeletal/mesh bounds\n");
+        fflush(stdout);
     }
 
     /* Patch 0x00A578D2: zero accessory outputs when rbx is NULL to prevent fault at 0x88(rbx) */

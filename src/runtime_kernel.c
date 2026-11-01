@@ -190,7 +190,11 @@ static ABI __attribute__((noreturn)) void hard_exit(int status) {
     _exit(status);
 }
 static ABI __attribute__((noreturn)) void raise_exception(uint32_t code,uint64_t argument) {
-    fprintf(stderr,"STOP: guest raised debug exception code=0x%x argument=0x%llx\n",code,(unsigned long long)argument);
+    extern uint8_t *g_u2_image_base;
+    uintptr_t caller = (uintptr_t)__builtin_return_address(0);
+    uintptr_t offset = (g_u2_image_base && caller >= (uintptr_t)g_u2_image_base) ? (caller - (uintptr_t)g_u2_image_base) : 0;
+    fprintf(stderr,"STOP: guest raised debug exception code=0x%x argument=0x%llx (caller=%p, guest offset=%#llx)\n",
+            code, (unsigned long long)argument, (void *)caller, (unsigned long long)offset);
     runtime_report();
     exit(23);
 }
