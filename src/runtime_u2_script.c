@@ -1216,6 +1216,32 @@ static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size)
         printf("[U2 Engine] Set bp_skipintromovie = 1 at 0x0105DE94\n");
         fflush(stdout);
     }
+
+    /*
+     * Transition UCCApp to Title Screen (state 7) at boot.
+     * When state < 7:
+     *   - UCCApp::Update (0x00D5A930) skips all game updates (ja 0xd5b12d at 0x00D5A95F)
+     *   - UCCApp::Render (0x00D59A50) skips all rendering (ja 0xd5a8d4 at 0x00D59A8E)
+     *   - Scene renderer (0x005CF5B0) skips world rendering (jz 0x5d0013)
+     * We initialize state = 7 (Title Screen) and flag = 1, and patch the skip branch
+     * at 0x00D5A95F so UCCApp::Update always executes normally.
+     */
+    if (image && image_size > 0x010532D0 + 0x20) {
+        *(uint32_t *)(image + 0x010532D0) = 7;
+        *(uint8_t *)(image + 0x010532D0 + 0x14) = 1;
+        printf("[U2 Engine] Initialized UCCApp state = 7 (Title Screen) at 0x010532D0\n");
+        fflush(stdout);
+    }
+
+    if (image && image_size >= 0x00D5A95F + 6) {
+        static const uint8_t orig_ucc_skip[6] = { 0x0F, 0x87, 0xC8, 0x07, 0x00, 0x00 };
+        static const uint8_t nop_ucc_skip[6]  = { 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00 };
+        if (memcmp(image + 0x00D5A95F, orig_ucc_skip, sizeof(orig_ucc_skip)) == 0) {
+            memcpy(image + 0x00D5A95F, nop_ucc_skip, sizeof(nop_ucc_skip));
+            printf("[U2 Engine] Patched UCCApp::Update at 0x00D5A95F -> bypass state < 7 skip\n");
+            fflush(stdout);
+        }
+    }
 }
 
 /* ============================================================================
