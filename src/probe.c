@@ -241,9 +241,12 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
         if (image && rip >= (uintptr_t)image && rip < (uintptr_t)image + 0x20000000) {
             const uint8_t *insn = (const uint8_t *)rip;
             if (insn[0] == 0xCD && insn[1] == 0x41) {
-                fprintf(stderr, "[U2 Trap] Bypassing PS4 debug assertion (int $0x41) at rip=%p (offset=%#llx)\n",
-                        (void *)rip, (unsigned long long)(rip - (uintptr_t)image));
-                fflush(stderr);
+                static uint32_t s_trap_count = 0;
+                if (++s_trap_count <= 20 || (s_trap_count % 200) == 0) {
+                    fprintf(stderr, "[U2 Trap] Bypassing PS4 debug assertion #%u (int $0x41) at rip=%p (offset=%#llx)\n",
+                            s_trap_count, (void *)rip, (unsigned long long)(rip - (uintptr_t)image));
+                    fflush(stderr);
+                }
                 info->ContextRecord->Rip += 2;
                 return EXCEPTION_CONTINUE_EXECUTION;
             }

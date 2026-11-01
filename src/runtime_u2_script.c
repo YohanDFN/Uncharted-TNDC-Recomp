@@ -1301,7 +1301,7 @@ static void ABI detour_IntroState_Update(void *this_ptr) {
         /* 3. Also invoke native transition vtable if present */
         void **vtable = *(void ***)state;
         if (vtable) {
-            typedef void (*TransitionFn)(void *);
+            typedef void (ABI *TransitionFn)(void *);
             TransitionFn fn = (TransitionFn)vtable[0xd8 / 8];
             if (fn && (uintptr_t)fn > 0x10000) {
                 fn(state);
@@ -1320,6 +1320,21 @@ static void ABI detour_IntroState_Update(void *this_ptr) {
             }
         }
     }
+}
+
+/* ============================================================================
+ * ComputeQueueMgr Detour (guest offset 0x00C24250)
+ * ============================================================================ */
+static uint8_t ABI detour_MapComputeQueue(void *this_ptr, void **pQueue, int32_t pipe, int32_t queue) {
+    (void)this_ptr;
+    if (pQueue && *pQueue) {
+        uint32_t *q = (uint32_t *)*pQueue;
+        q[0] = (uint32_t)pipe;
+        q[1] = (uint32_t)queue;
+        q[28] = (uint32_t)pipe;
+        q[29] = (uint32_t)queue;
+    }
+    return 1;
 }
 
 /* ============================================================================
@@ -1566,6 +1581,8 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         printf("[U2 Engine] Intro cutscene detour installed (automatic movie bypass)\n");
         fflush(stdout);
     }
+    write_detour_jmp64(image + 0x00C24250, (uintptr_t)detour_MapComputeQueue);
+    ++installed;
     write_detour_jmp64(image + 0x00B29F10, (uintptr_t)detour_GfxWaitEopFence);
     ++installed;
     write_detour_jmp64(image + 0x00C2C230, (uintptr_t)detour_JsonParseFiles);
@@ -1648,25 +1665,33 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         ++installed;
     }
 
-    /* Patch 0x0057674B: Force boot initialization success (eb 11 instead of jg 11) to prevent false shutdown & memory unmap */
+    /* Patch 0x0057674B: Force boot initialization success (90 90 instead of jg 11) to run AppMainLoop (0x3f4aa0) and prevent false shutdown */
     if (image_size > 0x0057674B + 2) {
-        static const uint8_t s_patch_57674b[2] = { 0xeb, 0x11 };
+        static const uint8_t s_patch_57674b[2] = { 0x90, 0x90 };
         memcpy(image + 0x0057674B, s_patch_57674b, sizeof(s_patch_57674b));
-        printf("[U2 Engine] Applied patch 0x0057674B: Force boot initialization success\n");
+        printf("[U2 Engine] Applied patch 0x0057674B: Force boot initialization success (NOP jg -> run AppMainLoop)\n");
         fflush(stdout);
         ++installed;
     }
 
-    /* Patch 0x001D30A4: Guard atomic bitmask clear against NULL rdx in animation/job helper */
-    if (image_size > 0x001D30A4 + 12) {
-        static const uint8_t s_patch_1d30a4[12] = {
+    /* Initialize ComputeQueueMgr singleton at 0x0139BEF0 to prevent m_initialized asserts */
+    if (image_size > 0x0139BEF0 + 0x48) {
+        uint8_t *mgr = image + 0x0139BEF0;
+        memset(mgr, 0, 0x48);
+        mgr[0x28] = 1;
+        mgr[0] = 1; /* m_initialized = 1 */
+    }
+
+    /* Patch 0x001D30A5: Guard atomic bitmask clear against NULL rdx in animation/job helper */
+    if (image_size > 0x001D30A5 + 11) {
+        static const uint8_t s_patch_1d30a5[11] = {
             0x48, 0x85, 0xd2,                               /* testq %rdx, %rdx */
-            0x74, 0x18,                                     /* jz 0x1d30c1 */
-            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90        /* 7x nop */
+            0x74, 0x17,                                     /* jz 0x1d30c1 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90              /* 6x nop */
         };
-        memcpy(image + 0x001D30A4, s_patch_1d30a4, sizeof(s_patch_1d30a4));
+        memcpy(image + 0x001D30A5, s_patch_1d30a5, sizeof(s_patch_1d30a5));
         ++installed;
-        printf("[U2 Engine] Applied patch 0x001D30A4: Guard atomic bitmask clear against NULL rdx\n");
+        printf("[U2 Engine] Applied patch 0x001D30A5: Guard atomic bitmask clear against NULL rdx\n");
         fflush(stdout);
     }
 
