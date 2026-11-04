@@ -1354,6 +1354,39 @@ static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uin
 }
 
 /* ============================================================================
+ * JSON Parser Fallback for Ingame Shaders (0x00C2C230 / 0x00C2C0D0)
+ * ============================================================================ */
+
+static struct {
+    uint32_t type;       /* +0x00: 5 (JSON Object) */
+    uint32_t pad04;      /* +0x04 */
+    void    *obj_data;   /* +0x08 */
+} s_dummy_json_root;
+
+static struct {
+    uint64_t pad00;      /* +0x00 */
+    uint32_t count;      /* +0x08: 0 children */
+    uint32_t pad0c;      /* +0x0c */
+    void    *first_child;/* +0x10: NULL */
+} s_dummy_json_obj;
+
+static void * ABI detour_JsonParseFiles(void *ctx) {
+    (void)ctx;
+    s_dummy_json_root.type = 5;
+    s_dummy_json_root.pad04 = 0;
+    s_dummy_json_root.obj_data = &s_dummy_json_obj;
+    s_dummy_json_obj.pad00 = 0;
+    s_dummy_json_obj.count = 0;
+    s_dummy_json_obj.pad0c = 0;
+    s_dummy_json_obj.first_child = NULL;
+    return &s_dummy_json_root;
+}
+
+static void ABI detour_JsonFreeNode(void *node) {
+    (void)node;
+}
+
+/* ============================================================================
  * Renderer Stubs & Utility Detours
  * ============================================================================ */
 
@@ -1525,6 +1558,10 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     write_detour_jmp64(image + 0x00C24250, (uintptr_t)detour_MapComputeQueue);
     ++installed;
     write_detour_jmp64(image + 0x00B29F10, (uintptr_t)detour_GfxWaitEopFence);
+    ++installed;
+    write_detour_jmp64(image + 0x00C2C230, (uintptr_t)detour_JsonParseFiles);
+    ++installed;
+    write_detour_jmp64(image + 0x00C2C0D0, (uintptr_t)detour_JsonFreeNode);
     ++installed;
     write_detour_jmp64(image + 0x0050E150, (uintptr_t)detour_Renderer_InitParticles);
     ++installed;
@@ -1774,6 +1811,40 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         memcpy(image + 0x00A5524E, s_nop2, sizeof(s_nop2));
         installed += 2;
         printf("[U2 Engine] Applied patches at 0x00A55229/0x00A5524E: Immediate IntroState transition\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00BDF9FF: Guard NULL root in ingame-shaders Init (0x00BDF9B0)
+     * If JsonParseFiles returns NULL (because files.json devkit manifest does not exist),
+     * safely jump to the function epilogue at 0x00BE1011 (add $0x588, %rsp; pop; retq)
+     * instead of asserting and crashing with a NULL dereference at 0x00BDFA3C.
+     */
+    if (image_size > 0x00BDF9FF + 9) {
+        static const uint8_t s_patch_bdf9ff[9] = {
+            0x0f, 0x84, 0x0c, 0x06, 0x00, 0x00,             /* je 0xbe1011 */
+            0x90, 0x90, 0x90                                /* 3x nop */
+        };
+        memcpy(image + 0x00BDF9FF, s_patch_bdf9ff, sizeof(s_patch_bdf9ff));
+        installed += 1;
+        printf("[U2 Engine] Applied patch 0x00BDF9FF: Safe exit on missing files.json in ingame-shaders Init\n");
+        fflush(stdout);
+    }
+
+    /* Patches at 0x00CC10AB, 0x00CC114F, 0x00CC115E, 0x00CC1200:
+     * In retail builds, the devkit shader table at 0x0124A208 has count 0.
+     * When searching for shaders, bypass the 8-line HALT assertion print banner and int $0x41
+     * traps by jumping directly to the NULL-initialization of r15 / r14 and continuing.
+     */
+    if (image_size > 0x00CC1200 + 2) {
+        static const uint8_t s_patch_cc10ab[2] = { 0x74, 0x97 }; /* je 0xcc1144 */
+        static const uint8_t s_nop2[2]         = { 0x90, 0x90 }; /* nop nop */
+        static const uint8_t s_patch_cc115e[2] = { 0x74, 0x95 }; /* je 0xcc11f5 */
+        memcpy(image + 0x00CC10AB, s_patch_cc10ab, sizeof(s_patch_cc10ab));
+        memcpy(image + 0x00CC114F, s_nop2, sizeof(s_nop2));
+        memcpy(image + 0x00CC115E, s_patch_cc115e, sizeof(s_patch_cc115e));
+        memcpy(image + 0x00CC1200, s_nop2, sizeof(s_nop2));
+        installed += 4;
+        printf("[U2 Engine] Applied patches at 0x00CC10AB/114F/115E/1200: Silence devkit shader halt spam\n");
         fflush(stdout);
     }
 
