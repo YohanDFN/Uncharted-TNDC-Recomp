@@ -12,6 +12,7 @@
 * [ADR-004 : Sécurisation des Job Workers & Gardes Pointeurs NULL (`0x001D30A5`, `0x001D7A40`, `0x00B3DB04`)](#adr-004--sécurisation-des-job-workers--gardes-pointeurs-null-0x001d30a5-0x001d7a40-0x00b3db04)
 * [ADR-005 : Synchronisation GPU EOP Tick (`0x00B29F10`) & Queue Compute (`0x00C24250`)](#adr-005--synchronisation-gpu-eop-tick-0x00b29f10--queue-compute-0x00c24250)
 * [ADR-006 : Conventions d'Appel SysV ABI (`ABI`) & Toolchain MSYS2 Clang64](#adr-006--conventions-dappel-sysv-abi-abi--toolchain-msys2-clang64)
+* [ADR-007 : Prévention Débordement Tas Menu (456B Devkit Shaders) & Court-Circuit `0x00CC103A`](#adr-007--prévention-débordement-tas-menu-456b-devkit-shaders--court-circuit-0x00cc103a)
 
 ---
 
@@ -121,3 +122,25 @@ Le code recompilé de l'ELF PS4 attend la convention d'appel **System V AMD64 AB
 * Toute fonction C appelée directement depuis l'ELF ou remplaçant une routine de l'ELF doit impérativement porter l'attribut `__attribute__((sysv_abi))` (défini par la macro `ABI` dans [`src/runtime_u2_internal.h`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_internal.h)).
 * Tout typedef de pointeur de fonction vers le guest doit inclure `ABI`.
 * L'ensemble des modules dans `src/` doit être compilé en C pur (C99/C11) via la toolchain **MSYS2 CLANG64** avec le script [`scratch/build_msys2.ps1`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/scratch/build_msys2.ps1).
+
+---
+
+## ADR-007 : Prévention Débordement Tas Menu (456B Devkit Shaders) & Court-Circuit `0x00CC103A`
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte
+À l'initialisation du moteur de rendu (autour de la frame #5, après chargement des polices), la routine `0x00CC1010` (appelée par `InitMgr` à `0x00C8EB50`) tente d'allouer une table de requêtes pour 19 types de shaders (19 * 24 octets = 456 octets = `0x1C8`).
+L'allocation est dirigée vers l'allocateur de tas `0x13` ("Menu", `0x1032702000`).
+
+### Problème
+1. Le tas "Menu" est dimensionné à 2 Mo (`0x200000`). Avec le chargement des fichiers `.fnt` (`test2.fnt`, `main.fnt`, `symbol3.fnt`), il ne restait que 240 octets libres.
+2. La requête de 456 octets déclenche `HeapArena::Allocate: out of memory` et l'assertion `pData` (`0x00B3008F`).
+3. Après contournement du trap, `0x00CC105B` reçoit `%rax = 0` (NULL) et exécute `0x00CC1068 : call memset(NULL, 0, 456)`.
+4. Cela entraîne un crash fatal immédiat : `Fault: write access to 0000000000000020 at ucrtbase.dll+0xedec0`.
+5. En retail, la table de shaders devkit `0x0124A208` est vide : la boucle de 19 itérations n'écrivait que des NULLs dans ce buffer, et aucune routine retail ne lit `0x58(%r13)`.
+
+### Décision
+* **Patch `0x00CC103A`** (7 octets : `e9 9a 02 00 00 90 90`) : Saut inconditionnel `jmp 0x00CC12D9` (disp32 = `+0x29A`) suivi de deux NOPs.
+* **Effet** : Supprime intégralement la requête d'allocation de 456 octets dans le tas Menu, neutralise le `memset` sur NULL, évite l'assertion out-of-memory et enchaîne directement sur la création des Constant Buffers du moteur de rendu à `0x00CC12D9`.

@@ -1830,6 +1830,27 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         fflush(stdout);
     }
 
+    /* Patch at 0x00CC103A (7 bytes):
+     * In retail builds, the devkit shader table at 0x0124A208 has count 0 and files.json does not exist.
+     * Function 0x00CC1010 attempts to allocate a 456-byte (0x1C8) devkit shader query table into the
+     * "Menu" heap (allocator 0x13). Because the Menu heap is ~2MB and already saturated by loaded fonts
+     * (240 bytes remaining), HeapArena::Allocate fails, returns NULL, and memset(NULL, 0, 456) at 0x00CC1068
+     * crashes immediately with a write access violation at 0x20.
+     * Furthermore, the 19-iteration loop (0x00CC1084..0x00CC12D3) only searches the empty devkit table
+     * and writes NULLs.
+     * By patching 0x00CC103A with an unconditional jump directly to 0x00CC12D9 (jmp +0x29A), we completely
+     * eliminate the 456-byte Menu heap allocation, prevent the out-of-memory crash, bypass the empty loop,
+     * and proceed directly to valid constant buffer and render state initialization at 0x00CC12D9.
+     */
+    if (image_size > 0x00CC103A + 7) {
+        /* 0x00CC103A: e9 9a 02 00 00 90 90 (jmp 0x00CC12D9 ; nop ; nop) */
+        static const uint8_t s_patch_cc103a[7] = { 0xe9, 0x9a, 0x02, 0x00, 0x00, 0x90, 0x90 };
+        memcpy(image + 0x00CC103A, s_patch_cc103a, sizeof(s_patch_cc103a));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x00CC103A: Bypass devkit shader 456B Menu heap allocation and jump to 0x00CC12D9\n");
+        fflush(stdout);
+    }
+
     /* Patches at 0x00CC10AB, 0x00CC114F, 0x00CC115E, 0x00CC1200:
      * In retail builds, the devkit shader table at 0x0124A208 has count 0.
      * When searching for shaders, bypass the 8-line HALT assertion print banner and int $0x41
