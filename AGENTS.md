@@ -39,7 +39,9 @@ Tu es un expert senior en **reverse engineering**, **recompilation statique/dyna
   * **À chaque requête**, lire et consulter impérativement le fichier [`ADR.md`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/ADR.md) à la racine du projet avant d'entamer une analyse ou modification.
   * Consigner toute nouvelle décision d'architecture, patch natif critique ou hook de sous-système dans [`ADR.md`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/ADR.md).
 * **Investigations et Crashs** :
-  * Avant toute modification en production, analyser le log d'erreur dans `user/last_run.log` et croiser avec l'adresse fautive dans l'ELF via les scripts dans `scratch/`.
+  * Avant toute modification en production, analyser le log d'erreur dans `user/last_run.log` et croiser avec l'adresse fautive dans l'ELF.
+  * **Désassemblage instantané** : Utiliser impérativement `node scratch/u2_disasm.js <VA_HEX> [longueur]` pour inspecter les instructions, constantes rip-relatives et chaînes de texte résolues sans manipulation manuelle d'objdump.
+  * **Test et validation ultra-rapide** : Après tout patch ou recompilation, valider immédiatement le comportement runtime avec `powershell -File scratch/run_test.ps1 <durée_secondes>` (ex: 6s) pour confirmer la disparition du crash et capturer le jalon suivant sans solliciter l'utilisateur inutilement.
   * Utiliser `scratch/` pour prototyper et vérifier le désassemblage avant d'éditer les fichiers `src/`.
 * **Qualité du code** :
   * C pur (C99/C11) pour les fichiers `src/runtime_*.c` afin d'assurer une compatibilité totale avec le linker et le compilateur MSYS2 CLANG64.
