@@ -6,6 +6,7 @@
  *   - ScriptManager::Initialize        (guest offset 0x00A173A0)
  */
 #include "runtime_u2_common.h"
+#include <malloc.h>
 
 /* Global guest ELF image base address */
 uint8_t *g_u2_image_base = NULL;
@@ -1487,6 +1488,58 @@ __attribute__((naked)) static void hook_1e2110(void) {
 }
 
 /* ============================================================================
+ * Safe AllocByAllocatorId Arena Allocator & Fallback (guest offset 0x00B33160 / 0x00B33270)
+ * ============================================================================ */
+
+static ABI void *u2_alloc_arena_or_fallback(void **ppArena, size_t size) {
+    void *arena = NULL;
+    void *res = NULL;
+
+    if (ppArena && (uintptr_t)ppArena > 0x10000) {
+        arena = *ppArena;
+    }
+
+    if (arena && (uintptr_t)arena > 0x10000) {
+        uintptr_t *vtable = *(uintptr_t **)arena;
+        if (vtable && (uintptr_t)vtable > 0x10000) {
+            uintptr_t pfn = vtable[0x48 / 8];
+            if (pfn && pfn > 0x10000) {
+                typedef void * (ABI *ArenaAllocFn)(void *arena, size_t sz, uint64_t align, const char *tag, uint64_t flags, const char *tag2);
+                ArenaAllocFn alloc_fn = (ArenaAllocFn)pfn;
+                res = alloc_fn(arena, size, 16, "UNKNOWN", 0, "UNKNOWN");
+            }
+        }
+    }
+
+    if (!res) {
+        size_t alloc_sz = (size + 15) & ~15ULL;
+        if (alloc_sz == 0) alloc_sz = 16;
+        res = _aligned_malloc(alloc_sz, 16);
+        if (res) {
+            memset(res, 0, alloc_sz);
+        }
+        printf("[U2 Heap] AllocByAllocatorId fallback: allocated %zu bytes at %p (arena=%p, ppArena=%p)\n",
+               size, res, arena, ppArena);
+        fflush(stdout);
+    }
+    return res;
+}
+
+static ABI void *u2_alloc_chunk_node_fallback(void *allocated) {
+    if (allocated && (uintptr_t)allocated > 0x10000) {
+        memset(allocated, 0, 216);
+        return allocated;
+    }
+    void *mem = _aligned_malloc(216, 16);
+    if (mem) {
+        memset(mem, 0, 216);
+    }
+    printf("[U2 Script] Allocated fallback chunk node at %p (original=%p)\n", mem, allocated);
+    fflush(stdout);
+    return mem;
+}
+
+/* ============================================================================
  * Hook Installation & Detour Dispatcher
  * ============================================================================ */
 
@@ -1773,6 +1826,104 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         fflush(stdout);
     }
 
+    /* Patch 0x00A17C60 (50 bytes): Fallback chunk tracking node allocation in ScriptManager package scanner.
+     * When allocator 0 ("UNKNOWN:0", CPU Mem [F:0 T:0]) fails to allocate 216 bytes for a package chunk node,
+     * or when ecx == 0 / rax == NULL, original code crashed reading/writing at 0x8(%r13).
+     * Furthermore, skipping directly to 0x00A17D70 bypassed reloading %r13 (0x1044800) at 0x00A17D62,
+     * causing the subsequent iteration to crash with Fault: read access to 0x298 at 0x00A17B20.
+     * We invoke u2_alloc_chunk_node_fallback(%rax) to supply a zeroed 216-byte host buffer, ensuring
+     * %r13 is always valid, and if ever NULL, safely skip to 0x00A17D62 (restoring %r13 and %r14).
+     */
+    if (image_size > 0x00A17C60 + 50) {
+        uint8_t patch_a17c60[50];
+        memset(patch_a17c60, 0x90, sizeof(patch_a17c60));
+
+        uint8_t *p = patch_a17c60;
+        p[0] = 0x48; p[1] = 0x89; p[2] = 0xc7; /* movq %rax, %rdi */
+        p[3] = 0x48; p[4] = 0xb8;              /* movabsq $fn, %rax */
+        uint64_t fn_addr = (uint64_t)(uintptr_t)u2_alloc_chunk_node_fallback;
+        memcpy(p + 5, &fn_addr, sizeof(fn_addr));
+        p[13] = 0xff; p[14] = 0xd0;            /* callq *%rax */
+        p[15] = 0x49; p[16] = 0x89; p[17] = 0xc5; /* movq %rax, %r13 */
+        p[18] = 0x4d; p[19] = 0x85; p[20] = 0xed; /* testq %r13, %r13 */
+        p[21] = 0x0f; p[22] = 0x84;            /* jz 0x00a17d62 */
+        int32_t disp = (int32_t)(0x00A17D62 - (0x00A17C60 + 27));
+        memcpy(p + 23, &disp, sizeof(disp));
+        p[27] = 0x4d; p[28] = 0x8d; p[29] = 0x75; p[30] = 0x18; /* leaq 0x18(%r13), %r14 */
+        /* remaining bytes p[31..49] are 0x90 (NOP) */
+
+        memcpy(image + 0x00A17C60, patch_a17c60, sizeof(patch_a17c60));
+
+        /* Retarget jumps at 0x00A17C27 and 0x00A17C37 to 0x00A17C60 */
+        image[0x00A17C27 + 1] = 0x37; /* je 0x00A17C60 */
+        image[0x00A17C37 + 1] = 0x27; /* je 0x00A17C60 */
+
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x00A17C60: Fallback chunk node allocation & loop restore\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00B33130 (39 bytes): Safe arena dereference and fallback in AllocByAllocatorId twin (0x00B33020).
+     * Sister implementation of 0x00B33160, calls into arena vtable[0x48/8].
+     */
+    if (image_size > 0x00B33130 + 39) {
+        uint8_t patch_b33130[39];
+        memset(patch_b33130, 0x90, sizeof(patch_b33130));
+
+        uint8_t *p = patch_b33130;
+        p[0] = 0x48; p[1] = 0x89; p[2] = 0xdf; /* movq %rbx, %rdi */
+        p[3] = 0x4c; p[4] = 0x89; p[5] = 0xf6; /* movq %r14, %rsi */
+        p[6] = 0x48; p[7] = 0xb8;              /* movabsq $fn, %rax */
+        uint64_t fn_addr = (uint64_t)(uintptr_t)u2_alloc_arena_or_fallback;
+        memcpy(p + 8, &fn_addr, sizeof(fn_addr));
+        p[16] = 0xff; p[17] = 0xd0;            /* callq *%rax */
+        p[18] = 0x5b;                          /* popq %rbx */
+        p[19] = 0x41; p[20] = 0x5c;            /* popq %r12 */
+        p[21] = 0x41; p[22] = 0x5e;            /* popq %r14 */
+        p[23] = 0x41; p[24] = 0x5f;            /* popq %r15 */
+        p[25] = 0x5d;                          /* popq %rbp */
+        p[26] = 0xc3;                          /* retq */
+
+        memcpy(image + 0x00B33130, patch_b33130, sizeof(patch_b33130));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x00B33130: AllocByAllocatorId twin safe arena deref & fallback\n");
+        fflush(stdout);
+    }
+
+    /* Patch 0x00B33270 (39 bytes): Safe arena dereference and fallback in AllocByAllocatorId (0x00B33160).
+     * In retail builds, some heap arenas (such as allocator 0x12 used by ScriptManager package tables)
+     * are uninitialized or NULL in g_HeapArenas (0x0104AE00).
+     * The original code at 0x00B33270 blindly read 0(%rdi) (where rdi = *(%rbx)), causing
+     * Fault: read access to 0000000000000000 at guest offset 0xb33273.
+     * We replace the 39-byte block (0x00B33270..0x00B33296) with a call to u2_alloc_arena_or_fallback(%rbx, %r14),
+     * which verifies the arena pointer, calls Arena::Allocate if valid, and falls back to
+     * a zeroed 16-byte aligned host buffer if NULL or out of memory.
+     */
+    if (image_size > 0x00B33270 + 39) {
+        uint8_t patch_b33270[39];
+        memset(patch_b33270, 0x90, sizeof(patch_b33270));
+
+        uint8_t *p = patch_b33270;
+        p[0] = 0x48; p[1] = 0x89; p[2] = 0xdf; /* movq %rbx, %rdi */
+        p[3] = 0x4c; p[4] = 0x89; p[5] = 0xf6; /* movq %r14, %rsi */
+        p[6] = 0x48; p[7] = 0xb8;              /* movabsq $fn, %rax */
+        uint64_t fn_addr = (uint64_t)(uintptr_t)u2_alloc_arena_or_fallback;
+        memcpy(p + 8, &fn_addr, sizeof(fn_addr));
+        p[16] = 0xff; p[17] = 0xd0;            /* callq *%rax */
+        p[18] = 0x5b;                          /* popq %rbx */
+        p[19] = 0x41; p[20] = 0x5c;            /* popq %r12 */
+        p[21] = 0x41; p[22] = 0x5e;            /* popq %r14 */
+        p[23] = 0x41; p[24] = 0x5f;            /* popq %r15 */
+        p[25] = 0x5d;                          /* popq %rbp */
+        p[26] = 0xc3;                          /* retq */
+        /* remaining 12 bytes p[27..38] are 0x90 (NOP) */
+
+        memcpy(image + 0x00B33270, patch_b33270, sizeof(patch_b33270));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x00B33270: AllocByAllocatorId safe arena deref & fallback\n");
+        fflush(stdout);
+    }
+
     /* Patch 0x00C2C2DE & 0x00C2C31D: Guard PopAllocator in JsonParseFiles (0x00C2C230)
      * When pAllocStack is NULL or stack count is 0, skip to 0x00C2C392 to safely return
      * the parsed JSON root (%r14). This enables the engine to load ingame-shaders.json
@@ -1866,6 +2017,132 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         memcpy(image + 0x00CC1200, s_nop2, sizeof(s_nop2));
         installed += 4;
         printf("[U2 Engine] Applied patches at 0x00CC10AB/114F/115E/1200: Silence devkit shader halt spam\n");
+        fflush(stdout);
+    }
+
+    /* Patch at 0x0183BD53 (libSceFios2.prx): Guard NULL destination stat buffer in fios stat handler.
+     * When a caller queries file existence or status without requesting stat metadata (stat buffer == NULL),
+     * rbx (*(r14 + 0x20)) is NULL. LibSceFios2 blindly called memset_wrapper(NULL, 0, 80) followed by
+     * writing stat fields to *(NULL), crashing with write access violation at 0x0.
+     * We install a 36-byte trampoline at code cave 0x0185D0C0 that tests rbx:
+     * - If rbx == NULL: sets r15d = 0 and jumps directly to function epilogue (0x0183BDD7).
+     * - If rbx != NULL: executes memset_wrapper(rbx, 0, 80) and resumes at 0x0183BD69.
+     */
+    if (image_size > 0x0185D0C0 + 36) {
+        static const uint8_t s_trampoline[36] = {
+            0x49, 0x8b, 0x5e, 0x20,                         /* movq 0x20(%r14), %rbx */
+            0x45, 0x31, 0xff,                               /* xorl %r15d, %r15d */
+            0x48, 0x85, 0xdb,                               /* testq %rbx, %rbx */
+            0x0f, 0x84, 0x07, 0xed, 0xfd, 0xff,             /* jz 0x0183BDD7 (epilogue) */
+            0x31, 0xf6,                                     /* xorl %esi, %esi */
+            0xba, 0x50, 0x00, 0x00, 0x00,                   /* movl $80, %edx */
+            0x48, 0x89, 0xdf,                               /* movq %rbx, %rdi */
+            0xe8, 0x01, 0x15, 0xfe, 0xff,                   /* callq 0x0183E5E0 (memset_wrapper) */
+            0xe9, 0x85, 0xec, 0xfd, 0xff                    /* jmp 0x0183BD69 (resume) */
+        };
+        static const uint8_t s_patch_183bd53[22] = {
+            0xe9, 0x68, 0x13, 0x02, 0x00,                   /* jmp 0x0185D0C0 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90                                            /* 17x nop */
+        };
+        memcpy(image + 0x0185D0C0, s_trampoline, sizeof(s_trampoline));
+        memcpy(image + 0x0183BD53, s_patch_183bd53, sizeof(s_patch_183bd53));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x0183BD53: Guard NULL stat buffer in libSceFios2 stat handler\n");
+        fflush(stdout);
+    }
+
+    /* Patch at 0x0184C610 (libSceFios2.prx): Guard NULL device pointer in fios scheduler.
+     * When get_device returns NULL, 0x0184C610 was called with rdi == NULL.
+     * It proceeded into 0x0184CF40, computing 16(%r13) == 0x10, and calling mutex locks on 0x10.
+     * We install a 21-byte trampoline at code cave 0x01860C98 that tests rdi:
+     * - If rdi == NULL: returns 0 (false) immediately without altering stack or locking.
+     * - If rdi != NULL: sets up stack frame and resumes normal execution at 0x0184C618.
+     */
+    if (image_size > 0x01860C98 + 21) {
+        static const uint8_t s_cave_184c610[21] = {
+            0x48, 0x85, 0xff,                               /* testq %rdi, %rdi */
+            0x75, 0x03,                                     /* jnz continue */
+            0x31, 0xc0,                                     /* xorl %eax, %eax */
+            0xc3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x48, 0x89, 0xe5,                               /* movq %rsp, %rbp */
+            0x41, 0x57,                                     /* pushq %r15 */
+            0x41, 0x56,                                     /* pushq %r14 */
+            0xe9, 0x6b, 0xb9, 0xfe, 0xff                    /* jmp 0x0184C618 (resume) */
+        };
+        static const uint8_t s_patch_184c610[8] = {
+            0xe9, 0x83, 0x46, 0x01, 0x00,                   /* jmp 0x01860C98 */
+            0x90, 0x90, 0x90                                /* 3x nop */
+        };
+        memcpy(image + 0x01860C98, s_cave_184c610, sizeof(s_cave_184c610));
+        memcpy(image + 0x0184C610, s_patch_184c610, sizeof(s_patch_184c610));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x0184C610: Guard NULL device in libSceFios2 scheduler\n");
+        fflush(stdout);
+    }
+
+    /* Patch at 0x0183BD53 (libSceFios2.prx): Guard NULL destination stat buffer in fios stat handler.
+     * When a caller queries file existence or status without requesting stat metadata (stat buffer == NULL),
+     * rbx (*(r14 + 0x20)) is NULL. LibSceFios2 blindly called memset_wrapper(NULL, 0, 80) followed by
+     * writing stat fields to *(NULL), crashing with write access violation at 0x0.
+     * We install a 36-byte trampoline at code cave 0x0185D0C0 that tests rbx:
+     * - If rbx == NULL: sets r15d = 0 and jumps directly to function epilogue (0x0183BDD7).
+     * - If rbx != NULL: executes memset_wrapper(rbx, 0, 80) and resumes at 0x0183BD69.
+     */
+    if (image_size > 0x0185D0C0 + 36) {
+        static const uint8_t s_trampoline[36] = {
+            0x49, 0x8b, 0x5e, 0x20,                         /* movq 0x20(%r14), %rbx */
+            0x45, 0x31, 0xff,                               /* xorl %r15d, %r15d */
+            0x48, 0x85, 0xdb,                               /* testq %rbx, %rbx */
+            0x0f, 0x84, 0x07, 0xed, 0xfd, 0xff,             /* jz 0x0183BDD7 (epilogue) */
+            0x31, 0xf6,                                     /* xorl %esi, %esi */
+            0xba, 0x50, 0x00, 0x00, 0x00,                   /* movl $80, %edx */
+            0x48, 0x89, 0xdf,                               /* movq %rbx, %rdi */
+            0xe8, 0x01, 0x15, 0xfe, 0xff,                   /* callq 0x0183E5E0 (memset_wrapper) */
+            0xe9, 0x85, 0xec, 0xfd, 0xff                    /* jmp 0x0183BD69 (resume) */
+        };
+        static const uint8_t s_patch_183bd53[22] = {
+            0xe9, 0x68, 0x13, 0x02, 0x00,                   /* jmp 0x0185D0C0 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90                                            /* 17x nop */
+        };
+        memcpy(image + 0x0185D0C0, s_trampoline, sizeof(s_trampoline));
+        memcpy(image + 0x0183BD53, s_patch_183bd53, sizeof(s_patch_183bd53));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x0183BD53: Guard NULL stat buffer in libSceFios2 stat handler\n");
+        fflush(stdout);
+    }
+
+    /* Patch at 0x0184C610 (libSceFios2.prx): Guard NULL device pointer in fios scheduler.
+     * When get_device returns NULL, 0x0184C610 was called with rdi == NULL.
+     * It proceeded into 0x0184CF40, computing 16(%r13) == 0x10, and calling mutex locks on 0x10.
+     * We install a 21-byte trampoline at code cave 0x01860C98 that tests rdi:
+     * - If rdi == NULL: returns 0 (false) immediately without altering stack or locking.
+     * - If rdi != NULL: sets up stack frame and resumes normal execution at 0x0184C618.
+     */
+    if (image_size > 0x01860C98 + 21) {
+        static const uint8_t s_cave_184c610[21] = {
+            0x48, 0x85, 0xff,                               /* testq %rdi, %rdi */
+            0x75, 0x03,                                     /* jnz continue */
+            0x31, 0xc0,                                     /* xorl %eax, %eax */
+            0xc3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x48, 0x89, 0xe5,                               /* movq %rsp, %rbp */
+            0x41, 0x57,                                     /* pushq %r15 */
+            0x41, 0x56,                                     /* pushq %r14 */
+            0xe9, 0x6b, 0xb9, 0xfe, 0xff                    /* jmp 0x0184C618 (resume) */
+        };
+        static const uint8_t s_patch_184c610[8] = {
+            0xe9, 0x83, 0x46, 0x01, 0x00,                   /* jmp 0x01860C98 */
+            0x90, 0x90, 0x90                                /* 3x nop */
+        };
+        memcpy(image + 0x01860C98, s_cave_184c610, sizeof(s_cave_184c610));
+        memcpy(image + 0x0184C610, s_patch_184c610, sizeof(s_patch_184c610));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x0184C610: Guard NULL device in libSceFios2 scheduler\n");
         fflush(stdout);
     }
 

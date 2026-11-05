@@ -66,13 +66,12 @@ static ABI int32_t mutex_init(GuestMutex **out, GuestAttr **attr, const char *na
 static pthread_mutex_t static_init = PTHREAD_MUTEX_INITIALIZER;
 /* Statically initialized handles (< 0x10000) are created once, even under contention. */
 static int32_t ensure_mutex(GuestMutex **mutex) {
-    if (!mutex) return orbis_error(EINVAL);
+    if (!mutex || (uintptr_t)mutex < 0x10000 || ((uintptr_t)mutex & 7)) return orbis_error(EINVAL);
     uintptr_t value = __atomic_load_n((uintptr_t *)mutex, __ATOMIC_ACQUIRE);
-    if (value == 2) return orbis_error(EINVAL);
     if (value >= 0x10000) return 0;
     pthread_mutex_lock(&static_init);
     int32_t e = 0;
-    if ((uintptr_t)*mutex < 0x10000 && (uintptr_t)*mutex != 2) {
+    if ((uintptr_t)*mutex < 0x10000) {
         GuestMutex *created_mutex = NULL;
         e = mutex_init(&created_mutex, NULL, NULL);
         if (!e) __atomic_store_n(mutex, created_mutex, __ATOMIC_RELEASE);
@@ -81,10 +80,12 @@ static int32_t ensure_mutex(GuestMutex **mutex) {
     return e;
 }
 static ABI int32_t mutex_lock(GuestMutex **mutex) {
+    if (!mutex || (uintptr_t)mutex < 0x10000 || ((uintptr_t)mutex & 7)) return orbis_error(EINVAL);
     int32_t e = ensure_mutex(mutex);
     if (e) return e;
-    if (!mutex || !*mutex || (uintptr_t)*mutex < 0x10000) return orbis_error(EINVAL);
-    e = orbis_error(pthread_mutex_lock(&(*mutex)->native));
+    if (!*mutex || (uintptr_t)*mutex < 0x10000) return orbis_error(EINVAL);
+    int pe = pthread_mutex_lock(&(*mutex)->native);
+    e = orbis_error(pe);
     if (!e) ++locks;
     return e;
 }
@@ -97,7 +98,7 @@ static ABI int32_t mutex_trylock(GuestMutex **mutex) {
     return e;
 }
 static ABI int32_t mutex_unlock(GuestMutex **mutex) {
-    if (!mutex || (uintptr_t)*mutex == 2) return orbis_error(EINVAL);
+    if (!mutex) return orbis_error(EINVAL);
     if ((uintptr_t)*mutex < 0x10000) return 0;
 #ifdef _WIN32
     if ((uintptr_t)*mutex & 7) return 0;
@@ -111,10 +112,18 @@ static ABI int32_t mutex_unlock(GuestMutex **mutex) {
     return 0;
 }
 static ABI int32_t mutex_destroy(GuestMutex **mutex) {
-    if (!mutex || (uintptr_t)*mutex == 2) return orbis_error(EINVAL);
+    if (!mutex || (uintptr_t)mutex < 0x10000 || ((uintptr_t)mutex & 7)) return orbis_error(EINVAL);
     if ((uintptr_t)*mutex < 0x10000) return 0;
     int e = pthread_mutex_destroy(&(*mutex)->native);
-    if (!e) { free(*mutex); *mutex = (GuestMutex *)(uintptr_t)2; }
+    if (e == EBUSY) {
+        pthread_mutex_unlock(&(*mutex)->native);
+        e = pthread_mutex_destroy(&(*mutex)->native);
+    }
+    if (!e || e == EBUSY) {
+        free(*mutex);
+        *mutex = NULL;
+        return 0;
+    }
     return orbis_error(e);
 }
 static int deadline_after(struct timespec *end, uint64_t usec) {
@@ -148,7 +157,7 @@ static ABI int32_t cond_init(GuestCond **out, void **attr, const char *name) {
     *out = c; ++conds; return 0;
 }
 static int32_t ensure_cond(GuestCond **cond) {
-    if (!cond) return orbis_error(EINVAL);
+    if (!cond || (uintptr_t)cond < 0x10000 || ((uintptr_t)cond & 7)) return orbis_error(EINVAL);
     if (__atomic_load_n((uintptr_t *)cond, __ATOMIC_ACQUIRE) >= 2) return 0;
     pthread_mutex_lock(&static_init);
     int32_t e = 0;

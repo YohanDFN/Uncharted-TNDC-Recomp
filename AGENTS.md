@@ -41,7 +41,8 @@ Tu es un expert senior en **reverse engineering**, **recompilation statique/dyna
 * **Investigations et Crashs** :
   * Avant toute modification en production, analyser le log d'erreur dans `user/last_run.log` et croiser avec l'adresse fautive dans l'ELF.
   * **Désassemblage instantané** : Utiliser impérativement `node scratch/u2_disasm.js <VA_HEX> [longueur]` pour inspecter les instructions, constantes rip-relatives et chaînes de texte résolues sans manipulation manuelle d'objdump.
-  * **Test et validation ultra-rapide** : Après tout patch ou recompilation, valider immédiatement le comportement runtime avec `powershell -File scratch/run_test.ps1 <durée_secondes>` (ex: 6s) pour confirmer la disparition du crash et capturer le jalon suivant sans solliciter l'utilisateur inutilement.
+  * **Test et validation ultra-rapide** : Après tout patch ou recompilation, valider immédiatement le comportement runtime avec `powershell -File scratch/run_test.ps1 <durée_secondes>` (ex: 6s) pour confirmer la disparition du crash et capturer le jalon suivant sans solliciter l'utilisateur inutilement (nécessite `BypassSandbox: true` pour accéder aux données du jeu dans `Desktop\Uncharted\CUSA02343`).
+  * **Gestion de la mémoire & Allocateurs** : Pour toute défaillance d'allocation dans les arènes Naughty Dog (`AllocByAllocatorId`, `g_HeapArenas`), se référer à [ADR-008](ADR.md#adr-008) et [ADR-009](ADR.md#adr-009) pour appliquer les fallbacks C alignés (16 octets) et éviter les déréférencements de pointeurs NULL.
   * Utiliser `scratch/` pour prototyper et vérifier le désassemblage avant d'éditer les fichiers `src/`.
 * **Qualité du code** :
   * C pur (C99/C11) pour les fichiers `src/runtime_*.c` afin d'assurer une compatibilité totale avec le linker et le compilateur MSYS2 CLANG64.

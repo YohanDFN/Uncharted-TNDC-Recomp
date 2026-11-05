@@ -13,6 +13,8 @@
 * [ADR-005 : Synchronisation GPU EOP Tick (`0x00B29F10`) & Queue Compute (`0x00C24250`)](#adr-005--synchronisation-gpu-eop-tick-0x00b29f10--queue-compute-0x00c24250)
 * [ADR-006 : Conventions d'Appel SysV ABI (`ABI`) & Toolchain MSYS2 Clang64](#adr-006--conventions-dappel-sysv-abi-abi--toolchain-msys2-clang64)
 * [ADR-007 : Prévention Débordement Tas Menu (456B Devkit Shaders) & Court-Circuit `0x00CC103A`](#adr-007--prévention-débordement-tas-menu-456b-devkit-shaders--court-circuit-0x00cc103a)
+* [ADR-008 : Sécurisation du Cycle de Vie Mutex (`libSceFios2`), Garde Stat Buffer & Scheduler Device](#adr-008--sécurisation-du-cycle-de-vie-mutex-libscefios2-garde-stat-buffer--scheduler-device)
+* [ADR-009 : Garde Nœuds Chunks ScriptManager (`0x00A17C60`) & Fallback Allocateur de Tas `AllocByAllocatorId` (`0x00B33270`)](#adr-009--garde-nœuds-chunks-scriptmanager-0x00a17c60--fallback-allocateur-de-tas-allocbyallocatorid-0x00b33270)
 
 ---
 
@@ -144,3 +146,56 @@ L'allocation est dirigée vers l'allocateur de tas `0x13` ("Menu", `0x1032702000
 ### Décision
 * **Patch `0x00CC103A`** (7 octets : `e9 9a 02 00 00 90 90`) : Saut inconditionnel `jmp 0x00CC12D9` (disp32 = `+0x29A`) suivi de deux NOPs.
 * **Effet** : Supprime intégralement la requête d'allocation de 456 octets dans le tas Menu, neutralise le `memset` sur NULL, évite l'assertion out-of-memory et enchaîne directement sur la création des Constant Buffers du moteur de rendu à `0x00CC12D9`.
+
+---
+
+## ADR-008 : Sécurisation du Cycle de Vie Mutex (`libSceFios2`), Garde Stat Buffer & Scheduler Device
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte
+La couche I/O de streaming PS4 `libSceFios2.prx` interagit directement avec les primitives de synchronisation noyau (`scePthreadMutex*`) et gère le système de requêtes de fichiers asynchrones.
+
+### Problèmes Rencontrés
+1. **Crash UD2 `scePthreadMutexLock` (`0x01851270`)** : Lors de la destruction d'un mutex, `mutex_destroy` écrivait la sentinelle `*mutex = 2`. Lors d'une réutilisation ultérieure, `ensure_mutex` rejetait la valeur 2 avec `EINVAL` (`0x80020016`). `libSceFios2` déclenchait un `ud2` immédiat en cas d'erreur de lock.
+2. **Crash `bzero(NULL, 80)` à `0x0183BD53`** : `sceFiosStatSync` recevait une requête sans buffer de stat utilisateur (`0x20(%r14) == NULL`), exécutant aveuglément `memset_wrapper(NULL, 0, 80)` et écrivant des champs à l'adresse 0.
+3. **Crash `fios_mutex_lock` sur `0x10` à `0x0184C610`** : Quand `get_device` renvoyait `NULL`, la routine `0x0184C610` calculait `16(%r13) == 0x10` et tentait de verrouiller un mutex fictif à l'adresse `0x10`.
+4. **Crash `scePthreadMutexDestroy` `EBUSY` (`0x01850D61`)** : Lors du nettoyage des sous-systèmes, détruire un mutex encore verrouillé renvoyait `EBUSY`, causant un trap `ud2`.
+
+### Décision
+1. **`src/runtime_mutex.c`** :
+   - `ensure_mutex` et `mutex_lock` auto-réinitialisent les descripteurs lorsque `(uintptr_t)*mutex < 0x10000`.
+   - `mutex_destroy` réinitialise `*mutex = NULL;` au lieu de `2`.
+   - `mutex_destroy` déverrouille de force le mutex en cas de retour `EBUSY`, libère la mémoire et retourne `0` (`SCE_OK`).
+2. **Trampoline `0x0185D0C0` (36 octets)** : Intercepte `0x0183BD53` pour tester `%rbx`. Si `%rbx == NULL`, saute directement à l'épilogue `0x0183BDD7` avec `%r15d = 0`.
+3. **Trampoline `0x01860C98` (21 octets)** : Intercepte `0x0184C610` pour tester `%rdi`. Si `%rdi == NULL`, retourne immédiatement 0 (`false`).
+
+---
+
+## ADR-009 : Garde Nœuds Chunks ScriptManager (`0x00A17C60`) & Fallback Allocateur de Tas `AllocByAllocatorId` (`0x00B33270`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte
+Dans le gestionnaire de scripts Naughty Dog (`ScriptManager::Initialize` à `0x00A173A0`), deux structures critiques sont allouées :
+1. Une liste de 117 nœuds de tracking de paquets / chunks (boucle `0x00A17B20`..`0x00A17D77`), allouant 216 octets par nœud via l'allocateur 0 ("UNKNOWN:0").
+2. La table des chunks de scripts (2608 octets = `0xa3 * 16`), allouée via `AllocByAllocatorId` (`0x00B33160`) avec l'ID d'allocateur `0x12`.
+
+### Problèmes Rencontrés
+1. **Crash à `0x00A17C63`** : Lorsque l'allocateur 0 n'a plus de mémoire (`CPU Mem [F:0 T:0]`), `%rax` est NULL. Le code exécutait `movq $0, 0x8(%r13)` avec `%r13 == NULL`, provoquant une violation d'accès en écriture à `0x0000000000000008`.
+2. **Crash à `0x00B33273`** : Dans la version retail, la table `g_HeapArenas` (`0x0104AE00`) ne contient pas d'arène valide pour l'ID `0x12` (`table[0x12] == NULL`). La routine `0x00B33270` exécutait `movq (%rbx), %rdi` puis déréférençait immédiatement `movq (%rdi), %rax` pour lire la vtable, causant :
+   `Fault: read access to 0000000000000000 at guest offset 0xb33273`.
+
+### Décision
+1. **Patch `0x00A17C60` (50 octets)** & Helper `u2_alloc_chunk_node_fallback` dans [`src/runtime_u2_script.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_script.c) :
+   Lorsque l'allocateur 0 échoue à fournir 216 octets pour un nœud de chunk, attribue dynamiquement un buffer de repli 16-octets aligné via `_aligned_malloc(216, 16)` mis à zéro au lieu de laisser `%r13` à NULL.
+   En cas d'échec absolu, saute strictement à `0x00A17D62` (qui recharge `%r13 = 0x1044800` et `%r14 = 0x1534140`), empêchant le déréférencement de `0x298` (`0 + r12 * 8`) à `0x00A17B20`.
+2. **Patch `0x00B33270` & `0x00B33130` (39 octets chacun)** & Helper `u2_alloc_arena_or_fallback` dans [`src/runtime_u2_script.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_script.c) :
+   Remplace les blocs `0x00B33270`..`0x00B33296` et `0x00B33130`..`0x00B33156` (les deux variantes d'`AllocByAllocatorId`) par un relais vers `u2_alloc_arena_or_fallback(%rbx, %r14)`.
+   Cette routine C SysV ABI vérifie la validité du pointeur d'arène et de sa vtable :
+   - Si valide, elle délègue à `Arena::Allocate(arena, size, 16, "UNKNOWN", 0, "UNKNOWN")`.
+   - Si l'arène est NULL ou si l'allocation échoue, elle alloue dynamiquement via `_aligned_malloc(alloc_sz, 16)`, met à zéro la mémoire et la retourne proprement à l'appelant.
+   - Si valide, elle délègue à `Arena::Allocate(arena, size, 16, "UNKNOWN", 0, "UNKNOWN")`.
+   - Si l'arène est NULL ou si l'allocation échoue, elle alloue dynamiquement via `_aligned_malloc(alloc_sz, 16)`, met à zéro la mémoire et la retourne proprement à l'appelant.
