@@ -242,3 +242,26 @@ Dans [`src/runtime_mutex.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/s
   2. Dans `cond_wait` et `cond_wait_until`, vérification systématique de `cond` et `mutex` (`> 0x10000`) et invocation conjointe de `ensure_cond(cond)` **et** `ensure_mutex(mutex)` avant tout appel à `pthread_cond_wait` / `pthread_cond_timedwait`.
   3. Sécurisation de `cond_signal`, `cond_broadcast` et `cond_destroy` contre les pointeurs NULL ou `< 0x10000`.
 * **Résultat** : Le crash dans `libwinpthread-1.dll+0x436b` lors des opérations FIOS2 est totalement éliminé et la boucle de chargement des 117 archives de `ScriptManager` s'exécute sans aucune erreur d'allocation ni violation d'accès.
+
+---
+
+## ADR-012 : Restauration de la Synchronisation des Jobs CPU (`0x00B29F10` `JobSyncCounter::Wait`) & Élimination du Shutdown Prématuré (`0x00B72520`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte
+La fonction guest `0x00B29F10` (`JobSyncCounter::Wait(void *sync_obj, int64_t target_val, uint32_t mode)`) est la primitive centrale de synchronisation du système de jobs Naughty Dog :
+* **`mode == 1`** : Attend que le compteur signé `*(int64_t *)(sync_obj + 0x20) <= target_val` (utilisé pour les jalons de chargement `g_pGameLoadingState` à `0x015AF750` : `WaitForBinAvailability(10)`, `WaitForDataAvailability(9)`, `WaitForCoreAvailability(8)` et pour le tick de trame négatif dans `RunFrame` à `0x003FB6F3`).
+* **`mode == 0`** : Attend que le compteur de jobs actifs `*(int64_t *)(sync_obj + 0x20) == target_val` (typiquement `0`), utilisé par `WaitAndReleaseJobSyncCounter` (`0x00B2A040`) et `SubmitAndWaitForJobs` (`0x00B29EFD`).
+
+### Problème
+Le détour précédent `detour_GfxWaitEopFence` installé à `0x00B29F10` écrasait inconditionnellement la fonction et retournait immédiatement sans attendre lorsque `mode == 0` :
+1. **Assertions de shaders Vertex (`VS_ScreenSpace`, `WorldTransformVS`, etc.)** : Dans `AppInit` (`0x003F41B0`), le thread principal soumettait le job d'initialisation des shaders `0x003F6680` puis appelait `0x00B2A040` (`0x003F43AB`) pour attendre sa complétion avant d'appeler `CreateVertexLayoutFromDesc` (`0x00C8EDB0`). Comme `0x00B29F10` retournait immédiatement, `CreateVertexLayoutFromDesc` s'exécutait avant le chargement des shaders et `0x00B2A040` libérait prématurément le `JobSyncCounter` pendant que le job tournait encore.
+2. **Sortie immédiate de `AppMainLoop` (`0x003F4AA0`) et crash dans `AppShutdown` (`0x003F4470` -> `0x00B72520`)** : `AppMainLoop` soumet le job de boucle principale `0x003FA9F0` (`MainLoopJob`) et appelle `0x00B2A040` (`0x003F4BA9`, `mode = 0, target = 0`) pour attendre la fin du jeu. Le retour immédiat de `0x00B29F10` faisait sortir `AppMainLoop` instantanément et enchaînait sur `AppShutdown` (`0x00576752` -> `0x003F4470` -> `0x00B72520` `StreamingShutdown`), déclenchant 8 assertions `CloseSync (fh != 0)`, `sceFiosTerminate` (`fios2 warning: terminated...`) et une violation d'accès fatale (`0xc0000005` / `3221225477`) pendant que les threads workers exécutaient encore l'initialisation.
+
+### Décision
+* Dans [`src/runtime_u2_script.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_script.c) (`detour_GfxWaitEopFence` et trampoline `orig_SyncCounter_Wait`) :
+  1. Lorsque `mode == 1` (ou lorsque `sync_obj` correspond à `g_pCheckPlayGoStatus` à `*(void **)(g_u2_image_base + 0x015AF7D0)`), `*(int64_t *)(sync_obj + 0x20)` est avancé à `(int64_t)target_tick` et la fonction retourne immédiatement.
+  2. Lorsque `mode == 0` (attente d'un lot de jobs CPU), le détour délègue au code original de `0x00B29F10` via le trampoline `orig_SyncCounter_Wait` (qui exécute le prologue de 16 octets et saute à `g_u2_image_base + 0x00B29F20`), permettant aux threads workers de céder leur fibre (`0x00B3E4C0`) et au thread principal d'attendre proprement la complétion des jobs d'initialisation et de `MainLoopJob`.
+* **Résultat** : Disparition totale des 20+ assertions `GetVsSignatureByName` / `CreateVertexLayoutFromDesc`, disparition totale des 8 assertions `CloseSync (fh != 0)`, du `fios2 warning: terminated` et du crash `3221225477`. Le moteur charge `DCLoader`, initialise `UserService` et `NpTrophy`, masque le splash screen (`SystemService: splash screen hidden`) et transite proprement vers `UCCApp State 0 -> 1` en tournant de manière stable.

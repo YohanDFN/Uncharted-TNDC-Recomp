@@ -1322,16 +1322,31 @@ static uint8_t ABI detour_MapComputeQueue(void *this_ptr, void **pQueue, int32_t
  * Advancing *(sync_obj + 0x20) to target_tick satisfies the fence condition
  * and unblocks the CPU render loop to submit frames to Vulkan.
  */
+uintptr_t s_b29f10_cont = 0;
+
+__attribute__((naked)) static void ABI orig_SyncCounter_Wait(void *sync_obj, uint64_t target_tick, uint32_t mode) {
+    __asm__ volatile (
+        "pushq %%rbp\n\t"
+        "movq %%rsp, %%rbp\n\t"
+        "pushq %%r15\n\t"
+        "pushq %%r14\n\t"
+        "pushq %%r12\n\t"
+        "pushq %%rbx\n\t"
+        "movl %%edx, %%ebx\n\t"
+        "movq %%rsi, %%r14\n\t"
+        "jmpq *s_b29f10_cont(%%rip)\n\t"
+        :
+        :
+        : "memory"
+    );
+}
+
 static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uint32_t mode) {
-    (void)mode;
-    if (!sync_obj) return;
-    uint64_t *cur_tick = (uint64_t *)((uint8_t *)sync_obj + 0x20);
-    if (*cur_tick < target_tick) {
-        *cur_tick = target_tick;
-    }
+    if (!sync_obj || (uintptr_t)sync_obj < 0x10000) return;
+
     static uint64_t s_sync_calls = 0;
     static uint32_t s_last_ucc_state = 0xFFFFFFFF;
-    s_sync_calls++;
+    uint64_t call_id = ++s_sync_calls;
 
     uint32_t cur_state = 0;
     if (g_u2_image_base) {
@@ -1343,14 +1358,24 @@ static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uin
         }
     }
 
-    if ((s_sync_calls <= 10) || (s_sync_calls % 60 == 0)) {
+    if ((call_id <= 15) || (call_id % 60 == 0)) {
         uint32_t pad = 0;
         if (g_u2_image_base) {
             pad = *(uint32_t *)(g_u2_image_base + 0x01116180 + 0x864);
         }
-        printf("[U2 Loop] Frame #%" PRIu64 " | UCCApp State=%u | Pad=0x%04x | EOP Tick=%" PRIu64 "\n",
-               s_sync_calls, cur_state, pad & 0xFFFF, target_tick);
+        printf("[U2 Loop] Sync #%" PRIu64 " | mode=%u | target=%" PRId64 " | cur=%" PRId64 " | UCCApp State=%u | Pad=0x%04x\n",
+               call_id, mode, (int64_t)target_tick, *(int64_t *)((uint8_t *)sync_obj + 0x20), cur_state, pad & 0xFFFF);
         fflush(stdout);
+    }
+
+    if (mode == 1 || (g_u2_image_base && sync_obj == *(void **)(g_u2_image_base + 0x015AF7D0))) {
+        int64_t *cur_tick = (int64_t *)((uint8_t *)sync_obj + 0x20);
+        *cur_tick = (int64_t)target_tick;
+        return;
+    }
+
+    if (s_b29f10_cont) {
+        orig_SyncCounter_Wait(sync_obj, target_tick, mode);
     }
 }
 
@@ -1610,6 +1635,7 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     }
     write_detour_jmp64(image + 0x00C24250, (uintptr_t)detour_MapComputeQueue);
     ++installed;
+    s_b29f10_cont = (uintptr_t)(image + 0x00B29F20);
     write_detour_jmp64(image + 0x00B29F10, (uintptr_t)detour_GfxWaitEopFence);
     ++installed;
     write_detour_jmp64(image + 0x00C2C230, (uintptr_t)detour_JsonParseFiles);
