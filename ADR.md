@@ -190,9 +190,9 @@ Dans le gestionnaire de scripts Naughty Dog (`ScriptManager::Initialize` à `0x0
    `Fault: read access to 0000000000000000 at guest offset 0xb33273`.
 
 ### Décision
-1. **Patch `0x00A17C60` (50 octets)** & Helper `u2_alloc_chunk_node_fallback` dans [`src/runtime_u2_script.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_script.c) :
-   Lorsque l'allocateur 0 échoue à fournir 216 octets pour un nœud de chunk, attribue dynamiquement un buffer de repli 16-octets aligné via `_aligned_malloc(216, 16)` mis à zéro au lieu de laisser `%r13` à NULL.
-   En cas d'échec absolu, saute strictement à `0x00A17D62` (qui recharge `%r13 = 0x1044800` et `%r14 = 0x1534140`), empêchant le déréférencement de `0x298` (`0 + r12 * 8`) à `0x00A17B20`.
+1. **Patch `0x00A17C60` (50 octets) & `0x00A19601` (49 octets)** & Helper `u2_alloc_chunk_node_fallback` dans [`src/runtime_u2_script.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_script.c) :
+   - Préserve l'instruction initiale `movq %rax, %r13` à `0x00A17C60` (et `movq %rax, %r14` à `0x00A19601`) sur 3 octets afin que les sauts conditionnels `je 0x00A17C63` (à `0x00A17C27` et `0x00A17C37` lorsque `ecx == 0`, où `%r13` vaut 0 mais `%rax` contient `pAllocStack`) ne passent jamais `pAllocStack` comme nœud de chunk.
+   - Passe `%r13` (resp. `%r14`) à `u2_alloc_chunk_node_fallback`, qui retourne un buffer de repli 16-octets aligné via `_aligned_malloc(216, 16)` mis à zéro si l'allocation a échoué.
 2. **Patch `0x00B33270` & `0x00B33130` (39 octets chacun)** & Helper `u2_alloc_arena_or_fallback` dans [`src/runtime_u2_script.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_script.c) :
    Remplace les blocs `0x00B33270`..`0x00B33296` et `0x00B33130`..`0x00B33156` (les deux variantes d'`AllocByAllocatorId`) par un relais vers `u2_alloc_arena_or_fallback(%rbx, %r14)`.
    Cette routine C SysV ABI vérifie la validité du pointeur d'arène et de sa vtable :
@@ -208,47 +208,37 @@ Accepté & Implémenté.
 
 ### Contexte
 Sur PS4, l'espace mémoire physique direct (1600 Mo à `0x1000000000`, 3100 Mo à `0x1100000000`) et flexible (335 Mo à `0x1200000000`) est alloué via `MapViewOfFile3` avec la section partagée de repli (`SEC_RESERVE`).
-Lors de l'initialisation du moteur de script (`ScriptManager`), le balayage de la liste chaînée des chunks (`0x00A17B58`) lit les métadonnées (`0x98(%rcx)`) d'un nœud alloué dans la plage directe haute (`0x105d8f42b8`).
 
 ### Problème
 Sur l'hôte Windows :
-1. Les sections de mapping créées avec `SEC_RESERVE` ne peuvent pas être protégées via `VirtualProtect` (qui échoue avec `ERROR_INVALID_PARAMETER` / 87 ou `ERROR_INVALID_ADDRESS` / 487 sur les vues de sections).
-2. Lorsque `VirtualAlloc(..., MEM_COMMIT)` initial dans `view_map` ne valide qu'une partie de la plage sous forte charge mémoire, les pages réservées restantes (`State = MEM_RESERVE`, `Protect = PAGE_NOACCESS`) déclenchent un crash :
-   `Fault: read access to 000000105d8f42b8 at guest offset 0xa17b58`.
-3. Le gestionnaire de fautes vectorisées (`vectored_fault` dans `src/probe.c`) n'intervenait que pour les écritures (`ExceptionInformation[0] == 1`), causant l'arrêt immédiat sur les lectures de mémoire valide du guest.
+1. Les sections de mapping créées avec `SEC_RESERVE` ne peuvent pas être committées via `VirtualProtect` (qui échoue sur les pages non committées d'une vue de section).
+2. Le gestionnaire de fautes vectorisées (`vectored_fault` dans `src/probe.c`) n'intervenait que pour les écritures (`ExceptionInformation[0] == 1`) et appelait `VirtualProtect` sans vérifier si la page était déjà `PAGE_READWRITE`, risquant une boucle infinie sur faute d'alignement SSE.
 
 ### Décision
-* Dans [`src/probe.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/probe.c) (`vectored_fault`) :
-  Pour tout accès fautif (lecture ou écriture) dans la plage mémoire guest `[0x1000000000, 0x2000000000)` :
-  1. Invocation de `VirtualAlloc(page_addr, 0x10000, MEM_COMMIT, PAGE_READWRITE)` : valide et committe à la demande le bloc de 64 Ko sur la vue de section.
-  2. Si `VirtualAlloc` réussit, reprise immédiate de l'instruction (`EXCEPTION_CONTINUE_EXECUTION`).
-  3. Repli sur `VirtualProtect` si la page appartenait à une réservation standard.
-* **Résultat** : La boucle de packages de `ScriptManager` progresse au-delà de `0x00A17B58` jusqu'à `0x00A17BEA` et les requêtes streaming de FIOS2.
-   - Si valide, elle délègue à `Arena::Allocate(arena, size, 16, "UNKNOWN", 0, "UNKNOWN")`.
-   - Si l'arène est NULL ou si l'allocation échoue, elle alloue dynamiquement via `_aligned_malloc(alloc_sz, 16)`, met à zéro la mémoire et la retourne proprement à l'appelant.
+* Dans [`src/probe.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/probe.c) (`vectored_fault`) et [`src/runtime_memory.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_memory.c) (`view_map`) :
+  1. `view_map` mappe systématiquement les vues `MapViewOfFile3` avec `initial = PAGE_READWRITE` avant d'appliquer la protection cible via `VirtualProtect`.
+  2. Pour tout accès fautif dans `[0x1000000000, 0x2000000000)` avec `mbi.State == MEM_RESERVE`, `vectored_fault` committe à la demande via `VirtualAlloc(..., MEM_COMMIT, PAGE_READWRITE)` (ou remplace le placeholder via `VirtualAlloc2(..., MEM_REPLACE_PLACEHOLDER)`).
+  3. Pour une page déjà committée (`mbi.State == MEM_COMMIT`), `VirtualProtect` n'est invoqué que si `mbi.Protect` n'est pas déjà `PAGE_READWRITE` / `PAGE_EXECUTE_READWRITE`.
 
 ---
 
-## ADR-010 : Demand-Commit Mémoire Guest (`0x1000000000`..`0x2000000000`) & Résolution Crash `0x00A17B58`
+## ADR-011 : Sécurisation des Variables de Condition (`pthread_cond_*`) & Auto-Initialisation Mutex dans `cond_wait`
 
 ### Statut
 Accepté & Implémenté.
 
 ### Contexte
-Sur PS4, l'espace mémoire physique direct (1600 Mo à `0x1000000000`, 3100 Mo à `0x1100000000`) et flexible (335 Mo à `0x1200000000`) est alloué via `MapViewOfFile3` avec la section partagée de repli (`SEC_RESERVE`).
-Lors de l'initialisation du moteur de script (`ScriptManager`), le balayage de la liste chaînée des chunks (`0x00A17B58`) lit les métadonnées (`0x98(%rcx)`) d'un nœud alloué dans la plage directe haute (`0x105d8f42b8`).
+Les modules système PS4 liés statiquement (notamment `libSceFios2.prx` à l'offset guest `0x1851328`) utilisent des variables de condition et des mutex (`scePthreadCondWait`, `scePthreadCondTimedwait`, `scePthreadCondSignal`, `scePthreadCondBroadcast`) dont les pointeurs de handle peuvent contenir des sentinelles statiques (`0`, `1`, `2`) ou ne pas avoir été explicitement initialisés avant le premier appel d'attente.
 
 ### Problème
-Sur l'hôte Windows :
-1. Les sections de mapping créées avec `SEC_RESERVE` ne peuvent pas être protégées via `VirtualProtect` (qui échoue avec `ERROR_INVALID_PARAMETER` / 87 ou `ERROR_INVALID_ADDRESS` / 487 sur les vues de sections).
-2. Lorsque `VirtualAlloc(..., MEM_COMMIT)` initial dans `view_map` ne valide qu'une partie de la plage sous forte charge mémoire, les pages réservées restantes (`State = MEM_RESERVE`, `Protect = PAGE_NOACCESS`) déclenchent un crash :
-   `Fault: read access to 000000105d8f42b8 at guest offset 0xa17b58`.
-3. Le gestionnaire de fautes vectorisées (`vectored_fault` dans `src/probe.c`) n'intervenait que pour les écritures (`ExceptionInformation[0] == 1`), causant l'arrêt immédiat sur les lectures de mémoire valide du guest.
+Dans [`src/runtime_mutex.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_mutex.c) :
+1. `ensure_cond`, `cond_wait`, `cond_wait_until`, `cond_signal`, `cond_broadcast` et `cond_destroy` ne filtraient que `(uintptr_t)*cond < 2` (ou `< 3`), laissant passer des valeurs basses invalides (`< 0x10000`).
+2. Plus critique encore : `cond_wait` et `cond_wait_until` appelaient `ensure_cond(cond)` mais **n'appelaient pas `ensure_mutex(mutex)`**, passant directement `&(*mutex)->native` à `pthread_cond_wait` / `pthread_cond_timedwait`. Lorsque `*mutex` valait `NULL` (`0x0`), `libwinpthread-1.dll+0x436b` déréférençait l'adresse `0x0000000000000000`, provoquant un crash immédiat :
+   `Fault: read access to 0000000000000000 at libwinpthread-1.dll+0x436b` depuis `libSceFios2.prx` (`0x1851328` <- `0x184cb5b` <- `0xa17bea`).
 
 ### Décision
-* Dans [`src/probe.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/probe.c) (`vectored_fault`) :
-  Pour tout accès fautif (lecture ou écriture) dans la plage mémoire guest `[0x1000000000, 0x2000000000)` :
-  1. Invocation de `VirtualAlloc(page_addr, 0x10000, MEM_COMMIT, PAGE_READWRITE)` : valide et committe à la demande le bloc de 64 Ko sur la vue de section.
-  2. Si `VirtualAlloc` réussit, reprise immédiate de l'instruction (`EXCEPTION_CONTINUE_EXECUTION`).
-  3. Repli sur `VirtualProtect` si la page appartenait à une réservation standard.
-* **Résultat** : La boucle de packages de `ScriptManager` progresse au-delà de `0x00A17B58` jusqu'à `0x00A17BEA` et les requêtes streaming de FIOS2.
+* Dans [`src/runtime_mutex.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_mutex.c) :
+  1. Harmonisation du seuil de validité des handles de variables de condition à `(uintptr_t)*cond < 0x10000` (identique à `ensure_mutex` et `ensure_rwlock`).
+  2. Dans `cond_wait` et `cond_wait_until`, vérification systématique de `cond` et `mutex` (`> 0x10000`) et invocation conjointe de `ensure_cond(cond)` **et** `ensure_mutex(mutex)` avant tout appel à `pthread_cond_wait` / `pthread_cond_timedwait`.
+  3. Sécurisation de `cond_signal`, `cond_broadcast` et `cond_destroy` contre les pointeurs NULL ou `< 0x10000`.
+* **Résultat** : Le crash dans `libwinpthread-1.dll+0x436b` lors des opérations FIOS2 est totalement éliminé et la boucle de chargement des 117 archives de `ScriptManager` s'exécute sans aucune erreur d'allocation ni violation d'accès.

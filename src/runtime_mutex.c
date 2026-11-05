@@ -158,10 +158,10 @@ static ABI int32_t cond_init(GuestCond **out, void **attr, const char *name) {
 }
 static int32_t ensure_cond(GuestCond **cond) {
     if (!cond || (uintptr_t)cond < 0x10000 || ((uintptr_t)cond & 7)) return orbis_error(EINVAL);
-    if (__atomic_load_n((uintptr_t *)cond, __ATOMIC_ACQUIRE) >= 2) return 0;
+    if (__atomic_load_n((uintptr_t *)cond, __ATOMIC_ACQUIRE) >= 0x10000) return 0;
     pthread_mutex_lock(&static_init);
     int32_t e = 0;
-    if ((uintptr_t)*cond < 2) {
+    if ((uintptr_t)*cond < 0x10000) {
         GuestCond *c = NULL;
         e = cond_init(&c, NULL, NULL);
         if (!e) __atomic_store_n(cond, c, __ATOMIC_RELEASE);
@@ -170,23 +170,35 @@ static int32_t ensure_cond(GuestCond **cond) {
     return e;
 }
 static ABI int32_t cond_destroy(GuestCond **cond) {
-    if (!cond) return orbis_error(EINVAL);
-    if ((uintptr_t)*cond < 2) return 0;
+    if (!cond || (uintptr_t)cond < 0x10000 || ((uintptr_t)cond & 7)) return orbis_error(EINVAL);
+    if ((uintptr_t)*cond < 0x10000) return 0;
     int e = pthread_cond_destroy(&(*cond)->native);
-    if (!e) { free(*cond); *cond = NULL; }
+    if (!e || e == EBUSY) {
+        free(*cond);
+        *cond = NULL;
+        return 0;
+    }
     return orbis_error(e);
 }
 static ABI int32_t cond_wait(GuestCond **cond, GuestMutex **mutex) {
-    int32_t e = ensure_cond(cond);
-    if (e) return e;
-    if (!mutex || (uintptr_t)*mutex < 3) return orbis_error(EINVAL);
+    if (!mutex || (uintptr_t)mutex < 0x10000 || ((uintptr_t)mutex & 7)) return orbis_error(EINVAL);
+    int32_t me = ensure_mutex(mutex);
+    if (me) return me;
+    if (!*mutex || (uintptr_t)*mutex < 0x10000) return orbis_error(EINVAL);
+    int32_t ce = ensure_cond(cond);
+    if (ce) return ce;
+    if (!*cond || (uintptr_t)*cond < 0x10000) return orbis_error(EINVAL);
     ++waits;
     return orbis_error(pthread_cond_wait(&(*cond)->native, &(*mutex)->native));
 }
 static int32_t cond_wait_until(GuestCond **cond, GuestMutex **mutex, const struct timespec *end) {
-    int32_t e = ensure_cond(cond);
-    if (e) return e;
-    if (!mutex || (uintptr_t)*mutex < 3 || !end) return orbis_error(EINVAL);
+    if (!mutex || (uintptr_t)mutex < 0x10000 || ((uintptr_t)mutex & 7)) return orbis_error(EINVAL);
+    int32_t me = ensure_mutex(mutex);
+    if (me) return me;
+    if (!*mutex || (uintptr_t)*mutex < 0x10000 || !end) return orbis_error(EINVAL);
+    int32_t ce = ensure_cond(cond);
+    if (ce) return ce;
+    if (!*cond || (uintptr_t)*cond < 0x10000) return orbis_error(EINVAL);
     ++waits;
     return timed_error(pthread_cond_timedwait(&(*cond)->native, &(*mutex)->native, end));
 }
@@ -196,14 +208,20 @@ static ABI int32_t cond_timedwait(GuestCond **cond, GuestMutex **mutex, uint32_t
     return cond_wait_until(cond, mutex, &end);
 }
 static ABI int32_t cond_signal(GuestCond **cond) {
+    if (!cond || (uintptr_t)cond < 0x10000 || ((uintptr_t)cond & 7)) return orbis_error(EINVAL);
     int32_t e = ensure_cond(cond);
     if (e) return e;
-    ++wakeups; return orbis_error(pthread_cond_signal(&(*cond)->native));
+    if (!*cond || (uintptr_t)*cond < 0x10000) return orbis_error(EINVAL);
+    ++wakeups;
+    return orbis_error(pthread_cond_signal(&(*cond)->native));
 }
 static ABI int32_t cond_broadcast(GuestCond **cond) {
+    if (!cond || (uintptr_t)cond < 0x10000 || ((uintptr_t)cond & 7)) return orbis_error(EINVAL);
     int32_t e = ensure_cond(cond);
     if (e) return e;
-    ++wakeups; return orbis_error(pthread_cond_broadcast(&(*cond)->native));
+    if (!*cond || (uintptr_t)*cond < 0x10000) return orbis_error(EINVAL);
+    ++wakeups;
+    return orbis_error(pthread_cond_broadcast(&(*cond)->native));
 }
 /* PS4 struct timespec is {int64 sec, int64 nsec}, identical to Linux x86-64. */
 typedef struct { int64_t sec, nsec; } GuestTimespec;

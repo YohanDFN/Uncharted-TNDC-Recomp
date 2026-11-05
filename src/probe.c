@@ -206,24 +206,88 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
     if (code==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         /* GPU page tracking (write-protected guest pages) is resolved first. */
         if (gpu_enabled && bbgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
-        /* If a guest direct/flexible memory access faulted (read or write) due to uncommitted pages or GPU page protection, ensure memory is committed and writable */
+        /* If a guest direct/flexible memory access faulted (read or write) due to uncommitted pages, placeholders or protection, ensure memory is committed and writable */
         void *fault_addr = (void *)record->ExceptionInformation[1];
         uintptr_t fault_u = (uintptr_t)fault_addr;
         if (fault_u >= 0x1000000000ULL && fault_u < 0x2000000000ULL) {
-            uintptr_t page_addr = fault_u & ~(uintptr_t)0xFFFF;
-            void *committed = VirtualAlloc((void *)page_addr, 0x10000, MEM_COMMIT, PAGE_READWRITE);
-            if (committed) {
-                static uint64_t s_recovered_faults = 0;
-                if (++s_recovered_faults <= 20) {
-                    fprintf(stderr, "[Guest Memory] Demand-committed %p (64KB at %p, type=%d)\n",
-                            (void *)fault_u, committed, (int)record->ExceptionInformation[0]);
-                    fflush(stderr);
+            MEMORY_BASIC_INFORMATION mbi;
+            if (VirtualQuery(fault_addr, &mbi, sizeof(mbi))) {
+                fprintf(stderr, "[Guest Fault] rip=%p fault_u=%p type=%d mbi: AllocBase=%p Base=%p Size=0x%zx State=0x%lx Protect=0x%lx AllocProt=0x%lx Type=0x%lx\n",
+                        (void *)info->ContextRecord->Rip, (void *)fault_u, (int)record->ExceptionInformation[0],
+                        mbi.AllocationBase, mbi.BaseAddress, mbi.RegionSize, mbi.State, mbi.Protect, mbi.AllocationProtect, mbi.Type);
+                fflush(stderr);
+                if (mbi.State == MEM_RESERVE) {
+                    /* Try direct VirtualAlloc first (works if view of section or normal reserve) */
+                    uintptr_t page_addr = fault_u & ~(uintptr_t)0xFFF;
+                    if (page_addr < (uintptr_t)mbi.BaseAddress) page_addr = (uintptr_t)mbi.BaseAddress;
+                    size_t commit_sz = 0x10000;
+                    if (page_addr + commit_sz > (uintptr_t)mbi.BaseAddress + mbi.RegionSize)
+                        commit_sz = ((uintptr_t)mbi.BaseAddress + mbi.RegionSize) - page_addr;
+                    void *committed = VirtualAlloc((void *)page_addr, commit_sz, MEM_COMMIT, PAGE_READWRITE);
+                    if (committed) {
+                        static uint64_t s_recovered_faults = 0;
+                        if (++s_recovered_faults <= 20) {
+                            fprintf(stderr, "[Guest Memory] Demand-committed %p (64KB at %p, type=%d)\n",
+                                    (void *)fault_u, committed, (int)record->ExceptionInformation[0]);
+                            fflush(stderr);
+                        }
+                        return EXCEPTION_CONTINUE_EXECUTION;
+                    }
+                    DWORD err_va = GetLastError();
+                    /* If VirtualAlloc failed, this range is a placeholder (MEM_RESERVE_PLACEHOLDER).
+                     * Replace the placeholder with committed memory using VirtualAlloc2. */
+                    uintptr_t r_base = (uintptr_t)mbi.BaseAddress;
+                    size_t r_size = mbi.RegionSize;
+                    if (r_size <= 128 * 1024 * 1024) {
+                        void *rep = VirtualAlloc2(GetCurrentProcess(), (void *)r_base, r_size,
+                                                  MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER,
+                                                  PAGE_READWRITE, NULL, 0);
+                        if (rep) {
+                            static uint64_t s_rep_count = 0;
+                            if (++s_rep_count <= 20) {
+                                fprintf(stderr, "[Guest Memory] Replaced placeholder %p (size=0x%zx) with committed memory\n",
+                                        (void *)r_base, r_size);
+                                fflush(stderr);
+                            }
+                            return EXCEPTION_CONTINUE_EXECUTION;
+                        }
+                        fprintf(stderr, "[Guest Fault] VirtualAlloc err=%lu, VirtualAlloc2 err=%lu for Base=%p Size=0x%zx\n",
+                                err_va, GetLastError(), (void *)r_base, r_size);
+                        fflush(stderr);
+                    } else {
+                        /* Split placeholder to commit a 16MB chunk around fault_u */
+                        uintptr_t chunk_base = fault_u & ~(uintptr_t)(16 * 1024 * 1024 - 1);
+                        size_t chunk_size = 16 * 1024 * 1024;
+                        if (chunk_base < r_base) chunk_base = r_base;
+                        if (chunk_base + chunk_size > r_base + r_size) chunk_size = (r_base + r_size) - chunk_base;
+                        if (chunk_base > r_base) {
+                            VirtualFree((void *)r_base, chunk_base - r_base, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
+                        }
+                        if (chunk_base + chunk_size < r_base + r_size) {
+                            VirtualFree((void *)chunk_base, chunk_size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
+                        }
+                        void *rep = VirtualAlloc2(GetCurrentProcess(), (void *)chunk_base, chunk_size,
+                                                  MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER,
+                                                  PAGE_READWRITE, NULL, 0);
+                        if (rep) {
+                            fprintf(stderr, "[Guest Memory] Replaced chunk placeholder %p (size=0x%zx) with committed memory\n",
+                                    (void *)chunk_base, chunk_size);
+                            fflush(stderr);
+                            return EXCEPTION_CONTINUE_EXECUTION;
+                        }
+                        fprintf(stderr, "[Guest Fault] VirtualAlloc err=%lu, VirtualAlloc2 chunk err=%lu for Base=%p Size=0x%zx\n",
+                                err_va, GetLastError(), (void *)chunk_base, chunk_size);
+                        fflush(stderr);
+                    }
                 }
-                return EXCEPTION_CONTINUE_EXECUTION;
-            }
-            DWORD old_prot;
-            if (VirtualProtect((void *)page_addr, 0x10000, PAGE_READWRITE, &old_prot)) {
-                return EXCEPTION_CONTINUE_EXECUTION;
+                if (mbi.State == MEM_COMMIT && mbi.Protect != PAGE_READWRITE && mbi.Protect != PAGE_EXECUTE_READWRITE) {
+                    DWORD old_prot;
+                    uintptr_t page_addr = fault_u & ~(uintptr_t)0xFFF;
+                    if (VirtualProtect((void *)page_addr, 0x1000, PAGE_READWRITE, &old_prot) ||
+                        VirtualProtect(mbi.BaseAddress, mbi.RegionSize, PAGE_READWRITE, &old_prot)) {
+                        return EXCEPTION_CONTINUE_EXECUTION;
+                    }
+                }
             }
         }
         if (runtime_fault_recover) {

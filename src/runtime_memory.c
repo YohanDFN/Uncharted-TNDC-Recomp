@@ -166,7 +166,7 @@ void runtime_memory_reserve(void) {
 static int memory_log(void);
 
 static void view_map(const HostRegion *r, DWORD protect) {
-    DWORD initial=protect==PAGE_NOACCESS ? PAGE_READWRITE : protect, old;
+    DWORD initial=PAGE_READWRITE, old;
     if (!MapViewOfFile3(section,GetCurrentProcess(),(void *)r->start,r->phys,r->end-r->start,MEM_REPLACE_PLACEHOLDER,initial,NULL,0))
         win_fail("MapViewOfFile3",r->start,r->end-r->start);
     VirtualAlloc((void *)r->start, r->end - r->start, MEM_COMMIT, initial);

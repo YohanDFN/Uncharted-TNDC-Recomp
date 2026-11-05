@@ -1826,40 +1826,55 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         fflush(stdout);
     }
 
-    /* Patch 0x00A17C60 (50 bytes): Fallback chunk tracking node allocation in ScriptManager package scanner.
-     * When allocator 0 ("UNKNOWN:0", CPU Mem [F:0 T:0]) fails to allocate 216 bytes for a package chunk node,
-     * or when ecx == 0 / rax == NULL, original code crashed reading/writing at 0x8(%r13).
-     * Furthermore, skipping directly to 0x00A17D70 bypassed reloading %r13 (0x1044800) at 0x00A17D62,
-     * causing the subsequent iteration to crash with Fault: read access to 0x298 at 0x00A17B20.
-     * We invoke u2_alloc_chunk_node_fallback(%rax) to supply a zeroed 216-byte host buffer, ensuring
-     * %r13 is always valid, and if ever NULL, safely skip to 0x00A17D62 (restoring %r13 and %r14).
+    /* Patch 0x00A17C60 (50 bytes) & 0x00A19601 (49 bytes): Fallback chunk tracking node allocation.
+     * Note: At 0x00A17C27 (rax==0) and 0x00A17C37 (ecx==0), original code sets %r13 = 0 (while %rax
+     * still holds pAllocStack!) and jumps to 0x00A17C63 (after `0x00A17C60: movq %rax, %r13`).
+     * Passing %rax instead of %r13 corrupted pAllocStack by inserting it into the package list 0x1534140!
+     * We preserve `movq %rax, %r13` at 0x00A17C60 (3 bytes) and invoke `u2_alloc_chunk_node_fallback(%r13)`
+     * starting at 0x00A17C63 so both the fallthrough path and the jump paths at 0x00A17C27/0x00A17C37
+     * pass %r13 cleanly. Same exact pattern for 0x00A19601 (`movq %rax, %r14`) at 0x00A19604.
      */
     if (image_size > 0x00A17C60 + 50) {
         uint8_t patch_a17c60[50];
         memset(patch_a17c60, 0x90, sizeof(patch_a17c60));
 
         uint8_t *p = patch_a17c60;
-        p[0] = 0x48; p[1] = 0x89; p[2] = 0xc7; /* movq %rax, %rdi */
-        p[3] = 0x48; p[4] = 0xb8;              /* movabsq $fn, %rax */
+        p[0] = 0x49; p[1] = 0x89; p[2] = 0xc5; /* 0x00A17C60: movq %rax, %r13 */
+        p[3] = 0x4c; p[4] = 0x89; p[5] = 0xef; /* 0x00A17C63: movq %r13, %rdi */
+        p[6] = 0x48; p[7] = 0xb8;              /* 0x00A17C66: movabsq $fn, %rax */
         uint64_t fn_addr = (uint64_t)(uintptr_t)u2_alloc_chunk_node_fallback;
-        memcpy(p + 5, &fn_addr, sizeof(fn_addr));
-        p[13] = 0xff; p[14] = 0xd0;            /* callq *%rax */
-        p[15] = 0x49; p[16] = 0x89; p[17] = 0xc5; /* movq %rax, %r13 */
-        p[18] = 0x4d; p[19] = 0x85; p[20] = 0xed; /* testq %r13, %r13 */
-        p[21] = 0x0f; p[22] = 0x84;            /* jz 0x00a17d62 */
-        int32_t disp = (int32_t)(0x00A17D62 - (0x00A17C60 + 27));
-        memcpy(p + 23, &disp, sizeof(disp));
-        p[27] = 0x4d; p[28] = 0x8d; p[29] = 0x75; p[30] = 0x18; /* leaq 0x18(%r13), %r14 */
-        /* remaining bytes p[31..49] are 0x90 (NOP) */
+        memcpy(p + 8, &fn_addr, sizeof(fn_addr));
+        p[16] = 0xff; p[17] = 0xd0;            /* 0x00A17C70: callq *%rax */
+        p[18] = 0x49; p[19] = 0x89; p[20] = 0xc5; /* 0x00A17C72: movq %rax, %r13 */
+        p[21] = 0x4d; p[22] = 0x8d; p[23] = 0x75; p[24] = 0x18; /* 0x00A17C75: leaq 0x18(%r13), %r14 */
+        /* remaining bytes p[25..49] are 0x90 (NOP) */
 
         memcpy(image + 0x00A17C60, patch_a17c60, sizeof(patch_a17c60));
 
-        /* Retarget jumps at 0x00A17C27 and 0x00A17C37 to 0x00A17C60 */
-        image[0x00A17C27 + 1] = 0x37; /* je 0x00A17C60 */
-        image[0x00A17C37 + 1] = 0x27; /* je 0x00A17C60 */
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x00A17C60: Fallback chunk node allocation (preserving %%r13)\n");
+        fflush(stdout);
+    }
+
+    if (image_size > 0x00A19601 + 49) {
+        uint8_t patch_a19601[49];
+        memset(patch_a19601, 0x90, sizeof(patch_a19601));
+
+        uint8_t *p = patch_a19601;
+        p[0] = 0x49; p[1] = 0x89; p[2] = 0xc6; /* 0x00A19601: movq %rax, %r14 */
+        p[3] = 0x4c; p[4] = 0x89; p[5] = 0xf7; /* 0x00A19604: movq %r14, %rdi */
+        p[6] = 0x48; p[7] = 0xb8;              /* 0x00A19607: movabsq $fn, %rax */
+        uint64_t fn_addr = (uint64_t)(uintptr_t)u2_alloc_chunk_node_fallback;
+        memcpy(p + 8, &fn_addr, sizeof(fn_addr));
+        p[16] = 0xff; p[17] = 0xd0;            /* 0x00A19611: callq *%rax */
+        p[18] = 0x49; p[19] = 0x89; p[20] = 0xc6; /* 0x00A19613: movq %rax, %r14 */
+        p[21] = 0x4d; p[22] = 0x8d; p[23] = 0x6e; p[24] = 0x18; /* 0x00A19616: leaq 0x18(%r14), %r13 */
+        /* remaining bytes p[25..48] are 0x90 (NOP) */
+
+        memcpy(image + 0x00A19601, patch_a19601, sizeof(patch_a19601));
 
         installed++;
-        printf("[U2 Engine] Applied patch at 0x00A17C60: Fallback chunk node allocation & loop restore\n");
+        printf("[U2 Engine] Applied patch at 0x00A19601: Fallback chunk node allocation (preserving %%r14)\n");
         fflush(stdout);
     }
 
