@@ -206,19 +206,23 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
     if (code==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         /* GPU page tracking (write-protected guest pages) is resolved first. */
         if (gpu_enabled && bbgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
-        /* If a guest direct/flexible memory write faulted due to GPU page protection outside mapped_ranges, restore write access */
+        /* If a guest direct/flexible memory access faulted (read or write) due to uncommitted pages or GPU page protection, ensure memory is committed and writable */
         void *fault_addr = (void *)record->ExceptionInformation[1];
         uintptr_t fault_u = (uintptr_t)fault_addr;
-        if (record->ExceptionInformation[0] == 1 && fault_u >= 0x1000000000ULL && fault_u < 0x2000000000ULL) {
-            DWORD old_prot;
-            uintptr_t page_addr = fault_u & ~(uintptr_t)0xFFF;
-            if (VirtualProtect((void *)page_addr, 0x1000, PAGE_READWRITE, &old_prot)) {
+        if (fault_u >= 0x1000000000ULL && fault_u < 0x2000000000ULL) {
+            uintptr_t page_addr = fault_u & ~(uintptr_t)0xFFFF;
+            void *committed = VirtualAlloc((void *)page_addr, 0x10000, MEM_COMMIT, PAGE_READWRITE);
+            if (committed) {
                 static uint64_t s_recovered_faults = 0;
-                if (++s_recovered_faults <= 10) {
-                    fprintf(stderr, "[GPU PageTrack] Restored write access to %p (old_prot=0x%lx)\n",
-                            (void *)fault_u, (unsigned long)old_prot);
+                if (++s_recovered_faults <= 20) {
+                    fprintf(stderr, "[Guest Memory] Demand-committed %p (64KB at %p, type=%d)\n",
+                            (void *)fault_u, committed, (int)record->ExceptionInformation[0]);
                     fflush(stderr);
                 }
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+            DWORD old_prot;
+            if (VirtualProtect((void *)page_addr, 0x10000, PAGE_READWRITE, &old_prot)) {
                 return EXCEPTION_CONTINUE_EXECUTION;
             }
         }

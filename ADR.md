@@ -15,6 +15,7 @@
 * [ADR-007 : Prévention Débordement Tas Menu (456B Devkit Shaders) & Court-Circuit `0x00CC103A`](#adr-007--prévention-débordement-tas-menu-456b-devkit-shaders--court-circuit-0x00cc103a)
 * [ADR-008 : Sécurisation du Cycle de Vie Mutex (`libSceFios2`), Garde Stat Buffer & Scheduler Device](#adr-008--sécurisation-du-cycle-de-vie-mutex-libscefios2-garde-stat-buffer--scheduler-device)
 * [ADR-009 : Garde Nœuds Chunks ScriptManager (`0x00A17C60`) & Fallback Allocateur de Tas `AllocByAllocatorId` (`0x00B33270`)](#adr-009--garde-nœuds-chunks-scriptmanager-0x00a17c60--fallback-allocateur-de-tas-allocbyallocatorid-0x00b33270)
+* [ADR-010 : Demand-Commit Mémoire Guest (`0x1000000000`..`0x2000000000`) & Résolution Crash `0x00A17B58`](#adr-010--demand-commit-mémoire-guest-0x10000000000x2000000000--résolution-crash-0x00a17b58)
 
 ---
 
@@ -197,5 +198,57 @@ Dans le gestionnaire de scripts Naughty Dog (`ScriptManager::Initialize` à `0x0
    Cette routine C SysV ABI vérifie la validité du pointeur d'arène et de sa vtable :
    - Si valide, elle délègue à `Arena::Allocate(arena, size, 16, "UNKNOWN", 0, "UNKNOWN")`.
    - Si l'arène est NULL ou si l'allocation échoue, elle alloue dynamiquement via `_aligned_malloc(alloc_sz, 16)`, met à zéro la mémoire et la retourne proprement à l'appelant.
+
+---
+
+## ADR-010 : Demand-Commit Mémoire Guest (`0x1000000000`..`0x2000000000`) & Résolution Crash `0x00A17B58`
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte
+Sur PS4, l'espace mémoire physique direct (1600 Mo à `0x1000000000`, 3100 Mo à `0x1100000000`) et flexible (335 Mo à `0x1200000000`) est alloué via `MapViewOfFile3` avec la section partagée de repli (`SEC_RESERVE`).
+Lors de l'initialisation du moteur de script (`ScriptManager`), le balayage de la liste chaînée des chunks (`0x00A17B58`) lit les métadonnées (`0x98(%rcx)`) d'un nœud alloué dans la plage directe haute (`0x105d8f42b8`).
+
+### Problème
+Sur l'hôte Windows :
+1. Les sections de mapping créées avec `SEC_RESERVE` ne peuvent pas être protégées via `VirtualProtect` (qui échoue avec `ERROR_INVALID_PARAMETER` / 87 ou `ERROR_INVALID_ADDRESS` / 487 sur les vues de sections).
+2. Lorsque `VirtualAlloc(..., MEM_COMMIT)` initial dans `view_map` ne valide qu'une partie de la plage sous forte charge mémoire, les pages réservées restantes (`State = MEM_RESERVE`, `Protect = PAGE_NOACCESS`) déclenchent un crash :
+   `Fault: read access to 000000105d8f42b8 at guest offset 0xa17b58`.
+3. Le gestionnaire de fautes vectorisées (`vectored_fault` dans `src/probe.c`) n'intervenait que pour les écritures (`ExceptionInformation[0] == 1`), causant l'arrêt immédiat sur les lectures de mémoire valide du guest.
+
+### Décision
+* Dans [`src/probe.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/probe.c) (`vectored_fault`) :
+  Pour tout accès fautif (lecture ou écriture) dans la plage mémoire guest `[0x1000000000, 0x2000000000)` :
+  1. Invocation de `VirtualAlloc(page_addr, 0x10000, MEM_COMMIT, PAGE_READWRITE)` : valide et committe à la demande le bloc de 64 Ko sur la vue de section.
+  2. Si `VirtualAlloc` réussit, reprise immédiate de l'instruction (`EXCEPTION_CONTINUE_EXECUTION`).
+  3. Repli sur `VirtualProtect` si la page appartenait à une réservation standard.
+* **Résultat** : La boucle de packages de `ScriptManager` progresse au-delà de `0x00A17B58` jusqu'à `0x00A17BEA` et les requêtes streaming de FIOS2.
    - Si valide, elle délègue à `Arena::Allocate(arena, size, 16, "UNKNOWN", 0, "UNKNOWN")`.
    - Si l'arène est NULL ou si l'allocation échoue, elle alloue dynamiquement via `_aligned_malloc(alloc_sz, 16)`, met à zéro la mémoire et la retourne proprement à l'appelant.
+
+---
+
+## ADR-010 : Demand-Commit Mémoire Guest (`0x1000000000`..`0x2000000000`) & Résolution Crash `0x00A17B58`
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte
+Sur PS4, l'espace mémoire physique direct (1600 Mo à `0x1000000000`, 3100 Mo à `0x1100000000`) et flexible (335 Mo à `0x1200000000`) est alloué via `MapViewOfFile3` avec la section partagée de repli (`SEC_RESERVE`).
+Lors de l'initialisation du moteur de script (`ScriptManager`), le balayage de la liste chaînée des chunks (`0x00A17B58`) lit les métadonnées (`0x98(%rcx)`) d'un nœud alloué dans la plage directe haute (`0x105d8f42b8`).
+
+### Problème
+Sur l'hôte Windows :
+1. Les sections de mapping créées avec `SEC_RESERVE` ne peuvent pas être protégées via `VirtualProtect` (qui échoue avec `ERROR_INVALID_PARAMETER` / 87 ou `ERROR_INVALID_ADDRESS` / 487 sur les vues de sections).
+2. Lorsque `VirtualAlloc(..., MEM_COMMIT)` initial dans `view_map` ne valide qu'une partie de la plage sous forte charge mémoire, les pages réservées restantes (`State = MEM_RESERVE`, `Protect = PAGE_NOACCESS`) déclenchent un crash :
+   `Fault: read access to 000000105d8f42b8 at guest offset 0xa17b58`.
+3. Le gestionnaire de fautes vectorisées (`vectored_fault` dans `src/probe.c`) n'intervenait que pour les écritures (`ExceptionInformation[0] == 1`), causant l'arrêt immédiat sur les lectures de mémoire valide du guest.
+
+### Décision
+* Dans [`src/probe.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/probe.c) (`vectored_fault`) :
+  Pour tout accès fautif (lecture ou écriture) dans la plage mémoire guest `[0x1000000000, 0x2000000000)` :
+  1. Invocation de `VirtualAlloc(page_addr, 0x10000, MEM_COMMIT, PAGE_READWRITE)` : valide et committe à la demande le bloc de 64 Ko sur la vue de section.
+  2. Si `VirtualAlloc` réussit, reprise immédiate de l'instruction (`EXCEPTION_CONTINUE_EXECUTION`).
+  3. Repli sur `VirtualProtect` si la page appartenait à une réservation standard.
+* **Résultat** : La boucle de packages de `ScriptManager` progresse au-delà de `0x00A17B58` jusqu'à `0x00A17BEA` et les requêtes streaming de FIOS2.
