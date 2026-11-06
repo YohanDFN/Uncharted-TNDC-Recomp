@@ -1225,26 +1225,17 @@ static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size)
     }
 
     /*
-     * Fast-forward UCCApp to Title Screen (state 7) only if explicitly requested via BB_U2_FAST_TITLE=1.
-     * By default, let the engine naturally run its boot and intro cinematic sequence.
+     * UCCApp Update Patch at 0x00D5A95F:
+     * In retail builds, UCCApp::Update skips all processing if m_state < 7 (ja 0xd5b12d).
+     * NOP out the conditional jump so UCCApp updates run cleanly.
      */
-    const char *fast_title_env = getenv("BB_U2_FAST_TITLE");
-    if (fast_title_env && *fast_title_env && *fast_title_env != '0') {
-        if (image && image_size > 0x010532D0 + 0x20) {
-            *(uint32_t *)(image + 0x010532D0) = 7;
-            *(uint8_t *)(image + 0x010532D0 + 0x14) = 1;
-            printf("[U2 Engine] Initialized UCCApp state = 7 (Title Screen) at 0x010532D0 (via BB_U2_FAST_TITLE=1)\n");
+    if (image && image_size >= 0x00D5A95F + 6) {
+        static const uint8_t orig_ucc_skip[6] = { 0x0F, 0x87, 0xC8, 0x07, 0x00, 0x00 };
+        static const uint8_t nop_ucc_skip[6]  = { 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00 };
+        if (memcmp(image + 0x00D5A95F, orig_ucc_skip, sizeof(orig_ucc_skip)) == 0) {
+            memcpy(image + 0x00D5A95F, nop_ucc_skip, sizeof(nop_ucc_skip));
+            printf("[U2 Engine] Patched UCCApp::Update at 0x00D5A95F -> bypass state < 7 skip\n");
             fflush(stdout);
-        }
-
-        if (image && image_size >= 0x00D5A95F + 6) {
-            static const uint8_t orig_ucc_skip[6] = { 0x0F, 0x87, 0xC8, 0x07, 0x00, 0x00 };
-            static const uint8_t nop_ucc_skip[6]  = { 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00 };
-            if (memcmp(image + 0x00D5A95F, orig_ucc_skip, sizeof(orig_ucc_skip)) == 0) {
-                memcpy(image + 0x00D5A95F, nop_ucc_skip, sizeof(nop_ucc_skip));
-                printf("[U2 Engine] Patched UCCApp::Update at 0x00D5A95F -> bypass state < 7 skip\n");
-                fflush(stdout);
-            }
         }
     }
 }
@@ -1347,35 +1338,189 @@ static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uin
     static uint64_t s_sync_calls = 0;
     static uint32_t s_last_ucc_state = 0xFFFFFFFF;
     uint64_t call_id = ++s_sync_calls;
+    uintptr_t caller_va = 0;
+    uintptr_t parent_va = 0;
+    uint32_t tid = GetCurrentThreadId();
+    uintptr_t stack_ret0 = 0, stack_ret1 = 0, stack_ret2 = 0, stack_ret3 = 0;
+    if (g_u2_image_base) {
+        uintptr_t ret_addr = (uintptr_t)__builtin_return_address(0);
+        caller_va = ret_addr - (uintptr_t)g_u2_image_base;
+        uintptr_t sp_val = 0;
+        __asm__ volatile ("movq %%rsp, %0" : "=r"(sp_val));
+        uintptr_t *sp = (uintptr_t *)sp_val;
+        for (int k = 0; k < 128; ++k) {
+            uintptr_t w = sp[k];
+            if (w > (uintptr_t)g_u2_image_base && w < (uintptr_t)g_u2_image_base + 0x1000000ULL) {
+                uintptr_t off = w - (uintptr_t)g_u2_image_base;
+                if (!stack_ret0) stack_ret0 = off;
+                else if (!stack_ret1 && off != stack_ret0) stack_ret1 = off;
+                else if (!stack_ret2 && off != stack_ret0 && off != stack_ret1) stack_ret2 = off;
+                else if (!stack_ret3 && off != stack_ret0 && off != stack_ret1 && off != stack_ret2) {
+                    stack_ret3 = off;
+                    break;
+                }
+            }
+        }
+    }
 
     uint32_t cur_state = 0;
     if (g_u2_image_base) {
         cur_state = *(uint32_t *)(g_u2_image_base + 0x010532D0);
+
+        /* Fast-forward UCCApp from boot/credits wait (state 1..6) to Title Screen (state 7)
+         * once MainLoopJob is actively running frames. */
+        if (caller_va == 0xB2A067 && call_id >= 25 && cur_state >= 1 && cur_state < 7) {
+            uint32_t *p_state = (uint32_t *)(g_u2_image_base + 0x010532D0);
+            printf("[U2 Engine] Advancing UCCApp State %u -> 7 (Title Screen Activation, ADR-013)\n", *p_state);
+            *p_state = 7;
+            *(uint8_t *)(g_u2_image_base + 0x010532D0 + 0x14) = 1;
+            cur_state = 7;
+            fflush(stdout);
+        }
+
         if (cur_state != s_last_ucc_state) {
-            printf("[U2 Engine] State Transition: UCCApp State %u -> %u\n", s_last_ucc_state, cur_state);
+            printf("[U2 Engine] State Transition: UCCApp State %u -> %u (caller=0x%llx, parent=0x%llx, tid=%u)\n",
+                   s_last_ucc_state, cur_state, (unsigned long long)caller_va, (unsigned long long)parent_va, tid);
             fflush(stdout);
             s_last_ucc_state = cur_state;
         }
     }
 
-    if ((call_id <= 15) || (call_id % 60 == 0)) {
+    if ((call_id <= 25) || (call_id % 60 == 0)) {
         uint32_t pad = 0;
         if (g_u2_image_base) {
             pad = *(uint32_t *)(g_u2_image_base + 0x01116180 + 0x864);
         }
-        printf("[U2 Loop] Sync #%" PRIu64 " | mode=%u | target=%" PRId64 " | cur=%" PRId64 " | UCCApp State=%u | Pad=0x%04x\n",
-               call_id, mode, (int64_t)target_tick, *(int64_t *)((uint8_t *)sync_obj + 0x20), cur_state, pad & 0xFFFF);
+        printf("[U2 Loop] Sync #%" PRIu64 " | tid=%u | caller=0x%llx (stack=0x%llx, 0x%llx, 0x%llx, 0x%llx) | sync=%p | mode=%u | target=%" PRId64 " | cur=%" PRId64 " | UCCApp State=%u | Pad=0x%04x\n",
+               call_id, tid, (unsigned long long)caller_va,
+               (unsigned long long)stack_ret0, (unsigned long long)stack_ret1, (unsigned long long)stack_ret2, (unsigned long long)stack_ret3,
+               sync_obj, mode, (int64_t)target_tick,
+               *(int64_t *)((uint8_t *)sync_obj + 0x20), cur_state, pad & 0xFFFF);
         fflush(stdout);
     }
 
-    if (mode == 1 || (g_u2_image_base && sync_obj == *(void **)(g_u2_image_base + 0x015AF7D0))) {
+    void *playgo_sync = g_u2_image_base ? *(void **)(g_u2_image_base + 0x015AF7D0) : NULL;
+    void *vram_sync   = g_u2_image_base ? *(void **)(g_u2_image_base + 0x0124A280 + 0xC14E8) : NULL;
+
+    /*
+     * Mode 1 waits (loading availability milestones), PlayGo sync, TextureManager VRAM
+     * chunk streaming sync (0x00BF2F05), and Audio/ARM job sync (0x003B5002 / 0x1200105200)
+     * must be satisfied immediately to avoid worker thread pool starvation / deadlocks.
+     */
+    if (mode == 1 || (playgo_sync && sync_obj == playgo_sync) ||
+        caller_va == 0x00BF2F05 || (vram_sync && sync_obj == vram_sync) ||
+        (sync_obj && (uintptr_t)sync_obj == 0x1200105200ULL) ||
+        stack_ret0 == 0x3b5002 || stack_ret1 == 0x3b5002 || stack_ret2 == 0x3b5002 || stack_ret3 == 0x3b5002) {
         int64_t *cur_tick = (int64_t *)((uint8_t *)sync_obj + 0x20);
         *cur_tick = (int64_t)target_tick;
         return;
     }
 
     if (s_b29f10_cont) {
+        if (mode == 0) {
+            volatile int64_t *cur_tick = (volatile int64_t *)((uint8_t *)sync_obj + 0x20);
+            for (int spin = 0; spin < 200; ++spin) {
+                if (*cur_tick == (int64_t)target_tick) {
+                    return;
+                }
+                if ((spin & 7) == 7) {
+                    SwitchToThread();
+                } else {
+                    YieldProcessor();
+                }
+            }
+        }
         orig_SyncCounter_Wait(sync_obj, target_tick, mode);
+    }
+}
+
+/* ============================================================================
+ * Job 2 (Engine Init Worker Job) Detour (guest offset 0x003F68C0)
+ * ============================================================================ */
+
+static uint8_t s_orig_job2[34];
+typedef void (ABI *Job2Fn)(void *arg);
+static Job2Fn orig_Job2 = (Job2Fn)s_orig_job2;
+
+static volatile int s_job2_running = 0;
+static HANDLE s_job2_thread = NULL;
+
+static DWORD WINAPI job2_monitor_thread(LPVOID param) {
+    (void)param;
+    int samples = 0;
+    while (s_job2_running && ++samples <= 40) {
+        Sleep(250);
+        if (!s_job2_running || !s_job2_thread) break;
+        if (SuspendThread(s_job2_thread) != (DWORD)-1) {
+            CONTEXT ctx;
+            ctx.ContextFlags = CONTEXT_CONTROL;
+            if (GetThreadContext(s_job2_thread, &ctx)) {
+                uintptr_t rip = ctx.Rip;
+                uintptr_t off = (g_u2_image_base && rip >= (uintptr_t)g_u2_image_base) ? (rip - (uintptr_t)g_u2_image_base) : 0;
+                float budget = 0;
+                uint64_t start_tsc = 0;
+                uint64_t tsc_freq = g_u2_image_base ? *(uint64_t *)(g_u2_image_base + 0x01050638) : 0;
+                if (ctx.Rsp && off >= 0xb68d50 && off <= 0xb6c000) {
+                    budget = *(float *)((uint8_t *)ctx.Rsp + 0x94);
+                    start_tsc = *(uint64_t *)((uint8_t *)ctx.Rsp + 0x80);
+                }
+                printf("[Job2 Monitor] sample #%d: RIP=%p (guest off=0x%llx, RSP=%p) | budget=%.4f, start_tsc=%" PRIu64 ", now_tsc=%" PRIu64 ", tsc_freq=%" PRIu64 "\n",
+                       samples, (void *)rip, (unsigned long long)off, (void *)ctx.Rsp,
+                       budget, start_tsc, (uint64_t)__rdtsc(), tsc_freq);
+                fflush(stdout);
+            }
+            ResumeThread(s_job2_thread);
+        }
+    }
+    return 0;
+}
+
+static void ABI detour_Job2(void *arg) {
+    uint32_t tid = GetCurrentThreadId();
+    printf("[U2 Job] Job 2 ENTER (tid=%u, arg=%p)\n", tid, arg);
+    fflush(stdout);
+
+    DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
+                    GetCurrentProcess(), (HANDLE *)&s_job2_thread,
+                    0, FALSE, DUPLICATE_SAME_ACCESS);
+    s_job2_running = 1;
+    HANDLE hMon = CreateThread(NULL, 0, job2_monitor_thread, NULL, 0, NULL);
+
+    orig_Job2(arg);
+
+    s_job2_running = 0;
+    if (hMon) {
+        WaitForSingleObject(hMon, 1000);
+        CloseHandle(hMon);
+    }
+    if (s_job2_thread) {
+        CloseHandle(s_job2_thread);
+        s_job2_thread = NULL;
+    }
+    printf("[U2 Job] Job 2 EXIT (tid=%u, arg=%p)\n", tid, arg);
+    fflush(stdout);
+}
+
+/* ============================================================================
+ * UCCApp::StateMachineUpdate Detour (guest offset 0x00D59A50)
+ * ============================================================================ */
+
+static uint8_t s_orig_ucc_update[34];
+typedef void (ABI *UCCAppUpdateFn)(void *this_ptr, float dt);
+static UCCAppUpdateFn orig_UCCApp_Update = (UCCAppUpdateFn)s_orig_ucc_update;
+
+static void ABI detour_UCCApp_StateMachineUpdate(void *ucc_app, float dt) {
+    static uint32_t s_count = 0;
+    uint32_t state = ucc_app ? *(uint32_t *)ucc_app : 0xFFFFFFFF;
+    if (++s_count <= 25 || s_count % 60 == 0) {
+        printf("[U2 UCCApp] StateMachineUpdate #%u: state=%u, dt=%f, this=%p\n", s_count, state, dt, ucc_app);
+        fflush(stdout);
+    }
+    orig_UCCApp_Update(ucc_app, dt);
+    uint32_t post_state = ucc_app ? *(uint32_t *)ucc_app : 0xFFFFFFFF;
+    if (post_state != state) {
+        printf("[U2 UCCApp] State changed: %u -> %u\n", state, post_state);
+        fflush(stdout);
     }
 }
 
@@ -1646,6 +1791,30 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     ++installed;
     write_detour_jmp64(image + 0x00CE33A0, (uintptr_t)detour_StringIdToStringInternal);
     ++installed;
+
+    if (image_size > 0x00D59A50 + 20) {
+        memcpy(s_orig_ucc_update, image + 0x00D59A50, 20);
+        write_detour_jmp64(s_orig_ucc_update + 20, (uintptr_t)(image + 0x00D59A64));
+        DWORD old_prot;
+        VirtualProtect(s_orig_ucc_update, sizeof(s_orig_ucc_update), PAGE_EXECUTE_READWRITE, &old_prot);
+        write_detour_jmp64(image + 0x00D59A50, (uintptr_t)detour_UCCApp_StateMachineUpdate);
+        memset(image + 0x00D59A50 + 12, 0x90, 8);
+        installed++;
+        printf("[U2 Engine] Installed detour_UCCApp_StateMachineUpdate at 0x00D59A50\n");
+        fflush(stdout);
+    }
+
+    if (image_size > 0x003F68C0 + 20) {
+        memcpy(s_orig_job2, image + 0x003F68C0, 20);
+        write_detour_jmp64(s_orig_job2 + 20, (uintptr_t)(image + 0x003F68C0 + 20));
+        DWORD old_prot;
+        VirtualProtect(s_orig_job2, sizeof(s_orig_job2), PAGE_EXECUTE_READWRITE, &old_prot);
+        write_detour_jmp64(image + 0x003F68C0, (uintptr_t)detour_Job2);
+        memset(image + 0x003F68C0 + 12, 0x90, 8);
+        installed++;
+        printf("[U2 Engine] Installed detour_Job2 at 0x003F68C0\n");
+        fflush(stdout);
+    }
 
     /* Install hook_JobDispatch to protect fiber/job invocation at 0x00B3DB04 against invalid handles */
     if (image_size > 0x00B3DB17) {
@@ -2006,19 +2175,16 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         fflush(stdout);
     }
 
-    /* Patch 0x00BDF9FF: Guard NULL root in ingame-shaders Init (0x00BDF9B0)
-     * If JsonParseFiles returns NULL (because files.json devkit manifest does not exist),
-     * safely jump to the function epilogue at 0x00BE1011 (add $0x588, %rsp; pop; retq)
-     * instead of asserting and crashing with a NULL dereference at 0x00BDFA3C.
+    /* Patch 0x00BDF9B0: Bypass missing files.json in ingame-shaders Init (0x00BDF9B0)
+     * In retail builds, files.json does not exist. The devkit manifest parsing routine
+     * only populates the devkit shader table at 0x0124A208 (which has 0 entries in retail).
+     * Bypassing it directly with 'retq' (0xC3) avoids allocating 0x588 bytes on the stack,
+     * avoids calling PopAllocator without a prior PushAllocator, and eliminates stack protector corruption.
      */
-    if (image_size > 0x00BDF9FF + 9) {
-        static const uint8_t s_patch_bdf9ff[9] = {
-            0x0f, 0x84, 0x0c, 0x06, 0x00, 0x00,             /* je 0xbe1011 */
-            0x90, 0x90, 0x90                                /* 3x nop */
-        };
-        memcpy(image + 0x00BDF9FF, s_patch_bdf9ff, sizeof(s_patch_bdf9ff));
+    if (image_size > 0x00BDF9B0) {
+        image[0x00BDF9B0] = 0xC3; /* retq */
         installed += 1;
-        printf("[U2 Engine] Applied patch 0x00BDF9FF: Safe exit on missing files.json in ingame-shaders Init\n");
+        printf("[U2 Engine] Applied patch 0x00BDF9B0: IngameShaders::Init -> retq (bypass devkit files.json)\n");
         fflush(stdout);
     }
 
@@ -2061,66 +2227,715 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         fflush(stdout);
     }
 
-    /* Patch at 0x0183BD53 (libSceFios2.prx): Guard NULL destination stat buffer in fios stat handler.
-     * When a caller queries file existence or status without requesting stat metadata (stat buffer == NULL),
-     * rbx (*(r14 + 0x20)) is NULL. LibSceFios2 blindly called memset_wrapper(NULL, 0, 80) followed by
-     * writing stat fields to *(NULL), crashing with write access violation at 0x0.
-     * We install a 36-byte trampoline at code cave 0x0185D0C0 that tests rbx:
-     * - If rbx == NULL: sets r15d = 0 and jumps directly to function epilogue (0x0183BDD7).
-     * - If rbx != NULL: executes memset_wrapper(rbx, 0, 80) and resumes at 0x0183BD69.
+    /*
+     * Patch at 0x00C81922: Silence GetCsShaderByNameId (Compute Shader) devkit halt spam and traps.
+     * When devkit shader table 0x0124A208 has 0 compute shaders, bypass the 8-line HALT banner and
+     * int $0x41 trap for all 100+ compute shader queries in the 0xDF1320 loop by setting rcx = 0
+     * and jumping straight to storing NULL and incrementing rbx at 0x00C8199B.
      */
-    if (image_size > 0x0185D0C0 + 36) {
-        static const uint8_t s_trampoline[36] = {
-            0x49, 0x8b, 0x5e, 0x20,                         /* movq 0x20(%r14), %rbx */
-            0x45, 0x31, 0xff,                               /* xorl %r15d, %r15d */
-            0x48, 0x85, 0xdb,                               /* testq %rbx, %rbx */
-            0x0f, 0x84, 0x07, 0xed, 0xfd, 0xff,             /* jz 0x0183BDD7 (epilogue) */
-            0x31, 0xf6,                                     /* xorl %esi, %esi */
-            0xba, 0x50, 0x00, 0x00, 0x00,                   /* movl $80, %edx */
-            0x48, 0x89, 0xdf,                               /* movq %rbx, %rdi */
-            0xe8, 0x01, 0x15, 0xfe, 0xff,                   /* callq 0x0183E5E0 (memset_wrapper) */
-            0xe9, 0x85, 0xec, 0xfd, 0xff                    /* jmp 0x0183BD69 (resume) */
+    if (image_size > 0x00C81922 + 5) {
+        static const uint8_t s_patch_c81922[5] = {
+            0x31, 0xC9,             /* xorl %ecx, %ecx */
+            0xEB, 0x75,             /* jmp 0x00C8199B (disp = 0x75) */
+            0x90                    /* nop */
         };
-        static const uint8_t s_patch_183bd53[22] = {
-            0xe9, 0x68, 0x13, 0x02, 0x00,                   /* jmp 0x0185D0C0 */
-            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-            0x90                                            /* 17x nop */
-        };
-        memcpy(image + 0x0185D0C0, s_trampoline, sizeof(s_trampoline));
-        memcpy(image + 0x0183BD53, s_patch_183bd53, sizeof(s_patch_183bd53));
+        memcpy(image + 0x00C81922, s_patch_c81922, sizeof(s_patch_c81922));
         installed++;
-        printf("[U2 Engine] Applied patch at 0x0183BD53: Guard NULL stat buffer in libSceFios2 stat handler\n");
+        printf("[U2 Engine] Applied patch at 0x00C81922: Silence GetCsShaderByNameId halt spam\n");
         fflush(stdout);
     }
 
-    /* Patch at 0x0184C610 (libSceFios2.prx): Guard NULL device pointer in fios scheduler.
-     * When get_device returns NULL, 0x0184C610 was called with rdi == NULL.
-     * It proceeded into 0x0184CF40, computing 16(%r13) == 0x10, and calling mutex locks on 0x10.
-     * We install a 21-byte trampoline at code cave 0x01860C98 that tests rdi:
-     * - If rdi == NULL: returns 0 (false) immediately without altering stack or locking.
-     * - If rdi != NULL: sets up stack frame and resumes normal execution at 0x0184C618.
+    /*
+     * Silence IngameShaders 190-element devkit shader lookup loops (VS at 0x00C81A16, PS at 0x00C81AE6, GS at 0x00C81BB6).
+     * In retail builds, devkit shader table 0x0124A208 has 0 entries.
+     * Each of the 190 entries triggers HALT banners and int $0x41 for VS, PS, and GS (570 traps total).
+     * Bypassing each failure path sets r14/r13/rax to 0 and cleanly jumps to the next shader/iteration.
      */
-    if (image_size > 0x01860C98 + 21) {
-        static const uint8_t s_cave_184c610[21] = {
-            0x48, 0x85, 0xff,                               /* testq %rdi, %rdi */
-            0x75, 0x03,                                     /* jnz continue */
-            0x31, 0xc0,                                     /* xorl %eax, %eax */
-            0xc3,                                           /* retq */
-            0x55,                                           /* pushq %rbp */
-            0x48, 0x89, 0xe5,                               /* movq %rsp, %rbp */
-            0x41, 0x57,                                     /* pushq %r15 */
-            0x41, 0x56,                                     /* pushq %r14 */
-            0xe9, 0x6b, 0xb9, 0xfe, 0xff                    /* jmp 0x0184C618 (resume) */
+    if (image_size > 0x00C81BB6 + 10) {
+        static const uint8_t s_vs_fail[10] = {
+            0x45, 0x31, 0xF6,                         /* xor %r14d, %r14d */
+            0xE9, 0x82, 0x00, 0x00, 0x00,             /* jmp 0x00C81AA0 (disp = 0x82) */
+            0x90, 0x90                                /* 2x nop */
         };
-        static const uint8_t s_patch_184c610[8] = {
-            0xe9, 0x83, 0x46, 0x01, 0x00,                   /* jmp 0x01860C98 */
+        static const uint8_t s_ps_fail[10] = {
+            0x45, 0x31, 0xED,                         /* xor %r13d, %r13d */
+            0xE9, 0x82, 0x00, 0x00, 0x00,             /* jmp 0x00C81B70 (disp = 0x82) */
+            0x90, 0x90                                /* 2x nop */
+        };
+        static const uint8_t s_gs_fail[10] = {
+            0x31, 0xC0,                               /* xor %eax, %eax */
+            0xE9, 0x83, 0x00, 0x00, 0x00,             /* jmp 0x00C81C40 (disp = 0x83) */
+            0x90, 0x90, 0x90                          /* 3x nop */
+        };
+        memcpy(image + 0x00C81A16, s_vs_fail, sizeof(s_vs_fail));
+        memcpy(image + 0x00C81AE6, s_ps_fail, sizeof(s_ps_fail));
+        memcpy(image + 0x00C81BB6, s_gs_fail, sizeof(s_gs_fail));
+        installed += 3;
+        printf("[U2 Engine] Applied patches at 0x00C81A16/AE6/BB6: Silence 190x VS/PS/GS shader lookup halts\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-014: Silence CubemapSet::Init devkit shader halt spam and traps (0x00B9239F..0x00B928AE).
+     * In retail builds, devkit shader table 0x0124A208 has 0 entries for CubemapVS, CubePreviewPS,
+     * SpecularProbeVS, SpecularProbePS, SpecularProbeUnboundedVS, SpecularProbeUnboundedPS.
+     * When count is 0, each lookup prints an 8-line HALT banner and triggers int $0x41 before setting NULL.
+     * We patch each failure branch to directly set r15/rax = NULL and jump to the next shader/epilogue.
+     * Note: Shader 6 must jump to 0x00B9287E so that rbx is loaded with the stack canary address (0x104ac00).
+     */
+    if (image_size > 0x00B928B2) {
+        static const uint8_t s_cubemap_vs[5]      = { 0x45, 0x31, 0xFF, 0xEB, 0x60 }; /* xor %r15d,%r15d; jmp 0x00B92404 */
+        static const uint8_t s_cube_preview_ps[4] = { 0x31, 0xC0, 0xEB, 0x61 };       /* xor %eax,%eax;   jmp 0x00B924E4 */
+        static const uint8_t s_spec_probe_vs[5]   = { 0x45, 0x31, 0xFF, 0xEB, 0x60 }; /* xor %r15d,%r15d; jmp 0x00B925E4 */
+        static const uint8_t s_spec_probe_ps[4]   = { 0x31, 0xC0, 0xEB, 0x61 };       /* xor %eax,%eax;   jmp 0x00B926C4 */
+        static const uint8_t s_spec_unb_vs[5]     = { 0x45, 0x31, 0xFF, 0xEB, 0x60 }; /* xor %r15d,%r15d; jmp 0x00B927C4 */
+        static const uint8_t s_spec_unb_ps[4]     = { 0x31, 0xC0, 0xEB, 0x3B };       /* xor %eax,%eax;   jmp 0x00B9287E */
+        memcpy(image + 0x00B9239F, s_cubemap_vs, sizeof(s_cubemap_vs));
+        memcpy(image + 0x00B9247F, s_cube_preview_ps, sizeof(s_cube_preview_ps));
+        memcpy(image + 0x00B9257F, s_spec_probe_vs, sizeof(s_spec_probe_vs));
+        memcpy(image + 0x00B9265F, s_spec_probe_ps, sizeof(s_spec_probe_ps));
+        memcpy(image + 0x00B9275F, s_spec_unb_vs, sizeof(s_spec_unb_vs));
+        memcpy(image + 0x00B9283F, s_spec_unb_ps, sizeof(s_spec_unb_ps));
+        installed += 6;
+        printf("[U2 Engine] Applied ADR-014 patches at 0x00B9239F..0x00B9283F: Silence CubemapSet shader halt spam\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-015: PlayGo Chunk Availability Bypass for IsChunkSetEntirelyWithin (0x00B77AA0).
+     * On PC, all game files and language chunks are local. PlayGo download streaming is unnecessary.
+     * Returning 1 (true) informs all callers (LanguageManager, LevelLoader, etc.) that the requested
+     * chunk set is fully available, eliminating the "No languages are available!" assertion trap (0x00CDCFD6)
+     * and chunk availability wait stalls.
+     */
+    if (image_size > 0x00B77AA0 + 3) {
+        static const uint8_t s_chunk_within_true[3] = { 0xB0, 0x01, 0xC3 }; /* movb $1, %al ; retq */
+        memcpy(image + 0x00B77AA0, s_chunk_within_true, sizeof(s_chunk_within_true));
+        installed++;
+        printf("[U2 Engine] Applied ADR-015 patch at 0x00B77AA0: IsChunkSetEntirelyWithin -> return true (all chunks local)\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-016: Background Package Streaming Unblock in PackageMgr::ReleaseLoadedVramPages (0x00B6CD10).
+     * In retail PS4 builds, packages are streamed asynchronously via the Blu-ray / HDD background thread.
+     * When LevelManager / Level::Load requests packages, ReleaseLoadedVramPages enters a loop at 0x00B6CE40
+     * polling package status (0x20(%rbx)) and waiting for status 0xC (12 = fully loaded).
+     * On PC, files are already local; without the background PS4 streaming thread advancing package status,
+     * the worker thread running Job 2 (GameInitInternal) stalls indefinitely in usleep(1000) and halts main loop startup.
+     * We patch 0x00B6CE68: if ecx != 0, immediately set 0x20(%rbx) = 0xC, ecx = 0xC, and jump to 0x00B6CF81.
+     * This marks the package loaded, cleans up PackageMgr internal state, returns the package pointer (%rbx),
+     * and lets Job 2 complete cleanly so the engine enters AppMainLoop.
+     */
+    if (image_size > 0x00B6CE68 + 26) {
+        static const uint8_t s_pkg_unblock[26] = {
+            0x85, 0xC9,                                     /* testl %ecx, %ecx */
+            0x0F, 0x84, 0x11, 0x01, 0x00, 0x00,             /* je 0x00B6CF81 (disp = 0x111) */
+            0xC7, 0x43, 0x20, 0x0C, 0x00, 0x00, 0x00,       /* movl $0x0c, 0x20(%rbx) */
+            0xB9, 0x0C, 0x00, 0x00, 0x00,                   /* movl $0x0c, %ecx */
+            0xE9, 0x00, 0x01, 0x00, 0x00,                   /* jmp 0x00B6CF81 (disp = 0x100) */
+            0x90                                            /* nop */
+        };
+        memcpy(image + 0x00B6CE68, s_pkg_unblock, sizeof(s_pkg_unblock));
+        installed++;
+        printf("[U2 Engine] Applied ADR-016 patch at 0x00B6CE68: Unblock PackageMgr background pak streaming\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-017: Guard NULL Pointer in Async Queue / Channel Atomic Clear (0x001335D0, 0x001CFF00..0x001D6750).
+     * Across the audio voice and async streaming channel managers, 15 inlined routines attempt an
+     * atomic clear of bit 0x40 on *(rdx) via a 17-byte cmpxchgl loop (8B 0A 8B 32 83 E6 BF 89 C8 F0 0F B1 32 39 C1 75 EF).
+     * When a channel or completion queue is unlinked (rdx == NULL), movl (%rdx), %ecx crashes with an
+     * immediate read access violation at 0x0 (0xc0000005).
+     * We replace all 15 occurrences with an atomic NULL guard:
+     *   testq %rdx, %rdx ; jz +12 ; lock andl $-0x41, (%rdx) ; 8-byte nop
+     * which safely skips NULL pointers and continues to the channel loop / function epilogue.
+     */
+    static const uint32_t s_atomic_clear_sites[] = {
+        0x001335D0, 0x001CFF00, 0x001D03D0, 0x001D0C00, 0x001D13E0,
+        0x001D1C50, 0x001D24A0, 0x001D2C60, 0x001D2FE0, 0x001D30B0,
+        0x001D3820, 0x001D3CC0, 0x001D4BF0, 0x001D5C20, 0x001D6750
+    };
+    static const uint8_t s_orig_atomic_clear[17] = {
+        0x8B, 0x0A, 0x8B, 0x32, 0x83, 0xE6, 0xBF, 0x89, 0xC8,
+        0xF0, 0x0F, 0xB1, 0x32, 0x39, 0xC1, 0x75, 0xEF
+    };
+    static const uint8_t s_guard_atomic_clear[17] = {
+        0x48, 0x85, 0xD2,                               /* testq %rdx, %rdx */
+        0x74, 0x0C,                                     /* jz +12 (skip to next instruction) */
+        0xF0, 0x83, 0x22, 0xBF,                         /* lock andl $-0x41, (%rdx) */
+        0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00  /* 8-byte nop */
+    };
+    for (size_t i = 0; i < sizeof(s_atomic_clear_sites)/sizeof(s_atomic_clear_sites[0]); ++i) {
+        uint32_t site = s_atomic_clear_sites[i];
+        if (image_size > site + 17 && memcmp(image + site, s_orig_atomic_clear, 17) == 0) {
+            memcpy(image + site, s_guard_atomic_clear, sizeof(s_guard_atomic_clear));
+            installed++;
+        }
+    }
+    /* Site 16 uses %rdi: 0x001377E0 */
+    if (image_size > 0x001377E0 + 17) {
+        static const uint8_t s_orig_1377e0[17] = {
+            0x8B, 0x0F, 0x8B, 0x37, 0x83, 0xE6, 0xBF, 0x89, 0xC8,
+            0xF0, 0x0F, 0xB1, 0x37, 0x39, 0xC1, 0x75, 0xEF
+        };
+        static const uint8_t s_guard_1377e0[17] = {
+            0x48, 0x85, 0xFF,                               /* testq %rdi, %rdi */
+            0x74, 0x0C,                                     /* jz +12 (skip to next instruction) */
+            0xF0, 0x83, 0x27, 0xBF,                         /* lock andl $-0x41, (%rdi) */
+            0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00  /* 8-byte nop */
+        };
+        if (memcmp(image + 0x001377E0, s_orig_1377e0, 17) == 0) {
+            memcpy(image + 0x001377E0, s_guard_1377e0, sizeof(s_guard_1377e0));
+            installed++;
+        }
+    }
+    printf("[U2 Engine] Applied ADR-017 patches across 16 sites (0x001335D0..0x001D6750): Guard NULL async channel pointers\n");
+    fflush(stdout);
+
+    /*
+     * ADR-018: Guard NULL Component Pointer in DCLoader Component Search (0x0055524B).
+     * At 0x0055524B, the routine fetches rdi = *(rsi + 0x68) and immediately reads movzwl 0x2(%rdi), %esi.
+     * While the sibling branch at 0x00555208 checks 'testq %rdi, %rdi ; je 0x555282', the 0x68 branch
+     * omitted the NULL check, crashing with read access violation at 0x2 (0xc0000005) when rdi == NULL.
+     * We install a 30-byte trampoline at code cave 0x00DE7E00:
+     *   movq 0x68(%rsi), %rdi ; testq %rdi, %rdi ; jz 0x00555282 ;
+     *   movzwl 0x2(%rdi), %esi ; testl %esi, %esi ; jz 0x00555282 ; jmp 0x00555257
+     * and hook 0x0055524B with 'jmp 0x00DE7E00 ; 7x nop'.
+     */
+    if (image_size > 0x00DE7E00 + 30) {
+        static const uint8_t s_cave_55524b[30] = {
+            0x48, 0x8B, 0x7E, 0x68,                         /* movq 0x68(%rsi), %rdi */
+            0x48, 0x85, 0xFF,                               /* testq %rdi, %rdi */
+            0x0F, 0x84, 0x75, 0xD4, 0x76, 0xFF,             /* jz 0x00555282 */
+            0x0F, 0xB7, 0x77, 0x02,                         /* movzwl 0x2(%rdi), %esi */
+            0x85, 0xF6,                                     /* testl %esi, %esi */
+            0x0F, 0x84, 0x69, 0xD4, 0x76, 0xFF,             /* jz 0x00555282 */
+            0xE9, 0x39, 0xD4, 0x76, 0xFF                    /* jmp 0x00555257 */
+        };
+        static const uint8_t s_hook_55524b[12] = {
+            0xE9, 0xB0, 0x2B, 0x89, 0x00,                   /* jmp 0x00DE7E00 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90        /* 7x nop */
+        };
+        memcpy(image + 0x00DE7E00, s_cave_55524b, sizeof(s_cave_55524b));
+        memcpy(image + 0x0055524B, s_hook_55524b, sizeof(s_hook_55524b));
+        installed++;
+        printf("[U2 Engine] Applied ADR-018 patch at 0x0055524B: Guard NULL component pointer in DCLoader\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-019: Guard NULL Input/Output Buffers in Audio Matrix Transform (0x0013D878).
+     * At 0x001E51C6, the caller explicitly tests 0x4(%rsi) and 0x4(%rdx), passing rdi = NULL
+     * and/or rsi = NULL into 0x0013D850 when channels are unallocated.
+     * At 0x0013D8C8, the routine blindly executed 'vmulps (%rdi,%rcx,4), %xmm0, %xmm5'
+     * and 'vaddps (%rsi,%rcx,4), ...', crashing with read access violation at 0x0.
+     * We install a 31-byte trampoline at code cave 0x00DE7E20:
+     *   testq %rdi, %rdi ; jz 0x0013D923 ; testq %rsi, %rsi ; jz 0x0013D923 ;
+     *   testl %edx, %edx ; jz 0x0013D923 ; jmp 0x0013D880
+     * and hook 0x0013D878 with 'jmp 0x00DE7E20 ; 3x nop'.
+     */
+    /*
+     * ADR-019: Guard NULL audio matrix transform buffers at function entry (0x0013D850).
+     * The audio transform function 0x0013D850 processes audio buffers (rdi = dst, rsi = src, edx = count).
+     * It contains two processing loops (0x0013D878 and 0x0013D960). When called with NULL buffers,
+     * it crashes in AVX loops (e.g. 0x0013D978 vmulps (%rdi,%rcx,4) with rdi=0).
+     * We install a 28-byte trampoline at code cave 0x00DE7E20 at the function entry point:
+     *   testq %rdi, %rdi ; jz ret ; testq %rsi, %rsi ; jz ret ; testl %edx, %edx ; jz ret ;
+     *   vxorps %xmm2, %xmm2, %xmm2 ; vucomiss %xmm2, %xmm1 ; jmp 0x0013D858 ; retq
+     * and hook 0x0013D850 with 'jmp 0x00DE7E20 ; 3x nop'.
+     */
+    if (image_size > 0x00DE7E20 + 28) {
+        static const uint8_t s_cave_13d850[28] = {
+            0x48, 0x85, 0xFF,                               /* testq %rdi, %rdi */
+            0x74, 0x16,                                     /* jz ret (+22 -> 0x1B) */
+            0x48, 0x85, 0xF6,                               /* testq %rsi, %rsi */
+            0x74, 0x11,                                     /* jz ret (+17 -> 0x1B) */
+            0x85, 0xD2,                                     /* testl %edx, %edx */
+            0x74, 0x0D,                                     /* jz ret (+13 -> 0x1B) */
+            0xC5, 0xE8, 0x57, 0xD2,                         /* vxorps %xmm2, %xmm2, %xmm2 */
+            0xC5, 0xF8, 0x2E, 0xCA,                         /* vucomiss %xmm2, %xmm1 */
+            0xE9, 0x1D, 0x5A, 0x35, 0xFF,                   /* jmp 0x0013D858 */
+            0xC3                                            /* retq */
+        };
+        static const uint8_t s_hook_13d850[8] = {
+            0xE9, 0xCB, 0xA5, 0xCA, 0x00,                   /* jmp 0x00DE7E20 */
             0x90, 0x90, 0x90                                /* 3x nop */
         };
-        memcpy(image + 0x01860C98, s_cave_184c610, sizeof(s_cave_184c610));
-        memcpy(image + 0x0184C610, s_patch_184c610, sizeof(s_patch_184c610));
+        memcpy(image + 0x00DE7E20, s_cave_13d850, sizeof(s_cave_13d850));
+        memcpy(image + 0x0013D850, s_hook_13d850, sizeof(s_hook_13d850));
         installed++;
-        printf("[U2 Engine] Applied patch at 0x0184C610: Guard NULL device in libSceFios2 scheduler\n");
+        printf("[U2 Engine] Applied ADR-019 patch at 0x0013D850: Guard NULL audio matrix transform buffers\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-020: Guard NULL Allocator Pointer in Audio Arena Suballocator (0x0013D180).
+     * At 0x0013D186, the arena allocator reads movl 0x28(%rdi), %esi without verifying rdi.
+     * When called with rdi == NULL, it crashes with read access violation at 0x28 (0xc0000005).
+     * We install a 22-byte trampoline at code cave 0x00DE7E40:
+     *   testq %rdi, %rdi ; jnz +3 ; xorl %eax, %eax ; retq ;
+     *   pushq %rbp ; movq %rsp, %rbp ; movl %esi, %eax ; movl 0x28(%rdi), %esi ; jmp 0x0013D189
+     * and hook 0x0013D180 with 'jmp 0x00DE7E40 ; 4x nop'.
+     */
+    if (image_size > 0x00DE7E40 + 22) {
+        static const uint8_t s_cave_13d180[22] = {
+            0x48, 0x85, 0xFF,                               /* testq %rdi, %rdi */
+            0x75, 0x03,                                     /* jnz +3 */
+            0x31, 0xC0,                                     /* xorl %eax, %eax */
+            0xC3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x48, 0x89, 0xE5,                               /* movq %rsp, %rbp */
+            0x89, 0xF0,                                     /* movl %esi, %eax */
+            0x8B, 0x77, 0x28,                               /* movl 0x28(%rdi), %esi */
+            0xE9, 0x33, 0x53, 0x35, 0xFF                    /* jmp 0x0013D189 */
+        };
+        static const uint8_t s_hook_13d180[9] = {
+            0xE9, 0xBB, 0xAC, 0xCA, 0x00,                   /* jmp 0x00DE7E40 */
+            0x90, 0x90, 0x90, 0x90                          /* 4x nop */
+        };
+        memcpy(image + 0x00DE7E40, s_cave_13d180, sizeof(s_cave_13d180));
+        memcpy(image + 0x0013D180, s_hook_13d180, sizeof(s_hook_13d180));
+        installed++;
+        printf("[U2 Engine] Applied ADR-020 patch at 0x0013D180: Guard NULL audio arena allocator\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-021: Guard NULL Object / Pointer Dereference in AllocateOrbisObject (0x00C0EE01).
+     * In ndgi-orbis-device.cpp at 0x00C0EDFD, the routine reads 0x30(%rbp) into %rax,
+     * tests rax for NULL, and then immediately reads movq (%rax), %rcx followed by movl 0x30(%rcx), %edx.
+     * When 0x30(%rbp) points to a NULL descriptor pointer (%rcx == NULL), it crashed with
+     * Fault: read access to 0000000000000030 at guest offset 0xc0ee11.
+     * We install a 33-byte trampoline at code cave 0x00FE2C00:
+     *   testq %rax, %rax ; jz 0x00C0EE9A ;
+     *   movq (%rax), %rcx ; testq %rcx, %rcx ; jz 0x00C0EE9A ;
+     *   movq %r14, -0x80(%rbp) ; movl 0x30(%rcx), %edx ; jmp 0x00C0EE14
+     * and hook 0x00C0EE01 with 'jmp 0x00FE2C00 ; 14x nop'.
+     */
+    if (image_size > 0x00FE2C00 + 33) {
+        static const uint8_t s_cave_c0ee01[33] = {
+            0x48, 0x85, 0xC0,                               /* testq %rax, %rax */
+            0x0F, 0x84, 0x91, 0xC2, 0xC2, 0xFF,             /* jz 0x00C0EE9A */
+            0x48, 0x8B, 0x08,                               /* movq (%rax), %rcx */
+            0x48, 0x85, 0xC9,                               /* testq %rcx, %rcx */
+            0x0F, 0x84, 0x85, 0xC2, 0xC2, 0xFF,             /* jz 0x00C0EE9A */
+            0x4C, 0x89, 0x75, 0x80,                         /* movq %r14, -0x80(%rbp) */
+            0x8B, 0x51, 0x30,                               /* movl 0x30(%rcx), %edx */
+            0xE9, 0xF3, 0xC1, 0xC2, 0xFF                    /* jmp 0x00C0EE14 */
+        };
+        static const uint8_t s_hook_c0ee01[19] = {
+            0xE9, 0xFA, 0x3D, 0x3D, 0x00,                   /* jmp 0x00FE2C00 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90              /* 14x nop */
+        };
+        memcpy(image + 0x00FE2C00, s_cave_c0ee01, sizeof(s_cave_c0ee01));
+        memcpy(image + 0x00C0EE01, s_hook_c0ee01, sizeof(s_hook_c0ee01));
+        installed++;
+        printf("[U2 Engine] Applied ADR-021 patch at 0x00C0EE01: Guard NULL descriptor pointer in AllocateOrbisObject\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-022: Guard Invalid/Unallocated Audio Destination Buffer in Audio Mixer Node (0x001E5180).
+     * Callers such as 0x001CFF77 compute 'subq $-0x80, %rdi' from 0x20(%r15). When the audio buffer
+     * at 0x20(%r15) is unallocated (NULL), rdi becomes 0x80. At 0x001E51E0, the function dereferenced
+     * (%rbx) where rbx == 0x80, crashing with read access violation at 0x80 (0xc0000005).
+     * We install a 24-byte trampoline at code cave 0x00FE2C30:
+     *   cmpq $0x1000, %rdi ; ja +1 ; retq ;
+     *   pushq %rbp ; movq %rsp, %rbp ; pushq %rbx ; pushq %rax ; movq %rdi, %rbx ; jmp 0x001E5189
+     * and hook 0x001E5180 with 'jmp 0x00FE2C30 ; 4x nop'.
+     */
+    if (image_size > 0x00FE2C30 + 24) {
+        static const uint8_t s_cave_1e5180[24] = {
+            0x48, 0x81, 0xFF, 0x00, 0x10, 0x00, 0x00,       /* cmpq $0x1000, %rdi */
+            0x77, 0x01,                                     /* ja continue */
+            0xC3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x48, 0x89, 0xE5,                               /* movq %rsp, %rbp */
+            0x53,                                           /* pushq %rbx */
+            0x50,                                           /* pushq %rax */
+            0x48, 0x89, 0xFB,                               /* movq %rdi, %rbx */
+            0xE9, 0x41, 0x25, 0x20, 0xFF                    /* jmp 0x001E5189 */
+        };
+        static const uint8_t s_hook_1e5180[9] = {
+            0xE9, 0xAB, 0xDA, 0xDF, 0x00,                   /* jmp 0x00FE2C30 */
+            0x90, 0x90, 0x90, 0x90                          /* 4x nop */
+        };
+        memcpy(image + 0x00FE2C30, s_cave_1e5180, sizeof(s_cave_1e5180));
+        memcpy(image + 0x001E5180, s_hook_1e5180, sizeof(s_hook_1e5180));
+        installed++;
+        printf("[U2 Engine] Applied ADR-022 patch at 0x001E5180: Guard unallocated destination buffer in audio mixer\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-023: Guard NULL Destination Buffer in AVX Audio Memset (0x0013D270).
+     * At 0x0013D2A0, the AVX-accelerated memset routine executes vmovaps %xmm0, (%rcx)
+     * where rcx = rdi. When called from voice processing (0x00137430) with an unallocated
+     * voice buffer (rdi == NULL), it crashed with write access violation at 0x0 (0xc0000005).
+     * We install a 19-byte trampoline at code cave 0x00FE2C50:
+     *   testq %rdi, %rdi ; jnz +1 ; retq ;
+     *   vmovd %esi, %xmm0 ; vpunpcklbw %xmm0, %xmm0, %xmm0 ; jmp 0x0013D278
+     * and hook 0x0013D270 with 'jmp 0x00FE2C50 ; 3x nop'.
+     */
+    if (image_size > 0x00FE2C50 + 19) {
+        static const uint8_t s_cave_13d270[19] = {
+            0x48, 0x85, 0xFF,                               /* testq %rdi, %rdi */
+            0x75, 0x01,                                     /* jnz continue */
+            0xC3,                                           /* retq */
+            0xC5, 0xF9, 0x6E, 0xC6,                         /* vmovd %esi, %xmm0 */
+            0xC5, 0xF9, 0x60, 0xC0,                         /* vpunpcklbw %xmm0, %xmm0, %xmm0 */
+            0xE9, 0x15, 0xA6, 0x15, 0xFF                    /* jmp 0x0013D278 */
+        };
+        static const uint8_t s_hook_13d270[8] = {
+            0xE9, 0xDB, 0x59, 0xEA, 0x00,                   /* jmp 0x00FE2C50 */
+            0x90, 0x90, 0x90                                /* 3x nop */
+        };
+        memcpy(image + 0x00FE2C50, s_cave_13d270, sizeof(s_cave_13d270));
+        memcpy(image + 0x0013D270, s_hook_13d270, sizeof(s_hook_13d270));
+        installed++;
+        printf("[U2 Engine] Applied ADR-023 patch at 0x0013D270: Guard NULL destination in AVX audio memset\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-024: Guard NULL Voice Buffer in Audio Voice Processor (0x001D4330).
+     * At 0x001D4344, the routine loads r13 = *(rdi + 0x20). When the voice buffer is
+     * unallocated (NULL), it proceeded into matrix transforms and scratch buffer writes
+     * using r13 offsets (0x80, 0x850, 0x90, 0xae0, 0xe00, etc.), crashing with read/write
+     * access violation at 0x80.
+     * We install a 42-byte trampoline at code cave 0x00FE2C70:
+     *   testq %rdi, %rdi ; jz ret ; cmpq $0, 0x20(%rdi) ; jnz continue ; ret: retq ;
+     *   continue: push %rbp ; mov %rsp, %rbp ; push r15..r12, rbx, rax ;
+     *   mov %rdx, %r14 ; mov %rsi, %r12 ; mov 0x20(%rdi), %r13 ; jmp 0x001D4348
+     * and hook 0x001D4330 with 'jmp 0x00FE2C70 ; 19x nop'.
+     */
+    if (image_size > 0x00FE2C70 + 42) {
+        static const uint8_t s_cave_1d4330[42] = {
+            0x48, 0x85, 0xFF,                               /* testq %rdi, %rdi */
+            0x74, 0x08,                                     /* jz ret */
+            0x48, 0x83, 0x7F, 0x20, 0x00,                   /* cmpq $0, 0x20(%rdi) */
+            0x75, 0x01,                                     /* jnz continue */
+            0xC3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x48, 0x89, 0xE5,                               /* movq %rsp, %rbp */
+            0x41, 0x57,                                     /* pushq %r15 */
+            0x41, 0x56,                                     /* pushq %r14 */
+            0x41, 0x55,                                     /* pushq %r13 */
+            0x41, 0x54,                                     /* pushq %r12 */
+            0x53,                                           /* pushq %rbx */
+            0x50,                                           /* pushq %rax */
+            0x49, 0x89, 0xD6,                               /* movq %rdx, %r14 */
+            0x49, 0x89, 0xF4,                               /* movq %rsi, %r12 */
+            0x4C, 0x8B, 0x6F, 0x20,                         /* movq 0x20(%rdi), %r13 */
+            0xE9, 0xAE, 0x16, 0x1F, 0xFF                    /* jmp 0x001D4348 */
+        };
+        static const uint8_t s_hook_1d4330[24] = {
+            0xE9, 0x3B, 0xE9, 0xE0, 0x00,                   /* jmp 0x00FE2C70 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90                                /* 19x nop */
+        };
+        memcpy(image + 0x00FE2C70, s_cave_1d4330, sizeof(s_cave_1d4330));
+        memcpy(image + 0x001D4330, s_hook_1d4330, sizeof(s_hook_1d4330));
+        installed++;
+        printf("[U2 Engine] Applied ADR-024 patch at 0x001D4330: Guard NULL voice buffer in audio voice processor\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-025: Guard Invalid Destination Buffer in Audio Matrix Processor Sibling (0x001E1DD0).
+     * At 0x001E1DE5, the routine moves rdi into r9. When rdi is an invalid/unallocated
+     * pointer (rdi <= 0x1000, such as 0x80), it crashes with read access violation at 0x80.
+     * We install a 32-byte trampoline at code cave 0x00FE2CB0:
+     *   cmpq $0x1000, %rdi ; ja continue ; retq ;
+     *   continue: push %rbp ; mov %rsp, %rbp ; push r15..r12, rbx ; sub $0x38, %rsp ; jmp 0x001E1DE1
+     * and hook 0x001E1DD0 with 'jmp 0x00FE2CB0 ; 12x nop'.
+     */
+    if (image_size > 0x00FE2CB0 + 32) {
+        static const uint8_t s_cave_1e1dd0[32] = {
+            0x48, 0x81, 0xFF, 0x00, 0x10, 0x00, 0x00,       /* cmpq $0x1000, %rdi */
+            0x77, 0x01,                                     /* ja continue */
+            0xC3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x48, 0x89, 0xE5,                               /* movq %rsp, %rbp */
+            0x41, 0x57,                                     /* pushq %r15 */
+            0x41, 0x56,                                     /* pushq %r14 */
+            0x41, 0x55,                                     /* pushq %r13 */
+            0x41, 0x54,                                     /* pushq %r12 */
+            0x53,                                           /* pushq %rbx */
+            0x48, 0x83, 0xEC, 0x38,                         /* subq $0x38, %rsp */
+            0xE9, 0x11, 0xF1, 0x1F, 0xFF                    /* jmp 0x001E1DE1 */
+        };
+        static const uint8_t s_hook_1e1dd0[17] = {
+            0xE9, 0xDB, 0x0E, 0xE0, 0x00,                   /* jmp 0x00FE2CB0 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90                          /* 12x nop */
+        };
+        memcpy(image + 0x00FE2CB0, s_cave_1e1dd0, sizeof(s_cave_1e1dd0));
+        memcpy(image + 0x001E1DD0, s_hook_1e1dd0, sizeof(s_hook_1e1dd0));
+        installed++;
+        printf("[U2 Engine] Applied ADR-025 patch at 0x001E1DD0: Guard invalid destination in audio matrix processor\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-026: Guard NULL Channel Pointer in Audio Transform Loop (0x0013B093).
+     * At 0x0013B093, the routine loads rcx = *(r14 + 0x38) and reads movl 0x4(%rcx), %ecx.
+     * When channel list *(r14 + 0x38) is unallocated (NULL), it crashed with read access
+     * violation at 0x4 (0xc0000005).
+     * We install a 35-byte trampoline at code cave 0x00FE2CD0:
+     *   movq 0x38(%r14), %rcx ; testq %rcx, %rcx ; jz skip ;
+     *   movl 0x4(%rcx), %ecx ; movq 0x38(%r13), %rbx ; decl %ecx ; jmp 0x0013B0A0 ;
+     *   skip: movq %r15, -0x148(%rbp) ; jmp 0x0013B201
+     * and hook 0x0013B093 with 'jmp 0x00FE2CD0 ; 8x nop'.
+     */
+    if (image_size > 0x00FE2CD0 + 35) {
+        static const uint8_t s_cave_13b093[35] = {
+            0x49, 0x8B, 0x4E, 0x38,                         /* movq 0x38(%r14), %rcx */
+            0x48, 0x85, 0xC9,                               /* testq %rcx, %rcx */
+            0x74, 0x0E,                                     /* jz skip */
+            0x8B, 0x49, 0x04,                               /* movl 0x4(%rcx), %ecx */
+            0x49, 0x8B, 0x5D, 0x38,                         /* movq 0x38(%r13), %rbx */
+            0xFF, 0xC9,                                     /* decl %ecx */
+            0xE9, 0xB9, 0x83, 0x15, 0xFF,                   /* jmp 0x0013B0A0 */
+            0x4C, 0x89, 0xBD, 0xB8, 0xFE, 0xFF, 0xFF,       /* movq %r15, -0x148(%rbp) */
+            0xE9, 0x0E, 0x85, 0x15, 0xFF                    /* jmp 0x0013B201 */
+        };
+        static const uint8_t s_hook_13b093[13] = {
+            0xE9, 0x38, 0x7C, 0xEA, 0x00,                   /* jmp 0x00FE2CD0 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90  /* 8x nop */
+        };
+        memcpy(image + 0x00FE2CD0, s_cave_13b093, sizeof(s_cave_13b093));
+        memcpy(image + 0x0013B093, s_hook_13b093, sizeof(s_hook_13b093));
+        installed++;
+        printf("[U2 Engine] Applied ADR-026 patch at 0x0013B093: Guard NULL channel pointer in audio transform loop\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-027: Guard NULL Voice Channel Buffer in Audio Clear Function (0x0013B910).
+     * At 0x0013B910, the routine reads rax = 0x38(%rdi) and immediately dereferences
+     * movsbq 0x10(%rax), %rax to find the active buffer before calling memset.
+     * When rdi == NULL or *(rdi + 0x38) == NULL, it crashed with read access violation
+     * at 0x10 (0xc0000005).
+     * We install a 42-byte trampoline at code cave 0x00FE2D00:
+     *   testq %rdi, %rdi ; jz ret ; movq 0x38(%rdi), %rax ; testq %rax, %rax ; jz ret ;
+     *   movsbq 0x10(%rax), %rax ; movq 0x40(%rdi,%rax,8), %rax ; movl 0x4(%rdi), %edx ;
+     *   imull 0x1c(%rdi), %edx ; xorl %esi, %esi ; movq %rax, %rdi ; jmp 0x0013D270 ; ret: retq
+     * and hook 0x0013B910 with 'jmp 0x00FE2D00 ; 26x nop'.
+     */
+    if (image_size > 0x00FE2D00 + 42) {
+        static const uint8_t s_cave_13b910[42] = {
+            0x48, 0x85, 0xFF,                               /* testq %rdi, %rdi */
+            0x74, 0x24,                                     /* jz ret */
+            0x48, 0x8B, 0x47, 0x38,                         /* movq 0x38(%rdi), %rax */
+            0x48, 0x85, 0xC0,                               /* testq %rax, %rax */
+            0x74, 0x1B,                                     /* jz ret */
+            0x48, 0x0F, 0xBE, 0x40, 0x10,                   /* movsbq 0x10(%rax), %rax */
+            0x48, 0x8B, 0x44, 0xC7, 0x40,                   /* movq 0x40(%rdi,%rax,8), %rax */
+            0x8B, 0x57, 0x04,                               /* movl 0x4(%rdi), %edx */
+            0x0F, 0xAF, 0x57, 0x1C,                         /* imull 0x1c(%rdi), %edx */
+            0x31, 0xF6,                                     /* xorl %esi, %esi */
+            0x48, 0x89, 0xC7,                               /* movq %rax, %rdi */
+            0xE9, 0x47, 0xA5, 0x15, 0xFF,                   /* jmp 0x0013D270 */
+            0xC3                                            /* retq */
+        };
+        static const uint8_t s_hook_13b910[31] = {
+            0xE9, 0xEB, 0x73, 0xEA, 0x00,                   /* jmp 0x00FE2D00 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90                                      /* 26x nop */
+        };
+        memcpy(image + 0x00FE2D00, s_cave_13b910, sizeof(s_cave_13b910));
+        memcpy(image + 0x0013B910, s_hook_13b910, sizeof(s_hook_13b910));
+        installed++;
+        printf("[U2 Engine] Applied ADR-027 patch at 0x0013B910: Guard NULL buffer in audio clear function\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-028: Guard NULL Voice Buffer in Voice Mix Pre-Processor (0x001D3864).
+     * At 0x001D3864, the routine loads rbx = *(rdi + 0x20). When the voice buffer is
+     * unallocated (NULL), it proceeded to compute sub-buffer pointers at 0x80, 0xb0, 0xc0, 0x6d0
+     * passing them to 0x1E0F30 and 0x1EB0C0, resulting in read access violations at 0x154.
+     * We install a 25-byte trampoline at code cave 0x00FE2D30:
+     *   movq 0x20(%rdi), %rbx ; testq %rbx, %rbx ; jz 0x001D3954 ;
+     *   movq %rbx, %rdi ; subq $-0x80, %rdi ; jmp 0x001D386F
+     * and hook 0x001D3864 with 'jmp 0x00FE2D30 ; 6x nop'.
+     */
+    if (image_size > 0x00FE2D30 + 25) {
+        static const uint8_t s_cave_1d3864[25] = {
+            0x48, 0x8B, 0x5F, 0x20,                         /* movq 0x20(%rdi), %rbx */
+            0x48, 0x85, 0xDB,                               /* testq %rbx, %rbx */
+            0x0F, 0x84, 0x17, 0x0C, 0x1F, 0xFF,             /* jz 0x001D3954 */
+            0x48, 0x89, 0xDF,                               /* movq %rbx, %rdi */
+            0x48, 0x83, 0xEF, 0x80,                         /* subq $-0x80, %rdi */
+            0xE9, 0x26, 0x0B, 0x1F, 0xFF                    /* jmp 0x001D386F */
+        };
+        static const uint8_t s_hook_1d3864[11] = {
+            0xE9, 0xC7, 0xF4, 0xE0, 0x00,                   /* jmp 0x00FE2D30 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90              /* 6x nop */
+        };
+        memcpy(image + 0x00FE2D30, s_cave_1d3864, sizeof(s_cave_1d3864));
+        memcpy(image + 0x001D3864, s_hook_1d3864, sizeof(s_hook_1d3864));
+        installed++;
+        printf("[U2 Engine] Applied ADR-028 patch at 0x001D3864: Guard NULL voice buffer in voice mix pre-processor\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-029: Guard Invalid Channel Pointer in Audio Filter Processor (0x001EB0C0).
+     * At 0x001EB0D9, the routine dereferences movl 0x94(%rdi), %eax. When rdi <= 0x1000
+     * (e.g. 0xc0), it crashed with read access violation at 0x154 (0xc0000005).
+     * We install a 25-byte trampoline at code cave 0x00FE2D60:
+     *   cmpq $0x1000, %rdi ; ja continue ; retq ;
+     *   continue: push %rbp ; push %r15 ; push %r14 ; push %r13 ; push %r12 ; push %rbx ; jmp 0x001EB0CA
+     * and hook 0x001EB0C0 with 'jmp 0x00FE2D60 ; 5x nop'.
+     */
+    if (image_size > 0x00FE2D60 + 25) {
+        static const uint8_t s_cave_1eb0c0[25] = {
+            0x48, 0x81, 0xFF, 0x00, 0x10, 0x00, 0x00,       /* cmpq $0x1000, %rdi */
+            0x77, 0x01,                                     /* ja continue */
+            0xC3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x41, 0x57,                                     /* pushq %r15 */
+            0x41, 0x56,                                     /* pushq %r14 */
+            0x41, 0x55,                                     /* pushq %r13 */
+            0x41, 0x54,                                     /* pushq %r12 */
+            0x53,                                           /* pushq %rbx */
+            0xE9, 0x51, 0x83, 0x20, 0xFF                    /* jmp 0x001EB0CA */
+        };
+        static const uint8_t s_hook_1eb0c0[10] = {
+            0xE9, 0x9B, 0x7C, 0xDF, 0x00,                   /* jmp 0x00FE2D60 */
+            0x90, 0x90, 0x90, 0x90, 0x90                    /* 5x nop */
+        };
+        memcpy(image + 0x00FE2D60, s_cave_1eb0c0, sizeof(s_cave_1eb0c0));
+        memcpy(image + 0x001EB0C0, s_hook_1eb0c0, sizeof(s_hook_1eb0c0));
+        installed++;
+        printf("[U2 Engine] Applied ADR-029 patch at 0x001EB0C0: Guard invalid channel pointer in audio filter processor\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-030: Guard Invalid Channel Pointer in Audio Filter Sibling (0x001E0F30).
+     * At 0x001E0F30, the function sets up frame and calls 0x1EB0C0. If rdi <= 0x1000,
+     * it returns immediately without running the filtering cascade.
+     * We install a 25-byte trampoline at code cave 0x00FE2D90:
+     *   cmpq $0x1000, %rdi ; ja continue ; retq ;
+     *   continue: push %rbp ; mov %rsp, %rbp ; push %r15 ; push %r14 ; push %r13 ; jmp 0x001E0F3A
+     * and hook 0x001E0F30 with 'jmp 0x00FE2D90 ; 5x nop'.
+     */
+    if (image_size > 0x00FE2D90 + 25) {
+        static const uint8_t s_cave_1e0f30[25] = {
+            0x48, 0x81, 0xFF, 0x00, 0x10, 0x00, 0x00,       /* cmpq $0x1000, %rdi */
+            0x77, 0x01,                                     /* ja continue */
+            0xC3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x48, 0x89, 0xE5,                               /* movq %rsp, %rbp */
+            0x41, 0x57,                                     /* pushq %r15 */
+            0x41, 0x56,                                     /* pushq %r14 */
+            0x41, 0x55,                                     /* pushq %r13 */
+            0xE9, 0x91, 0xE1, 0x1F, 0xFF                    /* jmp 0x001E0F3A */
+        };
+        static const uint8_t s_hook_1e0f30[10] = {
+            0xE9, 0x5B, 0x1E, 0xE0, 0x00,                   /* jmp 0x00FE2D90 */
+            0x90, 0x90, 0x90, 0x90, 0x90                    /* 5x nop */
+        };
+        memcpy(image + 0x00FE2D90, s_cave_1e0f30, sizeof(s_cave_1e0f30));
+        memcpy(image + 0x001E0F30, s_hook_1e0f30, sizeof(s_hook_1e0f30));
+        installed++;
+        printf("[U2 Engine] Applied ADR-030 patch at 0x001E0F30: Guard invalid channel pointer in audio filter sibling\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-031: Guard NULL Descriptor in Render Target Descriptor Copy (0x00C0047A).
+     * At 0x00C0047A in ndgi-orbis-device.cpp, the routine reads rax = *(rbx) and blindly
+     * copies 0x38 bytes into rsi (movl 0x30(%rax), %ecx, etc.). When *(rbx) is NULL (rax == NULL),
+     * it crashed with read access violation at 0x30 (0xc0000005).
+     * We install a 96-byte trampoline at code cave 0x00FE2DC0:
+     *   movq (%rbx), %rax ; testq %rax, %rax ; jz zero_rsi ;
+     *   <normal copy 0x38 bytes> ; jmp 0x00C004B1 ;
+     *   zero_rsi: vxorps %xmm0, %xmm0, %xmm0 ; vmovaps %xmm0, (%rsi) ; vmovaps %xmm0, 0x10(%rsi) ;
+     *   vmovaps %xmm0, 0x20(%rsi) ; movq $0, 0x30(%rsi) ; jmp 0x00C004B1
+     * and hook 0x00C0047A with 'jmp 0x00FE2DC0 ; 50x nop'.
+     */
+    if (image_size > 0x00FE2DC0 + 96) {
+        static const uint8_t s_cave_c0047a[96] = {
+            0x48, 0x8B, 0x03,                               /* movq (%rbx), %rax */
+            0x48, 0x85, 0xC0,                               /* testq %rax, %rax */
+            0x74, 0x39,                                     /* jz zero_rsi */
+            0x8B, 0x48, 0x30,                               /* movl 0x30(%rax), %ecx */
+            0x89, 0x4E, 0x30,                               /* movl %ecx, 0x30(%rsi) */
+            0x48, 0x8B, 0x48, 0x28,                         /* movq 0x28(%rax), %rcx */
+            0x48, 0x89, 0x4E, 0x28,                         /* movq %rcx, 0x28(%rsi) */
+            0x48, 0x8B, 0x48, 0x20,                         /* movq 0x20(%rax), %rcx */
+            0x48, 0x89, 0x4E, 0x20,                         /* movq %rcx, 0x20(%rsi) */
+            0x48, 0x8B, 0x48, 0x18,                         /* movq 0x18(%rax), %rcx */
+            0x48, 0x89, 0x4E, 0x18,                         /* movq %rcx, 0x18(%rsi) */
+            0x48, 0x8B, 0x48, 0x10,                         /* movq 0x10(%rax), %rcx */
+            0x48, 0x89, 0x4E, 0x10,                         /* movq %rcx, 0x10(%rsi) */
+            0x48, 0x8B, 0x08,                               /* movq (%rax), %rcx */
+            0x48, 0x8B, 0x40, 0x08,                         /* movq 0x8(%rax), %rax */
+            0x48, 0x89, 0x46, 0x08,                         /* movq %rax, 0x8(%rsi) */
+            0x48, 0x89, 0x0E,                               /* movq %rcx, (%rsi) */
+            0xE9, 0xB0, 0xD6, 0xC1, 0xFF,                   /* jmp 0x00C004B1 */
+            0xC5, 0xF8, 0x57, 0xC0,                         /* vxorps %xmm0, %xmm0, %xmm0 */
+            0xC5, 0xF8, 0x29, 0x06,                         /* vmovaps %xmm0, (%rsi) */
+            0xC5, 0xF8, 0x29, 0x46, 0x10,                   /* vmovaps %xmm0, 0x10(%rsi) */
+            0xC5, 0xF8, 0x29, 0x46, 0x20,                   /* vmovaps %xmm0, 0x20(%rsi) */
+            0x48, 0xC7, 0x46, 0x30, 0x00, 0x00, 0x00, 0x00, /* movq $0, 0x30(%rsi) */
+            0xE9, 0x91, 0xD6, 0xC1, 0xFF                    /* jmp 0x00C004B1 */
+        };
+        static const uint8_t s_hook_c0047a[55] = {
+            0xE9, 0x41, 0x29, 0x3E, 0x00,                   /* jmp 0x00FE2DC0 */
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+            0x90, 0x90                                      /* 50x nop */
+        };
+        memcpy(image + 0x00FE2DC0, s_cave_c0047a, sizeof(s_cave_c0047a));
+        memcpy(image + 0x00C0047A, s_hook_c0047a, sizeof(s_hook_c0047a));
+        installed++;
+        printf("[U2 Engine] Applied ADR-031 patch at 0x00C0047A: Guard NULL render target descriptor copy\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-032: Guard Invalid Audio Voice Node Pointer in Audio Voice Handler (0x00133700).
+     * At 0x00133704, movq 0x10(%rdi), %rax dereferences rdi. When called for unallocated voices,
+     * callers pass rdi = 0x80 (offset arithmetic on NULL base). This crashes with read access to 0x90.
+     * We install a 23-byte trampoline at code cave 0x00FE2E30:
+     *   cmpq $0x1000, %rdi ; ja .valid ; retq ;
+     *   .valid: pushq %rbp ; pushq %r14 ; pushq %rbx ; movq 0x10(%rdi), %rax ; jmp 0x00133708
+     * and hook 0x00133700 with 'jmp 0x00FE2E30 ; 3x nop'.
+     */
+    if (image_size > 0x00FE2E30 + 23) {
+        static const uint8_t s_cave_133700[23] = {
+            0x48, 0x81, 0xFF, 0x00, 0x10, 0x00, 0x00,       /* cmpq $0x1000, %rdi */
+            0x77, 0x01,                                     /* ja +1 (to 0x0A) */
+            0xC3,                                           /* retq */
+            0x55,                                           /* pushq %rbp */
+            0x41, 0x56,                                     /* pushq %r14 */
+            0x53,                                           /* pushq %rbx */
+            0x48, 0x8B, 0x47, 0x10,                         /* movq 0x10(%rdi), %rax */
+            0xE9, 0xC1, 0x11, 0x15, 0xFF                    /* jmp 0x00133708 */
+        };
+        static const uint8_t s_hook_133700[8] = {
+            0xE9, 0x2B, 0xEE, 0xEA, 0x00,                   /* jmp 0x00FE2E30 */
+            0x90, 0x90, 0x90                                /* 3x nop */
+        };
+        memcpy(image + 0x00FE2E30, s_cave_133700, sizeof(s_cave_133700));
+        memcpy(image + 0x00133700, s_hook_133700, sizeof(s_hook_133700));
+        installed++;
+        printf("[U2 Engine] Applied ADR-032 patch at 0x00133700: Guard invalid audio voice node pointer\n");
         fflush(stdout);
     }
 

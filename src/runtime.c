@@ -8,6 +8,7 @@
 #include <stdatomic.h>
 #include <sched.h>
 #include <pthread.h>
+#include <windows.h>
 
 typedef struct {
     union { GuestCallback plain; void (ABI *with_arg)(void *); } callback;
@@ -157,8 +158,14 @@ static ABI void guard_release(uint64_t *guard) {
 static ABI void guard_abort(uint64_t *guard) {
     atomic_fetch_and_explicit((_Atomic uint64_t *)guard, UINT64_C(0xffffffff), memory_order_release);
 }
+extern uint8_t *g_u2_image_base;
 static ABI __attribute__((noreturn)) void stack_fail(void) {
-    fputs("STOP: guest stack protector detected corruption\n", stderr);
+    uintptr_t caller = (uintptr_t)__builtin_return_address(0);
+    uint32_t tid = GetCurrentThreadId();
+    uintptr_t off = (g_u2_image_base && caller >= (uintptr_t)g_u2_image_base) ? (caller - (uintptr_t)g_u2_image_base) : 0;
+    fprintf(stderr, "STOP: guest stack protector detected corruption (caller=%p, guest_offset=0x%llx, tid=%u)\n",
+            (void *)caller, (unsigned long long)off, tid);
+    fflush(stderr);
     exit(22);
 }
 static ABI void *guest_memset(void *dst, int value, size_t size) {

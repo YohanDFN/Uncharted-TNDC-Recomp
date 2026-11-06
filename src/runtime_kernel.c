@@ -13,7 +13,9 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <x86intrin.h>
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/random.h>
 #include <sys/resource.h>
 #endif
@@ -115,7 +117,24 @@ static int sleep_ns(uint64_t ns) {
 #endif
     return 0;
 }
-static ABI int32_t kernel_usleep(uint32_t usec) { sleep_ns((uint64_t)usec*1000); return 0; }
+extern uint8_t *g_u2_image_base;
+static ABI int32_t kernel_usleep(uint32_t usec) {
+    if (usec > 0 && usec <= 1000) {
+        sleep_ns(0);
+        sleep_ns(50000); /* 50 us instead of 1000 us to prevent 1.5ms Windows timer overhead in SyncCounter_Wait */
+        return 0;
+    }
+    static uint32_t s_log_count = 0;
+    uintptr_t caller = (uintptr_t)__builtin_return_address(0);
+    uintptr_t off = (g_u2_image_base && caller >= (uintptr_t)g_u2_image_base) ? (caller - (uintptr_t)g_u2_image_base) : 0;
+    if (++s_log_count <= 50 || (s_log_count % 50) == 0) {
+        printf("[U2 Kernel] kernel_usleep(%u) caller=0x%llx (tid=%u) #%u\n",
+               usec, (unsigned long long)off, (unsigned int)GetCurrentThreadId(), s_log_count);
+        fflush(stdout);
+    }
+    sleep_ns((uint64_t)usec*1000);
+    return 0;
+}
 static ABI int32_t posix_usleep(uint32_t usec) { sleep_ns((uint64_t)usec*1000); return 0; }
 static ABI uint32_t posix_sleep(uint32_t seconds) { sleep_ns((uint64_t)seconds*1000000000); return 0; }
 static ABI int32_t posix_nanosleep(const GuestTimespec *rq,GuestTimespec *rem) {

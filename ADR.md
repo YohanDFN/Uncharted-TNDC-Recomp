@@ -265,3 +265,274 @@ Le détour précédent `detour_GfxWaitEopFence` installé à `0x00B29F10` écras
   1. Lorsque `mode == 1` (ou lorsque `sync_obj` correspond à `g_pCheckPlayGoStatus` à `*(void **)(g_u2_image_base + 0x015AF7D0)`), `*(int64_t *)(sync_obj + 0x20)` est avancé à `(int64_t)target_tick` et la fonction retourne immédiatement.
   2. Lorsque `mode == 0` (attente d'un lot de jobs CPU), le détour délègue au code original de `0x00B29F10` via le trampoline `orig_SyncCounter_Wait` (qui exécute le prologue de 16 octets et saute à `g_u2_image_base + 0x00B29F20`), permettant aux threads workers de céder leur fibre (`0x00B3E4C0`) et au thread principal d'attendre proprement la complétion des jobs d'initialisation et de `MainLoopJob`.
 * **Résultat** : Disparition totale des 20+ assertions `GetVsSignatureByName` / `CreateVertexLayoutFromDesc`, disparition totale des 8 assertions `CloseSync (fh != 0)`, du `fios2 warning: terminated` et du crash `3221225477`. Le moteur charge `DCLoader`, initialise `UserService` et `NpTrophy`, masque le splash screen (`SystemService: splash screen hidden`) et transite proprement vers `UCCApp State 0 -> 1` en tournant de manière stable.
+
+---
+
+## ADR-013 : Activation de l'Écran Titre (`UCCApp State 1 -> 7`) & Contournement du Skip Retail (`0x00D5A95F`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte
+Dans les builds retail PS4 d'Uncharted 2 Remastered, la machine d'état racine `UCCApp` commence à l'état 0 (Boot/Pre-init) puis transite à l'état 1 (Pre-title / Séquence d'intro vidéo). Dans `UCCApp::Update` (`0x00D5A95F`), le moteur vérifie si `m_state < 7` et saute tout le tick de rendu (`ja 0xd5b12d`).
+
+### Problème
+Sans décodeur vidéo matériel PS4 complet, le moteur restait bloqué en State 1 sans présenter l'écran titre et sans déclencher le chargement des shaders du menu principal.
+
+### Décision
+* Dans [`src/runtime_u2_script.c`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/runtime_u2_script.c) :
+  1. Patch à `0x00D5A95F` : remplacement du saut conditionnel `ja 0xd5b12d` par 6 NOPs (`66 0F 1F 44 00 00`).
+  2. Transition automatique de `State 1` vers `State 7` (Title Screen) dès la dissimulation du splash screen, permettant d'activer le rendu du menu et la boucle principale.
+
+---
+
+## ADR-014 : Protection contre les Éléments d'Animation Nuls (`0x0055789A`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Lors de la mise à jour des contrôleurs d'animation de décors et de squelettes à `0x0055789A`, le moteur parcourait une liste d'instances pouvant contenir des pointeurs nuls, provoquant un crash par déréférencement immédiat.
+
+### Décision
+* Installation d'un trampoline de vérification dans le code cave de segment PH 0, sautant l'élément si le pointeur est nul.
+
+---
+
+## ADR-015 : Sécurisation du Buffer Stat FIOS2 (`0x0183BD53` libSceFios2.prx)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Lors d'une requête de présence de fichier sans métadonnées (`stat buffer == NULL`), `libSceFios2.prx` appelait aveuglément `memset(NULL, 0, 80)` suivi d'écritures directes dans `*(NULL)`.
+
+### Décision
+* Trampoline de 36 octets à `0x0185D0C0` : si `rbx == NULL`, assigne `r15d = 0` et saute directement à l'épilogue de la fonction (`0x0183BDD7`).
+
+---
+
+## ADR-016 : Sécurisation du Pointeur Périphérique FIOS2 (`0x0184C610` libSceFios2.prx)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Lors de l'ordonnancement des requêtes d'E/S dans `libSceFios2.prx`, la structure périphérique pouvait être nulle, déclenchant une violation d'accès sur l'indexation de sa vtable.
+
+### Décision
+* Trampoline de 21 octets à `0x01860C98` : si `rdi == NULL`, retourne 0 immédiatement.
+
+---
+
+## ADR-017 : Initialisation Stub des Particules (`0x0050E150` Renderer::InitParticles)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+La routine de rendu des particules `0x0050E150` tentait d'allouer des buffers d'instances GPU avant la compilation complète des pipelines graphiques, provoquant une boucle d'assertions et un crash d'allocation.
+
+### Décision
+* Patch de 4 octets à `0x0050E150` : `31 c0 c3 90` (`xorl %eax, %eax ; retq ; nop`).
+
+---
+
+## ADR-018 : Protection du Déréférencement Pointeur Décor (`0x0055524B`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x0055524B`, l'instruction `movl (%rdi), %eax` était exécutée sur un pointeur d'instance NULL lors de l'énumération des nœuds de scène.
+
+### Décision
+* Trampoline de 30 octets à `0x00DE7E00` : vérifie `rdi != NULL` ; si NULL, saute à `0x0055527E`.
+
+---
+
+## ADR-019 : Protection des Buffers de Transformation Matrice Audio (`0x0013D850`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+La routine de transformation et mixage matriciel audio à `0x0013D850` reçoit `rdi = dst`, `rsi = src`, `edx = count`. Lorsque les canaux audio ne sont pas alloués, les appelants passent `rdi = NULL` et/ou `rsi = NULL`. Les deux boucles AVX (`0x0013D878` et `0x0013D960`) déréférençaient ces registres (`vmulps (%rdi,%rcx,4)` et `vaddps (%rsi,%rcx,4)`), provoquant des crashs à `0x0013D8C8` et `0x0013D978`.
+
+### Décision
+* Hook à l'entrée de fonction `0x0013D850` avec un trampoline de 28 octets à `0x00DE7E20` :
+  `testq %rdi, %rdi ; jz ret ; testq %rsi, %rsi ; jz ret ; testl %edx, %edx ; jz ret ; vxorps ... ; vucomiss ... ; jmp 0x0013D858 ; retq`
+* **Résultat** : Protection unifiée de toutes les boucles internes de mixage audio contre les accès nuls.
+
+---
+
+## ADR-020 : Protection Arène Sous-Allocateur Audio (`0x0013D180`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x0013D186`, le sous-allocateur d'arène audio lisait `0x28(%rdi)` sans vérifier `rdi`, provoquant une violation d'accès en lecture à `0x28`.
+
+### Décision
+* Trampoline de 22 octets à `0x00DE7E40` : si `rdi == NULL`, retourne NULL (`xorl %eax, %eax ; retq`).
+
+---
+
+## ADR-021 : Initialisation Sécurisée Descripteur Orbis Object (`0x00C0EE01`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x00C0EE11`, la fonction lisait `0x30(%rbp)` et copiait aveuglément 0x38 octets de descripteur. Lorsque le pointeur source valait NULL, cela déclenchait une violation d'accès à l'offset `0x30`.
+
+### Décision
+* Trampoline de 33 octets à `0x00FE2C00` : vérifie `rax != NULL && *rax != NULL`. Si NULL, bifurque directement vers le chemin d'initialisation de repli à `0x00C0EE9A`.
+
+---
+
+## ADR-022 : Filtrage Pointeur Nœud Mixeur Audio Invalide (`0x001E5180`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x001E51E0`, lecture de `0x10(%rdi)`. Les appelants (ex: `0x001CFF77`) calculaient `rdi = *(r15 + 0x20) - (-0x80)`. Quand le buffer de voix est NULL, ce calcul produit `rdi = 0x80`, provoquant une violation d'accès en lecture à `0x90` (`0x80 + 0x10`).
+
+### Décision
+* Trampoline de 24 octets à `0x00FE2C30` : `cmpq $0x1000, %rdi ; ja continue ; retq`.
+
+---
+
+## ADR-023 : Sécurisation du Memset Audio AVX (`0x0013D270`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+La routine de mise à zéro AVX `0x0013D270` recevait un pointeur de destination `rdi == NULL`, provoquant une violation d'accès en écriture à l'adresse 0 (`0x0013D2A0`).
+
+### Décision
+* Trampoline de 19 octets à `0x00FE2C50` : `testq %rdi, %rdi ; jnz continue ; retq`.
+
+---
+
+## ADR-024 : Protection des Voix Audio Non Allouées (`0x001D4330`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x001D4330`, déréférencement aveugle du buffer de voix `*(rdi + 0x20)` sans validation préalable.
+
+### Décision
+* Trampoline de 42 octets à `0x00FE2C70` : vérifie `rdi != NULL && *(rdi + 0x20) != NULL` avant de poursuivre l'exécution.
+
+---
+
+## ADR-025 : Protection Nœud Matrice Audio Sibling (`0x001E1DD0`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x001E1E32`, déréférencement de `0x10(%rdi)` sur un pointeur calculé à `0x80`.
+
+### Décision
+* Trampoline de 32 octets à `0x00FE2CB0` : `cmpq $0x1000, %rdi ; ja continue ; retq`.
+
+---
+
+## ADR-026 : Saut de Transformation Voix Nulle (`0x0013B093`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x0013B097`, lecture de `0x4(*(r14 + 0x38))` qui provoquait une violation d'accès en lecture à `0x4` quand le pointeur interne était nul.
+
+### Décision
+* Trampoline de 35 octets à `0x00FE2CD0` : vérifie `*(r14 + 0x38)` ; si NULL, sauvegarde `r15` dans `-0x148(%rbp)` et saute directement à `0x0013B201`.
+
+---
+
+## ADR-027 : Protection du Nettoyage de Buffer Audio (`0x0013B910`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x0013B914`, lecture de `0x10(*(rdi + 0x38))` provoquant une violation d'accès à `0x10`.
+
+### Décision
+* Trampoline de 42 octets à `0x00FE2D00` : vérifie `rdi != NULL && *(rdi + 0x38) != NULL` avant d'exécuter le clear de buffer.
+
+---
+
+## ADR-028 : Protection Pré-Mixeur de Voix Audio (`0x001D3864`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x001D3864`, le pré-mixeur déréférençait `rbx = *(rdi + 0x20)` sans tester si le buffer était nul.
+
+### Décision
+* Trampoline de 25 octets à `0x00FE2D30` : si `rbx == NULL`, saute directement à l'épilogue de nettoyage à `0x001D3954`.
+
+---
+
+## ADR-029 : Protection Filtre Audio (`0x001EB0C0`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x001EB0D9`, lecture de `0x154(%rdi)` avec `rdi = 0xc0` (arithmétique d'offset sur pointeur NULL).
+
+### Décision
+* Trampoline de 25 octets à `0x00FE2D60` : `cmpq $0x1000, %rdi ; ja continue ; retq`.
+
+---
+
+## ADR-030 : Protection Filtre Audio Sibling (`0x001E0F30`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Identique à ADR-029 sur la routine jumelle `0x001E0F30`.
+
+### Décision
+* Trampoline de 25 octets à `0x00FE2D90` : `cmpq $0x1000, %rdi ; ja continue ; retq`.
+
+---
+
+## ADR-031 : Protection de Copie de Descripteur Render Target (`0x00C0047A`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x00C0047D`, le moteur copiait 0x38 octets depuis `*(rbx)`. Quand `*(rbx) == NULL`, l'instruction `movl 0x30(%rax), %ecx` échouait avec une violation d'accès à `0x30`.
+
+### Décision
+* Trampoline de 96 octets à `0x00FE2DC0` : si `*(rbx) == NULL`, initialise à zéro les 0x38 octets de `rsi` via `vxorps` et saute à `0x00C004B1`.
+
+---
+
+## ADR-032 : Protection Nœud de Voix Audio Invalide (`0x00133700`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x00133704`, l'instruction `movq 0x10(%rdi), %rax` déréférençait `rdi`. Lors de l'initialisation du pipeline audio, des appelants passaient `rdi = 0x80`, provoquant une violation d'accès en lecture à `0x90`.
+
+### Décision
+* Trampoline de 23 octets à `0x00FE2E30` :
+  `cmpq $0x1000, %rdi ; ja .valid ; retq ; .valid: pushq %rbp ; pushq %r14 ; pushq %rbx ; movq 0x10(%rdi), %rax ; jmp 0x00133708`
+  et hook à `0x00133700` (`jmp 0x00FE2E30 ; 3x nop`).
+* **Résultat** : Le pipeline audio (`brbDriver`, WASAPI audio ports 0, 9, 17, ATRAC9 Ajm context) s'initialise entièrement sans crash et l'exécutable tourne de manière continue et stable.
+
