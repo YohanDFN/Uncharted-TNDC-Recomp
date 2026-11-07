@@ -171,6 +171,21 @@ static int64_t ABI detour_DcAutoSaveGame(int32_t argc, uint64_t *argv, uint32_t 
     return 0;
 }
 
+static int64_t ABI detour_DcGameTaskGraphLogin(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE8F0: (game-task-graph-login task) */
+    (void)status;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc > 0 && argv) {
+        typedef void (ABI *GameTaskGraphLoginFn)(uint64_t task);
+        GameTaskGraphLoginFn login_fn = (GameTaskGraphLoginFn)(uintptr_t)(g_u2_image_base + 0x00A59960ull);
+        if (login_fn) {
+            login_fn(argv[0]);
+        }
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcRailSetIgcFadeOutTime(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00AB93F0: (rail-set-igc-fade-out-time t) */
     (void)status;
@@ -943,6 +958,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcNetIsCinema", 0x00669C50, (uintptr_t)detour_DcNetIsCinema },
     { "DcPsnDemoShowUpsell", 0x009FD590, (uintptr_t)detour_DcPsnDemoShowUpsell },
     { "DcAutoSaveGame", 0x009FE820, (uintptr_t)detour_DcAutoSaveGame },
+    { "DcGameTaskGraphLogin", 0x009FE8F0, (uintptr_t)detour_DcGameTaskGraphLogin },
     { "DcRailSetIgcFadeOutTime", 0x00AB93F0, (uintptr_t)detour_DcRailSetIgcFadeOutTime },
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
     { "DcTutorialHintsOnP", 0x00A0F490, (uintptr_t)detour_DcTutorialHintsOnP },
