@@ -102,6 +102,21 @@ static int64_t ABI detour_DcCacheMusicPlaylist(int32_t argc, uint64_t *argv, uin
     return 0;
 }
 
+static int64_t ABI detour_DcStartMovieAudio(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE0D0: (start-movie-audio movie-sound-id [start-time]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    void **movie_mgr_slot = (void **)(g_u2_image_base + 0x010608E0ull);
+    if (!movie_mgr_slot || !*movie_mgr_slot) return 0;
+    void *movie_mgr = *movie_mgr_slot;
+    uint64_t sound_id = (argc > 0 && argv) ? argv[0] : 0;
+    float start_time = (argc > 1 && argv) ? (float)(int32_t)argv[1] : 0.0f;
+    typedef void (ABI *StartMovieAudioFn)(void *mgr, uint64_t id, uint32_t flags, float time);
+    StartMovieAudioFn fn = (StartMovieAudioFn)(uintptr_t)(g_u2_image_base + 0x00B822E0ull);
+    if (fn) fn(movie_mgr, sound_id, 0, start_time);
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_audio_detours[] = {
     { "DcSyncAudioMetaData", 0x009FD560, (uintptr_t)detour_DcSyncAudioMetaData },
@@ -111,6 +126,7 @@ static const U2NativeDetour s_audio_detours[] = {
     { "DcCacheSoundStream", 0x009FD510, (uintptr_t)detour_DcCacheSoundStream },
     { "DcCacheSpeechStream", 0x009FD4E0, (uintptr_t)detour_DcCacheSpeechStream },
     { "DcCacheMusicPlaylist", 0x009FD460, (uintptr_t)detour_DcCacheMusicPlaylist },
+    { "DcStartMovieAudio", 0x009FE0D0, (uintptr_t)detour_DcStartMovieAudio },
 };
 
 size_t u2_get_audio_detours(const U2NativeDetour **out) {
