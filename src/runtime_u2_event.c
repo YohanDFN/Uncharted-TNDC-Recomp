@@ -198,6 +198,36 @@ static int64_t ABI detour_DcEventSender(int32_t argc, uint64_t *argv, uint32_t *
     return (int64_t)*(const uint32_t *)(target + 0x68);
 }
 
+static int64_t ABI detour_DcPrintEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C1800: (print-event) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    uint8_t *frame = *(uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    uint8_t *memento = *(uint8_t **)frame;
+    if (!memento) return 0;
+    uint8_t *obj = *(uint8_t **)(memento + 0x08);
+    const uint8_t *memento_slot = *(const uint8_t **)(frame + 0x10);
+    const uint8_t *sender = NULL;
+    if (memento_slot) {
+        uint32_t tag = *(const uint32_t *)(frame + 0x18);
+        if (tag) {
+            const uint8_t *cand = *(const uint8_t **)memento_slot;
+            if (cand && *(const uint32_t *)(cand + 0x44) == tag) {
+                sender = cand;
+            }
+        }
+    }
+    if (obj != sender) {
+        *(void **)frame = NULL;
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -212,6 +242,7 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcEventReturnFloat", 0x004C2550, (uintptr_t)detour_DcEventReturnFloat },
     { "DcEventReturnSymbol", 0x004C2720, (uintptr_t)detour_DcEventReturnSymbol },
     { "DcEventSender", 0x004C1DF0, (uintptr_t)detour_DcEventSender },
+    { "DcPrintEvent", 0x004C1800, (uintptr_t)detour_DcPrintEvent },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
