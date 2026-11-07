@@ -1369,7 +1369,7 @@ static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uin
 
         /* Fast-forward UCCApp from boot/credits wait (state 1..6) to Title Screen (state 7)
          * once MainLoopJob is actively running frames. */
-        if (caller_va == 0xB2A067 && call_id >= 25 && cur_state >= 1 && cur_state < 7) {
+        if (cur_state >= 1 && cur_state < 7) {
             uint32_t *p_state = (uint32_t *)(g_u2_image_base + 0x010532D0);
             printf("[U2 Engine] Advancing UCCApp State %u -> 7 (Title Screen Activation, ADR-013)\n", *p_state);
             *p_state = 7;
@@ -1404,12 +1404,16 @@ static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uin
 
     /*
      * Mode 1 waits (loading availability milestones), PlayGo sync, TextureManager VRAM
-     * chunk streaming sync (0x00BF2F05), and Audio/ARM job sync (0x003B5002 / 0x1200105200)
+     * chunk streaming sync (0x00BF2F05), Audio/ARM job sync (0x003B5002 / 0x1200105200),
+     * and AppInit Job 2 completion sync (0x003F43BE / 0x1200105180)
      * must be satisfied immediately to avoid worker thread pool starvation / deadlocks.
      */
     if (mode == 1 || (playgo_sync && sync_obj == playgo_sync) ||
         caller_va == 0x00BF2F05 || (vram_sync && sync_obj == vram_sync) ||
         (sync_obj && (uintptr_t)sync_obj == 0x1200105200ULL) ||
+        (sync_obj && (uintptr_t)sync_obj == 0x1200105180ULL) ||
+        caller_va == 0x003F43BE ||
+        stack_ret0 == 0x3f43be || stack_ret1 == 0x3f43be || stack_ret2 == 0x3f43be || stack_ret3 == 0x3f43be ||
         stack_ret0 == 0x3b5002 || stack_ret1 == 0x3b5002 || stack_ret2 == 0x3b5002 || stack_ret3 == 0x3b5002) {
         int64_t *cur_tick = (int64_t *)((uint8_t *)sync_obj + 0x20);
         *cur_tick = (int64_t)target_tick;
@@ -2939,6 +2943,63 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         fflush(stdout);
     }
 
+    /*
+     * ADR-033: Bypass Synchronous Audio Session Startup Wait Loop in brb_StartSession (0x0012E890).
+     * At 0x0012E88D, brb_StartSession tests cmpl 0x10(%rcx), %eax followed by je 0x12e8ec (74 5a).
+     * If false, it loops up to 1000 times with sceKernelUsleep(10000), blocking the main loading thread
+     * for 10 seconds. We replace je 0x12e8ec with jmp 0x12e8ec (eb 5a), allowing brb_StartSession()
+     * to immediately acknowledge audio session readiness (printing 'brb_StartSession(): OK') and return 0.
+     */
+    if (image_size > 0x0012E890 + 2) {
+        static const uint8_t s_orig_12e890[2] = { 0x74, 0x5A };
+        static const uint8_t s_patch_12e890[2] = { 0xEB, 0x5A };
+        if (memcmp(image + 0x0012E890, s_orig_12e890, sizeof(s_orig_12e890)) == 0) {
+            memcpy(image + 0x0012E890, s_patch_12e890, sizeof(s_patch_12e890));
+            installed++;
+            printf("[U2 Engine] Applied ADR-033 patch at 0x0012E890: Bypass brb_StartSession 10s audio wait loop\n");
+            fflush(stdout);
+        }
+    }
+
+    /*
+     * ADR-034: Bypass PlayGo Wait Barrier in GameLoadingMountInitialArchives (0x00B77C77).
+     * At 0x00B77C6B, GameLoadingMountInitialArchives checks *(int64_t *)(*(0x15af7d0) + 0x20).
+     * If 0, it branches with 'je 0xb783e0' (0F 84 63 07 00 00) and loops forever sleeping 50ms,
+     * waiting for PlayGo background chunk installation. On PC recomp, PlayGo is always fully installed.
+     * We replace the 6-byte conditional jump with a 6-byte NOP (66 0F 1F 44 00 00), allowing the engine
+     * to immediately mount initial level archives and proceed into scene/menu loading.
+     */
+    if (image_size > 0x00B77C77 + 6) {
+        static const uint8_t s_orig_b77c77[6] = { 0x0F, 0x84, 0x63, 0x07, 0x00, 0x00 };
+        static const uint8_t s_patch_b77c77[6] = { 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00 };
+        if (memcmp(image + 0x00B77C77, s_orig_b77c77, sizeof(s_orig_b77c77)) == 0) {
+            memcpy(image + 0x00B77C77, s_patch_b77c77, sizeof(s_patch_b77c77));
+            installed++;
+            printf("[U2 Engine] Applied ADR-034 patch at 0x00B77C77: Bypass GameLoadingMountInitialArchives PlayGo barrier\n");
+            fflush(stdout);
+        }
+    }
+
+    /*
+     * ADR-035: Neutralize m_gfxEopTick Assertion Trap in FrameBegin (0x00BD440F).
+     * In FrameBegin (ndlib/render/fg-draw-mgr.cpp), the engine checks whether the frame being recycled
+     * (three frames back) has its GPU end-of-pipe tick: cmpq $0, 0xa28(%rax,%rcx) ; jne 0xbd444c (75 3b).
+     * If 0, it calls the assertion logger and executes int $0x41 (trap at 0x00BD444A).
+     * On PC, during initial shader compilations or startup latency, the GPU pipeline can lag behind.
+     * We patch jne 0xbd444c to jmp 0xbd444c (EB 3B), preventing assertion trap and allowing the frame
+     * drawing loop to advance smoothly.
+     */
+    if (image_size > 0x00BD440F + 2) {
+        static const uint8_t s_orig_bd440f[2] = { 0x75, 0x3B };
+        static const uint8_t s_patch_bd440f[2] = { 0xEB, 0x3B };
+        if (memcmp(image + 0x00BD440F, s_orig_bd440f, sizeof(s_orig_bd440f)) == 0) {
+            memcpy(image + 0x00BD440F, s_patch_bd440f, sizeof(s_patch_bd440f));
+            installed++;
+            printf("[U2 Engine] Applied ADR-035 patch at 0x00BD440F: Neutralize m_gfxEopTick assertion trap\n");
+            fflush(stdout);
+        }
+    }
+
     /* Patch at 0x0183BD53 (libSceFios2.prx): Guard NULL destination stat buffer in fios stat handler.
      * When a caller queries file existence or status without requesting stat metadata (stat buffer == NULL),
      * rbx (*(r14 + 0x20)) is NULL. LibSceFios2 blindly called memset_wrapper(NULL, 0, 80) followed by
@@ -2999,6 +3060,69 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         memcpy(image + 0x0184C610, s_patch_184c610, sizeof(s_patch_184c610));
         installed++;
         printf("[U2 Engine] Applied patch at 0x0184C610: Guard NULL device in libSceFios2 scheduler\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-036: Guard NULL Device List in libSceFios2 Path Resolution (0x0184BB9C / 0x0184BC8D).
+     * When resolving directory paths for non-existent folders (e.g. DLC folders "%s/dc%u"),
+     * the device list at *(0x6c3c8) can be empty (rbx == NULL).
+     * In the original code at 0x0184BB9C, the function unconditionally jumped via `jmp 0x184bca0` into
+     * the device matching loop, which dereferenced 0xc0(%rbx) at 0x0184BC8D, causing a read access
+     * violation at 0x00000000000000c0 (thread 10428).
+     * We install a 14-byte trampoline at code cave 0x0186DDF0:
+     * - Checks if %rbx is NULL (testq %rbx, %rbx).
+     * - If NULL: jumps directly to the default device fallback at 0x0184BD0A (je 0x184bd0a).
+     * - If non-NULL: proceeds into the normal device search loop at 0x0184BCA0 (jmp 0x184bca0).
+     */
+    if (image_size > 0x0186DDF0 + 14) {
+        static const uint8_t s_cave_184bb9c[14] = {
+            0x48, 0x85, 0xdb,                               /* testq %rbx, %rbx */
+            0x0f, 0x84, 0x11, 0xdf, 0xfd, 0xff,             /* je 0x0184BD0A */
+            0xe9, 0xa2, 0xde, 0xfd, 0xff                    /* jmp 0x0184BCA0 */
+        };
+        static const uint8_t s_patch_184bb9c[5] = {
+            0xe9, 0x4f, 0x22, 0x02, 0x00                    /* jmp 0x0186DDF0 */
+        };
+        memcpy(image + 0x0186DDF0, s_cave_184bb9c, sizeof(s_cave_184bb9c));
+        memcpy(image + 0x0184BB9C, s_patch_184bb9c, sizeof(s_patch_184bb9c));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x0184BB9C: Guard NULL device list in libSceFios2 (ADR-036)\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-037: Guard uncommitted device filter function pointer in libSceFios2 (0x0184BBEB).
+     * At 0x0184BBEB, libSceFios2 calls the device virtual filter function via `callq *0x4118(%r12)`.
+     * For synthetic/overlay paths (such as "/app0/u2data/data/fonts/ps4/font_files.fnt"), *(r12 + 0x4118)
+     * can point to uncommitted or invalid memory (e.g. 0x2f30b9a8), triggering an access violation.
+     * We install a 38-byte trampoline at cave 0x0186DE10:
+     * - Checks if *(r12 + 0x4118) - g_u2_image_base < 0x2000000 (valid executable image range).
+     * - If valid: calls *%rax normally.
+     * - If invalid: sets %al = 1 (device accepted) and bypasses the call.
+     * - Resumes normal execution at 0x0184BBF3.
+     */
+    if (image_size > 0x0186DE50 + 8) {
+        static const uint8_t s_cave_184bbeb[38] = {
+            0x49, 0x8b, 0x84, 0x24, 0x18, 0x41, 0x00, 0x00, /* movq 0x4118(%r12), %rax */
+            0x49, 0x89, 0xc2,                               /* movq %rax, %r10 */
+            0x4c, 0x2b, 0x15, 0x2e, 0x00, 0x00, 0x00,       /* subq 0x2e(%rip), %r10 -> *(0x0186DE50) */
+            0x49, 0x81, 0xfa, 0x00, 0x00, 0x00, 0x02,       /* cmpq $0x2000000, %r10 */
+            0x73, 0x04,                                     /* jae +4 (skip) */
+            0xff, 0xd0,                                     /* callq *%rax */
+            0xeb, 0x02,                                     /* jmp +2 (done) */
+            0xb0, 0x01,                                     /* movb $1, %al (skip: match) */
+            0xe9, 0xbd, 0xdd, 0xfd, 0xff                    /* jmp 0x0184BBF3 (done: resume) */
+        };
+        static const uint8_t s_patch_184bbeb[8] = {
+            0xe9, 0x20, 0x22, 0x02, 0x00,                   /* jmp 0x0186DE10 */
+            0x90, 0x90, 0x90                                /* 3x nop */
+        };
+        *(uint64_t *)(image + 0x0186DE50) = (uintptr_t)image;
+        memcpy(image + 0x0186DE10, s_cave_184bbeb, sizeof(s_cave_184bbeb));
+        memcpy(image + 0x0184BBEB, s_patch_184bbeb, sizeof(s_patch_184bbeb));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x0184BBEB: Guard uncommitted device filter in libSceFios2 (ADR-037)\n");
         fflush(stdout);
     }
 

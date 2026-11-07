@@ -16,6 +16,11 @@
 * [ADR-008 : Sécurisation du Cycle de Vie Mutex (`libSceFios2`), Garde Stat Buffer & Scheduler Device](#adr-008--sécurisation-du-cycle-de-vie-mutex-libscefios2-garde-stat-buffer--scheduler-device)
 * [ADR-009 : Garde Nœuds Chunks ScriptManager (`0x00A17C60`) & Fallback Allocateur de Tas `AllocByAllocatorId` (`0x00B33270`)](#adr-009--garde-nœuds-chunks-scriptmanager-0x00a17c60--fallback-allocateur-de-tas-allocbyallocatorid-0x00b33270)
 * [ADR-010 : Demand-Commit Mémoire Guest (`0x1000000000`..`0x2000000000`) & Résolution Crash `0x00A17B58`](#adr-010--demand-commit-mémoire-guest-0x10000000000x2000000000--résolution-crash-0x00a17b58)
+* [ADR-033 : Neutralisation de la Boucle d'Attente Synchrone Audio `brb_StartSession` (`0x0012E890`)](#adr-033--neutralisation-de-la-boucle-dattente-synchrone-audio-brb_startsession-0x0012e890)
+* [ADR-034 : Déblocage de la Barrière PlayGo dans `GameLoadingMountInitialArchives` (`0x00B77C77`)](#adr-034--déblocage-de-la-barrière-playgo-dans-gameloadingmountinitialarchives-0x00b77c77)
+* [ADR-035 : Neutralisation de la Trappe d'Assertion `m_gfxEopTick` dans `FrameBegin` (`0x00BD440F`)](#adr-035--neutralisation-de-la-trappe-dassertion-m_gfxeoptick-dans-framebegin-0x00bd440f)
+* [ADR-036 : Protection Liste de Périphériques FIOS2 NULL dans la Résolution de Chemins (`0x0184BB9C`)](#adr-036--protection-liste-de-périphériques-fios2-null-dans-la-résolution-de-chemins-0x0184bb9c)
+* [ADR-037 : Protection Pointeur de Filtre Virtuel FIOS2 Non Validé (`0x0184BBEB`)](#adr-037--protection-pointeur-de-filtre-virtuel-fios2-non-validé-0x0184bbeb)
 
 ---
 
@@ -535,4 +540,94 @@ Accepté & Implémenté.
   `cmpq $0x1000, %rdi ; ja .valid ; retq ; .valid: pushq %rbp ; pushq %r14 ; pushq %rbx ; movq 0x10(%rdi), %rax ; jmp 0x00133708`
   et hook à `0x00133700` (`jmp 0x00FE2E30 ; 3x nop`).
 * **Résultat** : Le pipeline audio (`brbDriver`, WASAPI audio ports 0, 9, 17, ATRAC9 Ajm context) s'initialise entièrement sans crash et l'exécutable tourne de manière continue et stable.
+
+---
+
+## ADR-033 : Neutralisation de la Boucle d'Attente Synchrone Audio `brb_StartSession` (`0x0012E890`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x0012E88D`, la fonction `brb_StartSession` vérifiait `cmpl 0x10(%rcx), %eax` suivi de `je 0x12e8ec` (`74 5A`). En cas de non-concordance immédiate des statuts d'état audio, la fonction bouclait jusqu'à 1000 fois avec des `sceKernelUsleep(10000)`, gelant le thread de chargement pendant 10 secondes entières avant de continuer.
+
+### Décision
+* Remplacement de `je 0x12e8ec` par un saut inconditionnel `jmp 0x12e8ec` (`EB 5A`) à `0x0012E890`.
+* **Résultat** : L'accusé de réception audio est immédiat (`brb_StartSession(): OK`), économisant 10 secondes de blocage au démarrage sans perturber le driver WASAPI.
+
+---
+
+## ADR-034 : Déblocage de la Barrière PlayGo dans `GameLoadingMountInitialArchives` (`0x00B77C77`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x00B77C6B`, `GameLoadingMountInitialArchives` interrogeait le compteur d'avancement PlayGo `*(int64_t *)(*(0x15af7d0) + 0x20)`. Si 0, l'instruction `je 0xb783e0` (`0F 84 63 07 00 00`) forçait une attente passive infinie avec des `Sleep(50ms)` en attendant que les chunks PS4 soient téléchargés en arrière-plan. Sur PC, l'intégralité des données du jeu est déjà présente sur disque local.
+
+### Décision
+* Remplacement du saut conditionnel de 6 octets à `0x00B77C77` par un NOP multi-octets (`66 0F 1F 44 00 00`).
+* **Résultat** : Le moteur monte immédiatement les archives initiales et accède à la boucle de chargement des ressources.
+
+---
+
+## ADR-035 : Neutralisation de la Trappe d'Assertion `m_gfxEopTick` dans `FrameBegin` (`0x00BD440F`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Dans `FrameBegin` (`ndlib/render/fg-draw-mgr.cpp`), le moteur s'assurait que la trame en recyclage (3 frames en arrière) avait bien reçu son tick GPU : `cmpq $0, 0xa28(%rax,%rcx) ; jne 0xbd444c` (`75 3B`). Si 0, l'assertion échouait et exécutait une interruption `int $0x41` (trappe debug à `0x00BD444A`). Sur PC lors de la première compilation des shaders Vulkan, le pipeline peut accuser une latence temporaire.
+
+### Décision
+* Remplacement de `jne 0xbd444c` par `jmp 0xbd444c` (`EB 3B`) à `0x00BD440F`.
+* **Résultat** : La progression des frames n'est plus interrompue par la latence initiale de compilation des shaders.
+
+---
+
+## ADR-036 : Protection Liste de Périphériques FIOS2 NULL dans la Résolution de Chemins (`0x0184BB9C`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Lors de la résolution de chemins pour des répertoires optionnels ou non existants (ex. dossiers DLC `%s/dc%u`), la liste des périphériques montés à `*(0x6c3c8)` dans `libSceFios2.prx` est vide (`rbx == NULL`). À `0x0184BB9C`, la fonction sautait sans vérification dans la boucle de correspondance (`jmp 0x184bca0`), laquelle déréférençait immédiatement `0xc0(%rbx)` à `0x0184BC8D`, provoquant une violation d'accès en lecture à `0x00000000000000c0` (thread 10428).
+
+### Décision
+* Remplacement du saut inconditionnel à `0x0184BB9C` par un saut vers la cave `0x0186DDF0` (`e9 4f 22 02 00`).
+* Trampoline de 14 octets dans la cave `0x0186DDF0` :
+  ```x86asm
+  testq %rbx, %rbx
+  je 0x0184BD0A       # Saut direct vers le repli sur périphérique par défaut
+  jmp 0x0184BCA0      # Poursuite normale de la boucle
+  ```
+* **Résultat** : Élimination totale du crash `0x00000000000000c0`, la résolution FIOS2 retombe proprement sur le périphérique par défaut sans interrompre les threads de chargement.
+
+---
+
+## ADR-037 : Protection Pointeur de Filtre Virtuel FIOS2 Non Validé (`0x0184BBEB`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+À `0x0184BBEB` dans `libSceFios2.prx`, la boucle de filtrage de périphérique exécute `callq *0x4118(%r12)`. Pour des chemins overlay ou synthétiques (ex: `/app0/u2data/data/fonts/ps4/*.fnt`), `*(r12 + 0x4118)` contenait un pointeur non mappé / non engagé en mémoire (`0x2f30b9a8`), déclenchant une violation d'accès immédiate sur le thread de chargement des polices.
+
+### Décision
+* Remplacement de l'instruction d'appel de 8 octets à `0x0184BBEB` par `jmp 0x0186DE10 ; 3x nop` (`e9 20 22 02 00 90 90 90`).
+* Trampoline de 38 octets dans la cave `0x0186DE10` :
+  ```x86asm
+  movq 0x4118(%r12), %rax
+  movq %rax, %r10
+  subq *(0x0186DE50), %r10    # Soustrait la base d'image hôte (stockée à l'initialisation)
+  cmpq $0x2000000, %r10       # Vérifie si le pointeur appartient au segment exécutable
+  jae .skip                   # Hors limites : filtre contourné
+  callq *%rax
+  jmp .done
+.skip:
+  movb $1, %al                # Simule un filtre concordant
+.done:
+  jmp 0x0184BBF3              # Reprise sur testb %al, %al sans corrompre les instructions
+  ```
+* **Résultat** : Les vérifications des polices et overlays franchissent le filtre sans plantage et accèdent directement à l'étape suivante de compilation des shaders.
 
