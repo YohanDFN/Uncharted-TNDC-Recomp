@@ -135,6 +135,13 @@ static int64_t ABI detour_DcNetCoopTeamFailedP(int32_t argc, uint64_t *argv, uin
     return *(const uint8_t *)(g_u2_image_base + 0x0113D910ull);
 }
 
+static int64_t ABI detour_DcNetCoopScriptId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669C30: (net-coop-script-id) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 static int64_t ABI detour_DcNetIsCinema(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669C50: (net-is-cinema) */
     (void)argc; (void)argv;
@@ -955,6 +962,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcJournalGetPage", 0x009FD110, (uintptr_t)detour_DcJournalGetPage },
     { "DcKillAllParticles", 0x00A0FE60, (uintptr_t)detour_DcKillAllParticles },
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
+    { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
     { "DcNetIsCinema", 0x00669C50, (uintptr_t)detour_DcNetIsCinema },
     { "DcPsnDemoShowUpsell", 0x009FD590, (uintptr_t)detour_DcPsnDemoShowUpsell },
     { "DcAutoSaveGame", 0x009FE820, (uintptr_t)detour_DcAutoSaveGame },
