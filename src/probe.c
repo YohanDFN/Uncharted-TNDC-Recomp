@@ -732,6 +732,21 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Usage: %s boot.bin [--cpu-only] [--strict-imports] [--list-missing] [--content-profile file] [--app0 dir] [--user dir] [--patches file] [--guest-argv file] [--timeout seconds] | --vulkan-only\n", argv[0]);
         return 1;
     }
+    if (!content_profile) {
+        static const char *candidate_profiles[] = {
+            "out/big2/content.bin",
+            "content.bin",
+            NULL
+        };
+        for (int i = 0; candidate_profiles[i]; ++i) {
+            FILE *f = fopen(candidate_profiles[i], "rb");
+            if (f) {
+                fclose(f);
+                content_profile = candidate_profiles[i];
+                break;
+            }
+        }
+    }
     if (content_profile) {
         FILE *profile=fopen(content_profile,"rb");
         unsigned char data[28];
@@ -744,6 +759,34 @@ int main(int argc, char **argv) {
             values[i]=(uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;
         }
         runtime_content_configure(values);
+    } else {
+        static const uint32_t default_profile_values[5] = { 3, 0, 0, 0, 0 };
+        runtime_content_configure(default_profile_values);
+    }
+    if (!app0) {
+        const char *env_app0 = getenv("BB_APP0");
+        if (env_app0 && *env_app0) {
+            app0 = env_app0;
+        } else {
+            static const char *default_app0_candidates[] = {
+                "C:/Users/Yohan/Desktop/Uncharted/CUSA02343",
+                "../Uncharted/CUSA02343",
+                "CUSA02343",
+                NULL
+            };
+            for (int c = 0; default_app0_candidates[c]; ++c) {
+                char check_path[1024];
+                snprintf(check_path, sizeof(check_path), "%s/sce_sys/param.sfo", default_app0_candidates[c]);
+                FILE *f = fopen(check_path, "rb");
+                if (f) {
+                    fclose(f);
+                    app0 = default_app0_candidates[c];
+                    printf("[U2 Runtime] Auto-detected /app0 directory: %s\n", app0);
+                    fflush(stdout);
+                    break;
+                }
+            }
+        }
     }
     if (app0) {
         runtime_file_configure(app0, user_dir ? user_dir : "user");

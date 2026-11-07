@@ -975,32 +975,58 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
 
     runtime_u2_apply_engine_patches(image, image_size);
 
+    /*
+     * ADR-041: Modular Detour Selector & Validation Framework.
+     * Allows testing detours in isolation:
+     * - BB_U2_MODULES=none (or BB_U2_DISABLE_DETOURS=1): baseline pure ELF mode (0 module detours).
+     * - BB_U2_MODULES=player,scene,... : enables only specified modules.
+     * - default: enables all modules.
+     */
     const char *disable_detours = getenv("BB_U2_DISABLE_DETOURS");
-    if (disable_detours && *disable_detours && *disable_detours != '0') {
-        printf("[U2 Recomp] Native C detours disabled via BB_U2_DISABLE_DETOURS=1\n");
-        return;
-    }
+    const char *modules_env = getenv("BB_U2_MODULES");
+    const bool disable_all_modules = (disable_detours && *disable_detours && *disable_detours != '0') ||
+                                     (modules_env && strcmp(modules_env, "none") == 0);
 
     size_t installed = 0;
 
-    /* Collect and install detours from all specialized native modules */
-    typedef size_t (*ModuleGetter)(const U2NativeDetour **);
-    static const ModuleGetter s_module_getters[] = {
-        u2_get_player_detours,
-        u2_get_npc_detours,
-        u2_get_audio_detours,
-        u2_get_event_detours,
-        u2_get_scene_detours,
+    typedef struct {
+        const char *name;
+        size_t (*getter)(const U2NativeDetour **);
+    } ModuleEntry;
+
+    static const ModuleEntry s_modules[] = {
+        { "player", u2_get_player_detours },
+        { "npc",    u2_get_npc_detours },
+        { "audio",  u2_get_audio_detours },
+        { "event",  u2_get_event_detours },
+        { "scene",  u2_get_scene_detours },
     };
 
-    for (size_t g = 0; g < sizeof(s_module_getters) / sizeof(s_module_getters[0]); ++g) {
-        const U2NativeDetour *mod_detours = NULL;
-        size_t count = s_module_getters[g](&mod_detours);
-        for (size_t i = 0; i < count; ++i) {
-            if (mod_detours[i].offset + 14 <= image_size) {
-                write_detour_jmp64(image + mod_detours[i].offset, mod_detours[i].host_fn);
-                ++installed;
+    if (disable_all_modules) {
+        printf("[U2 Recomp] All 5 native C modules disabled (baseline ELF pur mode - ADR-041)\n");
+        fflush(stdout);
+    } else {
+        for (size_t g = 0; g < sizeof(s_modules) / sizeof(s_modules[0]); ++g) {
+            bool enabled = true;
+            if (modules_env && *modules_env && strcmp(modules_env, "all") != 0) {
+                enabled = (strstr(modules_env, s_modules[g].name) != NULL);
             }
+            if (!enabled) {
+                printf("[U2 Recomp] Module '%s' disabled\n", s_modules[g].name);
+                continue;
+            }
+            const U2NativeDetour *mod_detours = NULL;
+            size_t count = s_modules[g].getter(&mod_detours);
+            size_t mod_installed = 0;
+            for (size_t i = 0; i < count; ++i) {
+                if (mod_detours[i].offset > 0 && mod_detours[i].offset + 14 <= image_size) {
+                    write_detour_jmp64(image + mod_detours[i].offset, mod_detours[i].host_fn);
+                    ++installed;
+                    ++mod_installed;
+                }
+            }
+            printf("[U2 Recomp] Module '%s': installed %zu native detours\n", s_modules[g].name, mod_installed);
+            fflush(stdout);
         }
     }
 
