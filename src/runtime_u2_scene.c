@@ -135,6 +135,16 @@ static int64_t ABI detour_DcNetCoopTeamFailedP(int32_t argc, uint64_t *argv, uin
     return *(const uint8_t *)(g_u2_image_base + 0x0113D910ull);
 }
 
+static int64_t ABI detour_DcNetIsCinema(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669C50: (net-is-cinema) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t net_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
+    if (net_mode < 2) return 0;
+    return (*(const uint8_t *)(g_u2_image_base + 0x0113B760ull + 0x209C) != 0) ? 1 : 0;
+}
+
 static int64_t ABI detour_DcPsnDemoShowUpsell(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD590: (psn-demo-show-upsell) */
     (void)argc; (void)argv; (void)status;
@@ -911,6 +921,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcJournalGetPage", 0x009FD110, (uintptr_t)detour_DcJournalGetPage },
     { "DcKillAllParticles", 0x00A0FE60, (uintptr_t)detour_DcKillAllParticles },
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
+    { "DcNetIsCinema", 0x00669C50, (uintptr_t)detour_DcNetIsCinema },
     { "DcPsnDemoShowUpsell", 0x009FD590, (uintptr_t)detour_DcPsnDemoShowUpsell },
     { "DcRailSetIgcFadeOutTime", 0x00AB93F0, (uintptr_t)detour_DcRailSetIgcFadeOutTime },
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
