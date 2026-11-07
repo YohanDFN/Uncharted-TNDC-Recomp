@@ -24,6 +24,7 @@
 * [ADR-038 : Sécurisation du Compteur de Synchronisation Frame Job 2 (`0x003F68C0`)](#adr-038--sécurisation-du-compteur-de-synchronisation-frame-job-2-0x003f68c0)
 * [ADR-039 : Neutralisation des Callbacks Indirects Audio Mixer Corrompus (`0x001377A6` & `0x00137874`)](#adr-039--neutralisation-des-callbacks-indirects-audio-mixer-corrompus-0x001377a6--0x00137874)
 * [ADR-040 : Neutralisation du Validateur Vectoriel de Paramètres Audio (`0x0013C740`)](#adr-040--neutralisation-du-validateur-vectoriel-de-paramètres-audio-0x0013c740)
+* [ADR-041 : Architecture de Découplage et Validation Modulaire des Détours C Natifs](#adr-041--architecture-de-découplage-et-validation-modulaire-des-détours-c-natifs)
 
 ---
 
@@ -685,4 +686,19 @@ La routine `0x0013C740` effectue une vérification d'assertion/clamp sur le vect
 ### Décision
 * Remplacement du premier octet de `0x0013C740` par `retq` (`0xC3`).
 * **Résultat** : `%xmm0` et tous les registres callee-saved sont préservés, éliminant tout débordement de pile lors du traitement des voix.
+
+---
+
+## ADR-041 : Architecture de Découplage et Validation Modulaire des Détours C Natifs
+
+### Statut
+Accepté & Documenté.
+
+### Contexte & Problème
+Plus de 930 fonctions décompilées en C natif sont injectées lors de l'initialisation (`src/runtime_u2_script.c`). Auparavant, le commutateur global `BB_U2_DISABLE_DETOURS=1` désactivait indifféremment les detours applicatifs ET l'infrastructure vitale (Gfx sync, Job workers, State machine, patchs mémoire ADR). Cela empêchait d'exécuter l'ELF PS4 d'origine dans des conditions saines et d'isoler unitaire les régressions introduites par les réécritures en C.
+
+### Décision
+* Découplage strict entre la **Couche 1 : Infrastructure Vitale** (permanente et inconditionnelle) et la **Couche 2 : Détours Applicatifs Modulaires** (`player`, `npc`, `scene`, `event`, `audio`).
+* Mise en place d'un protocole de validation à 4 paliers (Palier 0 : Baseline ELF pur -> Palier 1 : Par sous-système -> Palier 2 : Dichotomie chirurgicale -> Palier 3 : Traçage télémétrique).
+* Spécification complète et protocole détaillés dans [`docs/DETOUR_VALIDATION.md`](docs/DETOUR_VALIDATION.md).
 
