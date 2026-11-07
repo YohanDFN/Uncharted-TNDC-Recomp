@@ -82,6 +82,22 @@ static int64_t ABI detour_DcEventArgString(int32_t argc, uint64_t *argv, uint32_
     return (int64_t)*(const uint64_t *)slot;
 }
 
+static int64_t ABI detour_DcEventArgBoundFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C28F0: (event-arg-bound-frame [arg-idx]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    int32_t idx = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
+    int8_t num_args = *(const int8_t *)(frame + 0x20);
+    if (idx < 0 || idx >= (int32_t)num_args) return 0;
+    const uint8_t *slot = frame + 0x28 + (uint64_t)idx * 24u;
+    return (int64_t)*(const uint64_t *)slot;
+}
+
 static int64_t ABI detour_DcEventReturnBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x004C1FF0: (event-return-boolean val) */
     if (status) *status = 0;
@@ -162,6 +178,26 @@ static int64_t ABI detour_DcEventReturnSymbol(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcEventSender(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C1DF0: (event-sender) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    const uint8_t *memento_slot = *(const uint8_t **)(frame + 0x10);
+    if (!memento_slot) return 0;
+    uint32_t tag = *(const uint32_t *)(frame + 0x18);
+    if (!tag) return 0;
+    const uint8_t *target = *(const uint8_t **)memento_slot;
+    if (!target) return 0;
+    if (*(const uint32_t *)(target + 0x44) != tag) return 0;
+    return (int64_t)*(const uint32_t *)(target + 0x68);
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -169,11 +205,13 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgFloat", 0x004C2BF0, (uintptr_t)detour_DcEventArgFloat },
     { "DcEventArgSymbol", 0x004C2DA0, (uintptr_t)detour_DcEventArgSymbol },
     { "DcEventArgString", 0x004C2EC0, (uintptr_t)detour_DcEventArgString },
+    { "DcEventArgBoundFrame", 0x004C28F0, (uintptr_t)detour_DcEventArgBoundFrame },
     { "DcEventReturnBoolean", 0x004C1FF0, (uintptr_t)detour_DcEventReturnBoolean },
     { "DcEventReturnInt32", 0x004C2390, (uintptr_t)detour_DcEventReturnInt32 },
     { "DcEventReturnUint32", 0x004C21D0, (uintptr_t)detour_DcEventReturnUint32 },
     { "DcEventReturnFloat", 0x004C2550, (uintptr_t)detour_DcEventReturnFloat },
     { "DcEventReturnSymbol", 0x004C2720, (uintptr_t)detour_DcEventReturnSymbol },
+    { "DcEventSender", 0x004C1DF0, (uintptr_t)detour_DcEventSender },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
