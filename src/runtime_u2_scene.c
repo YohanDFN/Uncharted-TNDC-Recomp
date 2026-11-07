@@ -152,6 +152,25 @@ static int64_t ABI detour_DcPsnDemoShowUpsell(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcAutoSaveGame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE820: (auto-save-game) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t enabled = *(const uint8_t *)(g_u2_image_base + 0x0105053Dull);
+    if (!enabled) return 0;
+    void *save_mgr = (void *)(g_u2_image_base + 0x01050E68ull);
+    int32_t slot = *(const int32_t *)((const uint8_t *)save_mgr + 0x1FC);
+    if (slot < 0) return 0;
+    typedef void (ABI *SaveReqFn)(void *mgr, uint32_t action, int32_t slot, uint32_t mode, uint32_t flags, int32_t extra);
+    SaveReqFn save_fn = (SaveReqFn)(uintptr_t)(g_u2_image_base + 0x00CD2800ull);
+    if (save_fn) {
+        save_fn(save_mgr, 1, 10, 0, 4, -1);
+        save_fn(save_mgr, 1, slot, 0, 0, -1);
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcRailSetIgcFadeOutTime(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00AB93F0: (rail-set-igc-fade-out-time t) */
     (void)status;
@@ -923,6 +942,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
     { "DcNetIsCinema", 0x00669C50, (uintptr_t)detour_DcNetIsCinema },
     { "DcPsnDemoShowUpsell", 0x009FD590, (uintptr_t)detour_DcPsnDemoShowUpsell },
+    { "DcAutoSaveGame", 0x009FE820, (uintptr_t)detour_DcAutoSaveGame },
     { "DcRailSetIgcFadeOutTime", 0x00AB93F0, (uintptr_t)detour_DcRailSetIgcFadeOutTime },
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
     { "DcTutorialHintsOnP", 0x00A0F490, (uintptr_t)detour_DcTutorialHintsOnP },
