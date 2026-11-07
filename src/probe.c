@@ -177,6 +177,15 @@ static LONG fatal_exception(EXCEPTION_POINTERS *info) {
     fprintf(stderr,"  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n  r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx\n  r12=%016llx r13=%016llx r14=%016llx r15=%016llx\n",
             c->Rax,c->Rbx,c->Rcx,c->Rdx,c->Rsi,c->Rdi,c->Rbp,c->Rsp,
             c->R8,c->R9,c->R10,c->R11,c->R12,c->R13,c->R14,c->R15);
+    uintptr_t *sp = (uintptr_t *)c->Rsp;
+    if (sp) {
+        char s0[64]="", s1[64]="", s2[64]="", s3[64]="";
+        describe_address(s0, sizeof(s0), sp[0]);
+        describe_address(s1, sizeof(s1), sp[1]);
+        describe_address(s2, sizeof(s2), sp[2]);
+        describe_address(s3, sizeof(s3), sp[3]);
+        fprintf(stderr, "  Stack return pointers: [rsp]=%s, [rsp+8]=%s, [rsp+16]=%s, [rsp+24]=%s\n", s0, s1, s2, s3);
+    }
     extern uintptr_t s_last_job_fn;
     extern void     *s_last_job_arg;
     if (s_last_job_fn) {
@@ -321,7 +330,8 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
         }
     }
     if (code==EXCEPTION_ACCESS_VIOLATION || code==EXCEPTION_ILLEGAL_INSTRUCTION || code==EXCEPTION_PRIV_INSTRUCTION ||
-        code==EXCEPTION_STACK_OVERFLOW || code==EXCEPTION_INT_DIVIDE_BY_ZERO || code==EXCEPTION_DATATYPE_MISALIGNMENT) {
+        code==EXCEPTION_STACK_OVERFLOW || code==EXCEPTION_INT_DIVIDE_BY_ZERO || code==EXCEPTION_DATATYPE_MISALIGNMENT ||
+        code==EXCEPTION_BREAKPOINT) {
         return fatal_exception(info);
     }
     /* BB_STRICT_HANDLES=1: a closed or invalid handle used anywhere is reported (diagnostics). */

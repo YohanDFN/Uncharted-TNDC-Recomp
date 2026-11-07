@@ -1405,13 +1405,15 @@ static void ABI detour_GfxWaitEopFence(void *sync_obj, uint64_t target_tick, uin
     /*
      * Mode 1 waits (loading availability milestones), PlayGo sync, TextureManager VRAM
      * chunk streaming sync (0x00BF2F05), Audio/ARM job sync (0x003B5002 / 0x1200105200),
-     * and AppInit Job 2 completion sync (0x003F43BE / 0x1200105180)
+     * and AppInit Job 2 completion wait (caller 0x003F43BE)
      * must be satisfied immediately to avoid worker thread pool starvation / deadlocks.
+     * Note: sync_obj == 0x1200105180 is reused by AppMainLoop (0x003F4BAE) to wait for the
+     * continuous main loop job (0x003FA9F0); satisfying it for 0x003F4BAE causes AppMainLoop
+     * to prematurely exit and invoke Terminate (0x003F4470).
      */
     if (mode == 1 || (playgo_sync && sync_obj == playgo_sync) ||
         caller_va == 0x00BF2F05 || (vram_sync && sync_obj == vram_sync) ||
         (sync_obj && (uintptr_t)sync_obj == 0x1200105200ULL) ||
-        (sync_obj && (uintptr_t)sync_obj == 0x1200105180ULL) ||
         caller_va == 0x003F43BE ||
         stack_ret0 == 0x3f43be || stack_ret1 == 0x3f43be || stack_ret2 == 0x3f43be || stack_ret3 == 0x3f43be ||
         stack_ret0 == 0x3b5002 || stack_ret1 == 0x3b5002 || stack_ret2 == 0x3b5002 || stack_ret3 == 0x3b5002) {
@@ -1607,6 +1609,7 @@ uintptr_t g_host_code_base = 0;
 uintptr_t g_host_code_limit = 0;
 uintptr_t s_last_job_fn = 0;
 void     *s_last_job_arg = NULL;
+volatile uint64_t s_job_dispatch_count = 0;
 uint32_t runtime_thread_tcb_offset(void);
 
 __attribute__((naked)) static void hook_JobDispatch(void) {
@@ -1624,6 +1627,7 @@ __attribute__((naked)) static void hook_JobDispatch(void) {
         "2:\n\t"
         "movq %%r15, s_last_job_fn(%%rip)\n\t"
         "movq %%rdi, s_last_job_arg(%%rip)\n\t"
+        "lock incq s_job_dispatch_count(%%rip)\n\t"
         "callq *%%r15\n\t"
         "1:\n\t"
         "movl s_tcb_offset(%%rip), %%eax\n\t"
@@ -1633,6 +1637,61 @@ __attribute__((naked)) static void hook_JobDispatch(void) {
         :
         : "memory"
     );
+}
+
+static inline bool is_readable(const void *p, size_t sz) {
+    (void)sz;
+    MEMORY_BASIC_INFORMATION mbi;
+    if (VirtualQuery(p, &mbi, sizeof(mbi)) == sizeof(mbi)) {
+        if (mbi.State == MEM_COMMIT && !(mbi.Protect & PAGE_NOACCESS) && !(mbi.Protect & PAGE_GUARD)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static DWORD WINAPI u2_engine_heartbeat_thread(LPVOID param) {
+    (void)param;
+    printf("[U2 Heartbeat] Monitor thread started!\n");
+    fflush(stdout);
+    int tick = 0;
+    while (++tick <= 60) {
+        Sleep(1000);
+        if (!g_u2_image_base) continue;
+
+        uint64_t frame_count = 0;
+        void *p_frame = g_u2_image_base + 0x01116180 + 0x20;
+        if (is_readable(p_frame, 8)) {
+            frame_count = *(uint64_t *)p_frame;
+        }
+
+        uint64_t last_submit = 0;
+        void *p_sub = g_u2_image_base + 0x010508d0;
+        if (is_readable(p_sub, 8)) {
+            last_submit = *(uint64_t *)p_sub;
+        }
+
+        uint32_t ucc_state = 0;
+        void *p_ucc = g_u2_image_base + 0x010532D0;
+        if (is_readable(p_ucc, 4)) {
+            ucc_state = *(uint32_t *)p_ucc;
+        }
+
+        uint8_t quit_flag = 0;
+        void *p_quit = g_u2_image_base + 0x01114159;
+        if (is_readable(p_quit, 1)) {
+            quit_flag = *(uint8_t *)p_quit;
+        }
+
+        uint64_t jobs = s_job_dispatch_count;
+        uintptr_t last_job = s_last_job_fn;
+        uintptr_t last_off = (last_job >= (uintptr_t)g_u2_image_base && last_job < (uintptr_t)g_u2_image_base + 0x2000000)
+                               ? (last_job - (uintptr_t)g_u2_image_base) : 0;
+        printf("[U2 Loop] Heartbeat #%d | frames=%" PRIu64 " | last_sub=%" PRIu64 " | ucc=%u | quit=%u | jobs=%" PRIu64 " | last_job=%p (off=0x%llx)\n",
+               tick, frame_count, last_submit, ucc_state, quit_flag, jobs, (void *)last_job, (unsigned long long)last_off);
+        fflush(stdout);
+    }
+    return 0;
 }
 
 /* ============================================================================
@@ -3126,6 +3185,78 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         fflush(stdout);
     }
 
+    /*
+     * ADR-039: Guard Audio DSP Voice Process Callback at 0x001377A6.
+     * In the audio stream/voice mixing loop (0x00137430), 0x001377A6 executes 'callq *0x250(%rbx)'
+     * where %rbx is the audio voice DSP processor structure (-0x30(%rbp)).
+     * When uninitialized or corrupted, *0x250(%rbx) points to constant/code cave data containing 0xCC (int 3)
+     * at 0x00FE2534, triggering an immediate EXCEPTION_BREAKPOINT (0x80000003) crash in thread 'brbDriver'.
+     * We install a 55-byte trampoline at code cave 0x00FE2E60:
+     * - Verifies %rbx != NULL and *0x250(%rbx) != NULL.
+     * - Subtracts guest image base to derive relative offset (%r11).
+     * - Validates %r11 is within guest executable code range [0x10000, 0x00FE0000).
+     * - If valid, calls *%rax; if invalid, safely skips the call.
+     * - Resumes execution cleanly at 0x001377AC.
+     */
+    if (image_size > 0x00FE2E60 + 55) {
+        static const uint8_t s_cave_1377a6[55] = {
+            0x48, 0x85, 0xdb,                               /* testq %rbx, %rbx */
+            0x74, 0x2d,                                     /* jz skip (to 0x32) */
+            0x48, 0x8b, 0x83, 0x50, 0x02, 0x00, 0x00,       /* movq 0x250(%rbx), %rax */
+            0x48, 0x85, 0xc0,                               /* testq %rax, %rax */
+            0x74, 0x21,                                     /* jz skip (to 0x32) */
+            0x48, 0x8d, 0x0d, 0x88, 0xd1, 0x01, 0xff,       /* leaq -0xfe2e78(%rip), %rcx (image base) */
+            0x49, 0x89, 0xc3,                               /* movq %rax, %r11 */
+            0x49, 0x29, 0xcb,                               /* subq %rcx, %r11 */
+            0x49, 0x81, 0xfb, 0x00, 0x00, 0x01, 0x00,       /* cmpq $0x10000, %r11 */
+            0x72, 0x0b,                                     /* jb skip (to 0x32) */
+            0x49, 0x81, 0xfb, 0x00, 0x00, 0xfe, 0x00,       /* cmpq $0xfe0000, %r11 */
+            0x73, 0x02,                                     /* jae skip (to 0x32) */
+            0xff, 0xd0,                                     /* callq *%rax */
+            0xe9, 0x15, 0x49, 0x15, 0xff                    /* jmp 0x001377AC (resume) */
+        };
+        static const uint8_t s_patch_1377a6[6] = {
+            0xe9, 0xb5, 0xb6, 0xea, 0x00,                   /* jmp 0x00FE2E60 */
+            0x90                                            /* nop */
+        };
+        memcpy(image + 0x00FE2E60, s_cave_1377a6, sizeof(s_cave_1377a6));
+        memcpy(image + 0x001377A6, s_patch_1377a6, sizeof(s_patch_1377a6));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x001377A6: Guard audio DSP voice process callback (ADR-039)\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-039 (part 2): Bypass secondary audio voice callback at 0x00137874.
+     * In the same voice mixing loop (0x00137430), offset 0x00137874 executes 'callq *0x258(%rax)'
+     * where %rax is also the audio voice DSP processor structure (-0x30(%rbp)).
+     * When invoked during early stream init, this triggers an out-of-bounds stack overflow loop.
+     * We bypass this secondary callback with 6 NOPs, preserving %rdx restore at 0x0013787A.
+     */
+    if (image_size > 0x00137874 + 6) {
+        static const uint8_t s_nop_137874[6] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+        memcpy(image + 0x00137874, s_nop_137874, sizeof(s_nop_137874));
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x00137874: Bypass audio DSP voice process callback 2 (ADR-039)\n");
+        fflush(stdout);
+    }
+
+    /*
+     * ADR-040: Stub Voice Parameter Vector Validator (0x0013C740).
+     * The routine at 0x0013C740 validates that 4-component float vector %xmm0 is clamped
+     * between lower bound %xmm1 and upper bound %xmm2, calling the log routine 0x12d570
+     * if out-of-bounds. It restores %xmm0 from stack without modifications.
+     * Due to loop index overflow past 4 in guest stack unwinding, it runs off the stack
+     * and crashes with read access violation at 0x0013C798.
+     * Stubbing with 'retq' (0xC3) preserves %xmm0 and returns safely.
+     */
+    if (image_size > 0x0013C740) {
+        image[0x0013C740] = 0xC3; /* retq */
+        installed++;
+        printf("[U2 Engine] Applied patch at 0x0013C740: Stub voice parameter validator (ADR-040)\n");
+        fflush(stdout);
+    }
+
     const char *native_vm_env = getenv("BB_U2_NATIVE_VM");
     const int enable_native_vm = (native_vm_env && *native_vm_env && *native_vm_env != '0');
     if (enable_native_vm) {
@@ -3153,4 +3284,9 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
            enable_native_evalex ? "NATIVE_C" : "GUEST_ELF",
            enable_native_run ? "NATIVE_C" : "GUEST_ELF");
     fflush(stdout);
+
+    HANDLE hHeartbeat = CreateThread(NULL, 0, u2_engine_heartbeat_thread, NULL, 0, NULL);
+    printf("[U2 Engine] Created heartbeat thread: handle=%p (err=%lu)\n", hHeartbeat, GetLastError());
+    fflush(stdout);
+    if (hHeartbeat) CloseHandle(hHeartbeat);
 }

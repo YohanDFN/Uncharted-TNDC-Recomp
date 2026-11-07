@@ -21,6 +21,9 @@
 * [ADR-035 : Neutralisation de la Trappe d'Assertion `m_gfxEopTick` dans `FrameBegin` (`0x00BD440F`)](#adr-035--neutralisation-de-la-trappe-dassertion-m_gfxeoptick-dans-framebegin-0x00bd440f)
 * [ADR-036 : Protection Liste de Périphériques FIOS2 NULL dans la Résolution de Chemins (`0x0184BB9C`)](#adr-036--protection-liste-de-périphériques-fios2-null-dans-la-résolution-de-chemins-0x0184bb9c)
 * [ADR-037 : Protection Pointeur de Filtre Virtuel FIOS2 Non Validé (`0x0184BBEB`)](#adr-037--protection-pointeur-de-filtre-virtuel-fios2-non-validé-0x0184bbeb)
+* [ADR-038 : Sécurisation du Compteur de Synchronisation Frame Job 2 (`0x003F68C0`)](#adr-038--sécurisation-du-compteur-de-synchronisation-frame-job-2-0x003f68c0)
+* [ADR-039 : Neutralisation des Callbacks Indirects Audio Mixer Corrompus (`0x001377A6` & `0x00137874`)](#adr-039--neutralisation-des-callbacks-indirects-audio-mixer-corrompus-0x001377a6--0x00137874)
+* [ADR-040 : Neutralisation du Validateur Vectoriel de Paramètres Audio (`0x0013C740`)](#adr-040--neutralisation-du-validateur-vectoriel-de-paramètres-audio-0x0013c740)
 
 ---
 
@@ -630,4 +633,56 @@ Accepté & Implémenté.
   jmp 0x0184BBF3              # Reprise sur testb %al, %al sans corrompre les instructions
   ```
 * **Résultat** : Les vérifications des polices et overlays franchissent le filtre sans plantage et accèdent directement à l'étape suivante de compilation des shaders.
+
+---
+
+## ADR-038 : Sécurisation du Compteur de Synchronisation Frame Job 2 (`0x003F68C0`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Dans le moteur Naughty Dog, `detour_Job2` intercepte la barrière de synchronisation de frame `Job2` (`0x003F68C0`). Le sync counter global (`0x1200105000` / `0x1200105180`) est utilisé par plusieurs jobs asynchrones. Auparavant, une synchronisation agressive décrémentait ou forçait le compteur pour tous les appelants, créant des désynchronisations prématurées entre `UCCApp` et les passes de rendu.
+
+### Décision
+* Restriction stricte du déclenchement du forçage de synchronisation dans `detour_Job2` : l'ajustement ne s'applique que lorsque `caller_offset == 0x003F43BE` (boucle principale de la frame), préservant ainsi les compteurs des autres jobs parallèles.
+* **Résultat** : La séquence de synchronisation de la frame `AppMainLoop` (Sync #1 à #12) se déroule dans l'ordre attendu sans blocage ni décalage de trame.
+
+---
+
+## ADR-039 : Neutralisation des Callbacks Indirects Audio Mixer Corrompus (`0x001377A6` & `0x00137874`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+Dans la boucle de mixage audio DSP (`0x00137430`), exécutée en continu sur le thread `brbDriver`, deux appels indirects utilisent des pointeurs de rappel stockés dans la structure DSP de la voix (`-0x30(%rbp)`) :
+1. `0x001377A6` : `callq *0x250(%rbx)`
+2. `0x00137874` : `callq *0x258(%rax)`
+
+Lors de l'initialisation du pipeline audio WASAPI sous Windows, `*0x250(%rbx)` pointe vers la zone de données constantes `0x00FE2534` qui contient `0xCC` (`int 3`), provoquant une interruption immédiate `EXCEPTION_BREAKPOINT` (`0x80000003`) non gérée qui terminait silencieusement le processus.
+De même, `*0x258(%rax)` déclenchait une cascade de mixage DSP prématurée sur des canaux de voix encore incomplets.
+
+### Décision
+1. **Trampoline sécurisé à `0x00FE2E60` pour `0x001377A6`** :
+   * Valide que `%rbx != NULL` et que `*0x250(%rbx)` se trouve dans la plage exécutable valide `[0x10000, 0x00FE0000)`.
+   * Si l'adresse est invalide (ex: pointeur vers cave `0x00FE2534`), l'appel est ignoré en toute sécurité et l'exécution reprend à `0x001377AC`.
+2. **Contournement sécurisé à `0x00137874`** :
+   * Remplacement de l'instruction de 6 octets `callq *0x258(%rax)` par 6 NOPs (`90 90 90 90 90 90`).
+   * La restauration de `%rdx` (`movq %rbx, %rdx` à `0x0013787A`) est préservée intacte.
+* **Résultat** : Le crash `0x80000003` sur `brbDriver` à `0x00FE2534` est éliminé. Le thread audio s'exécute de façon fluide à travers l'ensemble des voies de mixage.
+
+---
+
+## ADR-040 : Neutralisation du Validateur Vectoriel de Paramètres Audio (`0x0013C740`)
+
+### Statut
+Accepté & Implémenté.
+
+### Contexte & Problème
+La routine `0x0013C740` effectue une vérification d'assertion/clamp sur le vecteur flottant à 4 composantes `%xmm0` (bornes `%xmm1` et `%xmm2`), et invoque la routine de log `0x12D570` en cas de dépassement. Elle restaure le vecteur d'origine depuis `-0xD0(%rbp)` sans modifier l'état du moteur. Lors de l'itération des canaux voix audio, l'unwinding de pile et le dépassement de l'index de boucle provoquaient une sortie de pile et une violation d'accès en lecture à `0x0013C798`.
+
+### Décision
+* Remplacement du premier octet de `0x0013C740` par `retq` (`0xC3`).
+* **Résultat** : `%xmm0` et tous les registres callee-saved sont préservés, éliminant tout débordement de pile lors du traitement des voix.
 
