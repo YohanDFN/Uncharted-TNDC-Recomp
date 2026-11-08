@@ -1,6 +1,27 @@
 /* Uncharted 2: Scene Actors, Entity Queries, Shipping Stubs & Utilities */
 #include "runtime_u2_common.h"
 
+static int64_t ABI detour_DcObjectSpawnedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A12780: (object-spawned? [name-id]) */
+    (void)status;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t id = 0;
+    if (argc > 0 && argv) {
+        id = (uint32_t)argv[0];
+        typedef void (ABI *StringIdToStringFn)(uint32_t id, const void *unused);
+        StringIdToStringFn str_fn = (StringIdToStringFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_fn) str_fn(id, NULL);
+    } else {
+        typedef uint32_t (ABI *GetDefaultTargetFn)(void *, void *, int32_t);
+        GetDefaultTargetFn *p_fn = (GetDefaultTargetFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_fn && *p_fn) id = (*p_fn)(NULL, NULL, 1);
+    }
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    return (find_fn && find_fn(0, id) != NULL) ? 1 : 0;
+}
+
 static int64_t ABI detour_DcEntityName(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A127D0: (entity-name ent) */
     (void)status;
@@ -390,6 +411,23 @@ static int64_t ABI detour_DcGameTaskGraphLogin(int32_t argc, uint64_t *argv, uin
     return 0;
 }
 
+static int64_t ABI detour_DcRemoveDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEDF0: (remove-dynamic-light id) */
+    (void)status;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc > 0 && argv) {
+        uint32_t id = (uint32_t)argv[0];
+        typedef void (ABI *StringIdToStringFn)(uint32_t id, const void *unused);
+        StringIdToStringFn str_fn = (StringIdToStringFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_fn) str_fn(id, NULL);
+        typedef void (ABI *RemoveLightFn)(uint32_t id);
+        RemoveLightFn remove_fn = (RemoveLightFn)(uintptr_t)(g_u2_image_base + 0x00B7A470ull);
+        if (remove_fn) remove_fn(id);
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcRestoreBlur(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FFF20: (restore-blur) */
     (void)argc; (void)argv;
@@ -437,6 +475,29 @@ static int64_t ABI detour_DcTrainGetDefaultAcceleration(int32_t argc, uint64_t *
     /* 0x00A682E0: (train-get-default-acceleration) -> 2.0f (0x40000000) */
     (void)argc; (void)argv; (void)status;
     return 0x40000000ll;
+}
+
+static int64_t ABI detour_DcKillAllBreakables(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F260: (kill-all-breakables) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *entity_mgr = g_u2_image_base + 0x0115F1A0ull;
+    const void *head = *(const void * const *)(entity_mgr + 0xC58);
+    typedef void * (ABI *GetNextEntityFn)(const void *cur, int32_t mode);
+    typedef void (ABI *KillEntityFn)(void *ent);
+    GetNextEntityFn get_next = (GetNextEntityFn)(uintptr_t)(g_u2_image_base + 0x009BCDF0ull);
+    KillEntityFn kill_ent = (KillEntityFn)(uintptr_t)(g_u2_image_base + 0x009BE760ull);
+    if (!get_next || !kill_ent) return 0;
+    void *cur = get_next(head, 0);
+    while (cur) {
+        uint16_t flags = *(const uint16_t *)((const uint8_t *)cur + 0x34);
+        if ((flags & 1) && *(const uint32_t *)((const uint8_t *)cur + 0x30) == 0x8B7D6F1Au) {
+            kill_ent(cur);
+        }
+        cur = get_next(cur, 0);
+    }
+    return 0;
 }
 
 static int64_t ABI detour_DcTutorialHintsOnP(int32_t argc, uint64_t *argv, uint32_t *status) {
@@ -1177,6 +1238,7 @@ static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
+    { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
     { "DcSymbolEqualP", 0x00397620, (uintptr_t)detour_DcSymbolEqualP },
     { "DcCameraCancelAimOverride", 0x00A0DE30, (uintptr_t)detour_DcCameraCancelAimOverride },
     { "DcCameraRestoreLocator", 0x00A0E9B0, (uintptr_t)detour_DcCameraRestoreLocator },
@@ -1215,10 +1277,12 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcAutoSaveGame", 0x009FE820, (uintptr_t)detour_DcAutoSaveGame },
     { "DcUpdateTaskMenu", 0x009FE8C0, (uintptr_t)detour_DcUpdateTaskMenu },
     { "DcGameTaskGraphLogin", 0x009FE8F0, (uintptr_t)detour_DcGameTaskGraphLogin },
+    { "DcRemoveDynamicLight", 0x009FEDF0, (uintptr_t)detour_DcRemoveDynamicLight },
     { "DcRestoreBlur", 0x009FFF20, (uintptr_t)detour_DcRestoreBlur },
     { "DcDeactivateBlur", 0x009FFF50, (uintptr_t)detour_DcDeactivateBlur },
     { "DcRailSetIgcFadeOutTime", 0x00AB93F0, (uintptr_t)detour_DcRailSetIgcFadeOutTime },
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
+    { "DcKillAllBreakables", 0x00A0F260, (uintptr_t)detour_DcKillAllBreakables },
     { "DcTutorialHintsOnP", 0x00A0F490, (uintptr_t)detour_DcTutorialHintsOnP },
     { "DcUseWaterUnitForReflectionIfVisible", 0x00A02C50, (uintptr_t)detour_DcUseWaterUnitForReflectionIfVisible },
     { "DcAngleMod", 0x00397630, (uintptr_t)detour_DcAngleMod },

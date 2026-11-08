@@ -75,6 +75,23 @@ static int64_t ABI detour_DcCacheSpeechStream(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcSetMixerOverride(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD3B0: (set-mixer-override id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc > 0 && argv) {
+        uint32_t id = (uint32_t)argv[0];
+        typedef void (ABI *StringIdToStringFn)(uint32_t id, const void *unused);
+        StringIdToStringFn str_fn = (StringIdToStringFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_fn) str_fn(id, NULL);
+        uint8_t *audio_mgr = g_u2_image_base + 0x01111750ull;
+        if (audio_mgr && audio_mgr[8] != 0) {
+            *(uint32_t *)(audio_mgr + 0x4E0) = id;
+        }
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcCacheMusicPlaylist(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD460: (cache-music-playlist playlist-name) */
     if (status) *status = 0;
@@ -125,6 +142,7 @@ static const U2NativeDetour s_audio_detours[] = {
     { "DcCacheSoundBank", 0x009FD540, (uintptr_t)detour_DcCacheSoundBank },
     { "DcCacheSoundStream", 0x009FD510, (uintptr_t)detour_DcCacheSoundStream },
     { "DcCacheSpeechStream", 0x009FD4E0, (uintptr_t)detour_DcCacheSpeechStream },
+    { "DcSetMixerOverride", 0x009FD3B0, (uintptr_t)detour_DcSetMixerOverride },
     { "DcCacheMusicPlaylist", 0x009FD460, (uintptr_t)detour_DcCacheMusicPlaylist },
     { "DcStartMovieAudio", 0x009FE0D0, (uintptr_t)detour_DcStartMovieAudio },
 };

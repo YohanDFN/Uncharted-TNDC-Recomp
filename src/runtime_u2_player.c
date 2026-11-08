@@ -774,6 +774,24 @@ static int64_t ABI detour_DcGivePlayerWeapon(int32_t argc, uint64_t *argv, uint3
     return 0;
 }
 
+static int64_t ABI detour_DcPlayerCheckForGotHit(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EF20: (player-check-for-got-hit) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *ctx = g_u2_image_base + 0x0115BD20ull;
+    void **p_target = *(void ***)ctx;
+    if (!p_target) return 0;
+    uint32_t tag = *(const uint32_t *)(ctx + 8);
+    if (!tag) return 0;
+    uint8_t *obj = (uint8_t *)(*p_target);
+    if (!obj || *(const uint32_t *)(obj + 0x44) != tag) return 0;
+    typedef void (ABI *CheckHitFn)(void *player_obj);
+    CheckHitFn check_fn = (CheckHitFn)(uintptr_t)(g_u2_image_base + 0x00976A30ull);
+    if (check_fn) check_fn(obj);
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -815,6 +833,7 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcPlayerHideWeapons", 0x0090E4A0, (uintptr_t)detour_DcPlayerHideWeapons },
     { "DcPlayerNoReload", 0x0090EC40, (uintptr_t)detour_DcPlayerNoReload },
     { "DcGivePlayerWeapon", 0x00906B20, (uintptr_t)detour_DcGivePlayerWeapon },
+    { "DcPlayerCheckForGotHit", 0x00A0EF20, (uintptr_t)detour_DcPlayerCheckForGotHit },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {
