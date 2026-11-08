@@ -213,6 +213,30 @@ static int64_t ABI detour_DcNetGetGrappleTime(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcNetGetBoosterEnabled(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668810: (net-get-booster-enabled booster-id) */
+    (void)status;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t booster_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0u;
+    typedef uint8_t (ABI *NetIsBoosterEnabledFn)(uint64_t dummy, uint32_t id);
+    NetIsBoosterEnabledFn is_enabled = (NetIsBoosterEnabledFn)(uintptr_t)(g_u2_image_base + 0x005F6080ull);
+    return is_enabled ? (int64_t)is_enabled(0, booster_id) : 0;
+}
+
+static int64_t ABI detour_DcNetGetBoosterAmount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668820: (net-get-booster-amount booster-id) */
+    (void)status;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t booster_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0u;
+    void *mgr = (void *)(g_u2_image_base + 0x0113A788ull);
+    typedef float (ABI *GetBoosterAmountFn)(void *mgr, uint32_t id);
+    GetBoosterAmountFn get_amount = (GetBoosterAmountFn)(uintptr_t)(g_u2_image_base + 0x005F6410ull);
+    float amount = get_amount ? get_amount(mgr, booster_id) : 0.0f;
+    return (int64_t)u2_f32_to_reg(amount);
+}
+
 static int64_t ABI detour_DcNetCoopTask(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006697E0: (net-coop-task) */
     (void)argc; (void)argv;
@@ -275,6 +299,21 @@ static int64_t ABI detour_DcNetIsCinema(int32_t argc, uint64_t *argv, uint32_t *
     int32_t net_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
     if (net_mode < 2) return 0;
     return (*(const uint8_t *)(g_u2_image_base + 0x0113B760ull + 0x209C) != 0) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcNetIsHost(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669C80: (net-is-host) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t net_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
+    if (net_mode < 2) return 0;
+    const uint8_t *net_ctx = g_u2_image_base + 0x01065B08ull;
+    if (*(const uint64_t *)(net_ctx + 0x10) == 0) return 1;
+    uint64_t ids = *(const uint64_t *)(net_ctx + 0xB00);
+    uint32_t low = (uint32_t)ids;
+    uint32_t high = (uint32_t)(ids >> 32);
+    return (low == high) ? 1 : 0;
 }
 
 static int64_t ABI detour_DcPsnDemoShowUpsell(int32_t argc, uint64_t *argv, uint32_t *status) {
@@ -348,6 +387,42 @@ static int64_t ABI detour_DcGameTaskGraphLogin(int32_t argc, uint64_t *argv, uin
             login_fn(argv[0]);
         }
     }
+    return 0;
+}
+
+static int64_t ABI detour_DcRestoreBlur(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFF20: (restore-blur) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *ctx = g_u2_image_base + 0x0115BD20ull;
+    void **p_target = *(void ***)ctx;
+    if (!p_target) return 0;
+    uint32_t tag = *(const uint32_t *)(ctx + 8);
+    if (!tag) return 0;
+    uint8_t *obj = (uint8_t *)(*p_target);
+    if (!obj || *(const uint32_t *)(obj + 0x44) != tag) return 0;
+    typedef void (ABI *BlurFn)(void *blur_obj);
+    BlurFn restore_fn = (BlurFn)(uintptr_t)(g_u2_image_base + 0x00974DE0ull);
+    if (restore_fn) restore_fn(obj);
+    return 0;
+}
+
+static int64_t ABI detour_DcDeactivateBlur(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFF50: (deactivate-blur) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *ctx = g_u2_image_base + 0x0115BD20ull;
+    void **p_target = *(void ***)ctx;
+    if (!p_target) return 0;
+    uint32_t tag = *(const uint32_t *)(ctx + 8);
+    if (!tag) return 0;
+    uint8_t *obj = (uint8_t *)(*p_target);
+    if (!obj || *(const uint32_t *)(obj + 0x44) != tag) return 0;
+    typedef void (ABI *BlurFn)(void *blur_obj);
+    BlurFn deact_fn = (BlurFn)(uintptr_t)(g_u2_image_base + 0x00974AB0ull);
+    if (deact_fn) deact_fn(obj);
     return 0;
 }
 
@@ -1125,6 +1200,8 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcGetCaptureZone", 0x006687D0, (uintptr_t)detour_DcGetCaptureZone },
     { "DcNetEndWave", 0x006687E0, (uintptr_t)detour_DcNetEndWave },
     { "DcNetGetGrappleTime", 0x006687F0, (uintptr_t)detour_DcNetGetGrappleTime },
+    { "DcNetGetBoosterEnabled", 0x00668810, (uintptr_t)detour_DcNetGetBoosterEnabled },
+    { "DcNetGetBoosterAmount", 0x00668820, (uintptr_t)detour_DcNetGetBoosterAmount },
     { "DcNetCoopTask", 0x006697E0, (uintptr_t)detour_DcNetCoopTask },
     { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
     { "DcNetSpawnFlag", 0x006698C0, (uintptr_t)detour_DcNetSpawnFlag },
@@ -1132,11 +1209,14 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
     { "DcNetCoopHostScriptId", 0x00669C40, (uintptr_t)detour_DcNetCoopHostScriptId },
     { "DcNetIsCinema", 0x00669C50, (uintptr_t)detour_DcNetIsCinema },
+    { "DcNetIsHost", 0x00669C80, (uintptr_t)detour_DcNetIsHost },
     { "DcPsnDemoShowUpsell", 0x009FD590, (uintptr_t)detour_DcPsnDemoShowUpsell },
     { "DcDebugDrawCross", 0x009FE070, (uintptr_t)detour_DcDebugDrawCross },
     { "DcAutoSaveGame", 0x009FE820, (uintptr_t)detour_DcAutoSaveGame },
     { "DcUpdateTaskMenu", 0x009FE8C0, (uintptr_t)detour_DcUpdateTaskMenu },
     { "DcGameTaskGraphLogin", 0x009FE8F0, (uintptr_t)detour_DcGameTaskGraphLogin },
+    { "DcRestoreBlur", 0x009FFF20, (uintptr_t)detour_DcRestoreBlur },
+    { "DcDeactivateBlur", 0x009FFF50, (uintptr_t)detour_DcDeactivateBlur },
     { "DcRailSetIgcFadeOutTime", 0x00AB93F0, (uintptr_t)detour_DcRailSetIgcFadeOutTime },
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
     { "DcTutorialHintsOnP", 0x00A0F490, (uintptr_t)detour_DcTutorialHintsOnP },
