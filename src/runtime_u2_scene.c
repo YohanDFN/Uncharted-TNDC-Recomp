@@ -129,6 +129,20 @@ static int64_t ABI detour_DcKillAllParticles(int32_t argc, uint64_t *argv, uint3
     return 0;
 }
 
+static int64_t ABI detour_DcPauseCoopCombo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667F60: (pause-coop-combo) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    void *mgr = (void *)(g_u2_image_base + 0x01139FE0ull);
+    typedef void (ABI *PauseCoopComboFn)(void *mgr);
+    PauseCoopComboFn pause_fn = (PauseCoopComboFn)(uintptr_t)(g_u2_image_base + 0x005DE7D0ull);
+    if (pause_fn) {
+        pause_fn(mgr);
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcGetCaptureZone(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006687D0: (get-capture-zone) */
     (void)argc; (void)argv;
@@ -1011,6 +1025,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcJournalClearPage", 0x009FD090, (uintptr_t)detour_DcJournalClearPage },
     { "DcJournalGetPage", 0x009FD110, (uintptr_t)detour_DcJournalGetPage },
     { "DcKillAllParticles", 0x00A0FE60, (uintptr_t)detour_DcKillAllParticles },
+    { "DcPauseCoopCombo", 0x00667F60, (uintptr_t)detour_DcPauseCoopCombo },
     { "DcGetCaptureZone", 0x006687D0, (uintptr_t)detour_DcGetCaptureZone },
     { "DcNetEndWave", 0x006687E0, (uintptr_t)detour_DcNetEndWave },
     { "DcNetGetGrappleTime", 0x006687F0, (uintptr_t)detour_DcNetGetGrappleTime },
