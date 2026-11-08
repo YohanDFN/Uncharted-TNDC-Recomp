@@ -2938,6 +2938,691 @@ static int64_t ABI detour_DcForGroup(int32_t argc, uint64_t *argv, uint32_t *sta
     return 1;
 }
 
+static int64_t ABI detour_DcCameraLocalSpace(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0EA20: (camera-local-space) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    int32_t val = 0x4CBEBC20;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104F810ull + 0x40);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D290ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D2A0ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, void *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0xBD729FA7u, str_arg, &val, 4, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcForceAimingCameraUltraTight(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A03670: (force-aiming-camera-ultra-tight) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0xE1);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    if (prop_fn) prop_fn(0, str_arg, &flag, 1, t1, t2, NULL);
+    return 0;
+}
+
+static int64_t ABI detour_DcForceNoShiftCameraZoomMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A035E0: (force-no-shift-camera-zoom-mode) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x01114200ull);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    if (prop_fn) prop_fn(0, str_arg, &flag, 1, t1, t2, NULL);
+    return 0;
+}
+
+static int64_t ABI detour_DcForceStealthOff(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0BC40: (force-stealth-off) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *stealth = (uint8_t *)(uintptr_t)(g_u2_image_base + 0x01161EE6ull);
+    if (stealth) *stealth = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcForgetSignal(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A3FF40: (forget-signal sig [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFreezeBindingWhenNonPhysical(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A03700: (freeze-binding-when-non-physical [enable]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGetActionPackLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A060C0: (get-action-pack-locator [ap] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetAlignLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A066F0: (get-align-locator [entity] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetApReferenceEffectLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A07340: (get-ap-reference-effect-locator [ap-ref] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetApReferenceLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A07990: (get-ap-reference-locator [ap-ref] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
+    float *out = (float *)(uintptr_t)argv[1];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetApReferenceLocatorRadial(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A06C20: (get-ap-reference-locator-radial [ap-ref] [radius] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 3 || !argv || !argv[2]) return 0;
+    float *out = (float *)(uintptr_t)argv[2];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A42BF0: (get-boolean [sym-id]) -> bool */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef int32_t (ABI *get_bool_fn)(uint32_t);
+    get_bool_fn fn = (get_bool_fn)(uintptr_t)(g_u2_image_base + 0x00A42A00ull);
+    return fn ? (fn(sym) != 0 ? 1 : 0) : 0;
+}
+
+static int64_t ABI detour_DcGetCurrentTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A44800: (get-current-time) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float t = *(const float *)(g_u2_image_base + 0x01161EE4ull);
+    uint32_t bits;
+    memcpy(&bits, &t, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A43170: (get-float [sym-id]) -> float */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef float (ABI *get_flt_fn)(uint32_t);
+    get_flt_fn fn = (get_flt_fn)(uintptr_t)(g_u2_image_base + 0x00A43000ull);
+    float val = fn ? fn(sym) : 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &val, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A42EB0: (get-int32 [sym-id]) -> int */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef int32_t (ABI *get_int_fn)(uint32_t);
+    get_int_fn fn = (get_int_fn)(uintptr_t)(g_u2_image_base + 0x00A42D00ull);
+    return fn ? (int64_t)fn(sym) : 0;
+}
+
+static int64_t ABI detour_DcGetJointAngleDiffFromBindpose(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A06180: (get-joint-angle-diff-from-bindpose [entity] [joint]) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    float diff = 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &diff, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetJointLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A07E80: (get-joint-locator [entity] [joint] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetJointPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A120C0: (get-joint-position [entity] [joint-idx] [out-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *pos = (const float *)((uint8_t *)ent + 0x30);
+        memcpy(out, pos, 4 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetLocatorDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0EF50: (get-locator-distance [loc1] [loc2]) -> float */
+    if (status) *status = 0;
+    float dist = 0.0f;
+    if (argc >= 2 && argv && argv[0] && argv[1]) {
+        const float *p1 = (const float *)(uintptr_t)argv[0];
+        const float *p2 = (const float *)(uintptr_t)argv[1];
+        float dx = p1[12] - p2[12];
+        float dy = p1[13] - p2[13];
+        float dz = p1[14] - p2[14];
+        dist = sqrtf(dx * dx + dy * dy + dz * dz);
+    }
+    uint32_t bits;
+    memcpy(&bits, &dist, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetObjectLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A08630: (get-object-locator [entity] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 2 && argv && argv[1]) {
+        float *out = (float *)(uintptr_t)argv[1];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectLocatorRadial(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A081A0: (get-object-locator-radial [entity] [radius] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectOffsetLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A121E0: (get-object-offset-locator [entity] [offset] [out-matrix]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[2]) {
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *mat = (const float *)((uint8_t *)ent + 0x40);
+        memcpy(out, mat, 16 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectOffsetPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A12390: (get-object-offset-position [entity] [offset-vec] [out-vec]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 3 && argv && argv[1] && argv[2]) {
+        const float *offset = (const float *)(uintptr_t)argv[1];
+        float *out = (float *)(uintptr_t)argv[2];
+        const float *pos = (const float *)((uint8_t *)ent + 0x30);
+        out[0] = pos[0] + offset[0];
+        out[1] = pos[1] + offset[1];
+        out[2] = pos[2] + offset[2];
+        out[3] = 1.0f;
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A12610: (get-object-position [entity] [out-vec]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    if (ent && argc >= 2 && argv && argv[1]) {
+        float *out = (float *)(uintptr_t)argv[1];
+        const float *pos = (const float *)((uint8_t *)ent + 0x30);
+        memcpy(out, pos, 4 * sizeof(float));
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectState(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A04C10: (get-object-state [entity]) -> state */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(ent_id, 0) : NULL;
+    return ent ? (int64_t)(*(const uint32_t *)((uint8_t *)ent + 0x20)) : 0;
+}
+
+static int64_t ABI detour_DcGetOriginLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A05F60: (get-origin-locator [out-matrix]) */
+    if (status) *status = 0;
+    if (argc < 1 || !argv || !argv[0]) return 0;
+    float *out = (float *)(uintptr_t)argv[0];
+    memset(out, 0, 16 * sizeof(float));
+    out[0] = out[5] = out[10] = out[15] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetPlayerAimTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x005DCBA0: (get-player-aim-time) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (!player) return 0;
+    float aim_time = *(const float *)(player + 0x2A58);
+    uint32_t bits;
+    memcpy(&bits, &aim_time, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetQuaternionPitch(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009F37C0: (get-quaternion-pitch [quat]) -> float */
+    if (status) *status = 0;
+    float pitch = 0.0f;
+    if (argc > 0 && argv && argv[0]) {
+        const float *q = (const float *)(uintptr_t)argv[0];
+        pitch = asinf(2.0f * (q[0] * q[2] - q[3] * q[1]));
+    }
+    uint32_t bits;
+    memcpy(&bits, &pitch, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetScriptState(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A44290: (get-script-state) -> int */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    return (int64_t)(*(const uint32_t *)(g_u2_image_base + 0x01161EE8ull));
+}
+
+static int64_t ABI detour_DcGetStatValue(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x0097BD10: (get-stat-value [stat-id]) -> float */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t stat_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef float (ABI *stat_fn)(uint32_t);
+    stat_fn fn = (stat_fn)(uintptr_t)(g_u2_image_base + 0x0097BC00ull);
+    float val = fn ? fn(stat_id) : 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &val, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetStateTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A44960: (get-state-time) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float t = *(const float *)(g_u2_image_base + 0x01161EE0ull);
+    uint32_t bits;
+    memcpy(&bits, &t, sizeof(bits));
+    return (int64_t)bits;
+}
+
+static int64_t ABI detour_DcGetSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A43440: (get-symbol [sym-id]) -> val */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    typedef uint32_t (ABI *get_sym_fn)(uint32_t);
+    get_sym_fn fn = (get_sym_fn)(uintptr_t)(g_u2_image_base + 0x00A43300ull);
+    return fn ? (int64_t)fn(sym) : 0;
+}
+
+static int64_t ABI detour_DcGrabRope(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A04740: (grab-rope [entity] [rope-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGrenadeDirectorChangeSettings(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x0069B910: (grenade-director-change-settings ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGroupAnd(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x0054AFD0: (group-and group-a group-b) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x0054A6B0: (group-at group-id index) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00549810: (group-count group-id) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupIsMemberSymbolP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x0054A250: (group-is-member-symbol? group symbol) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGroupOr(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x0054A760: (group-or group-a group-b) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliAnimateGun(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7ECD0: (heli-animate-gun [heli-id] [anim-bool]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    bool anim = (argc < 2 || (argv && argv[1] != 0));
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        *(uint8_t *)(heli + 0x5D5) = anim ? 1 : 0;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliFireMissile(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7F140: (heli-fire-missile [heli-id] [target-matrix] [homing-bool]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        /* Set missile launch trigger on helicopter */
+        *(uint32_t *)(heli + 0x630) = 1;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliSetBasePitch(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7EC00: (heli-set-base-pitch [heli-id] [pitch-angle]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    float pitch = 0.0f;
+    if (argc >= 2) {
+        union { uint64_t u; float f; } c; c.u = argv[1];
+        pitch = c.f * 0.0174532925f; /* Deg to Rad */
+    }
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        *(float *)(heli + 0x5C8) = pitch;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliSetFiringState(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7F5C0: (heli-set-firing-state [heli-id] [firing-bool] [param]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    bool firing = (argc < 2 || (argv && argv[1] != 0));
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        *(uint8_t *)(heli + 0x5D6) = firing ? 1 : 0;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliSetHover(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7ED80: (heli-set-hover [heli-id] [hover-bool]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    bool hover = (argc < 2 || (argv && argv[1] != 0));
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        *(uint8_t *)(heli + 0x5D4) = hover ? 1 : 0;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliSetMgStats(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7F6B0: (heli-set-mg-stats [heli-id] [burst-len] [fire-rate] [cooldown]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        if (argc >= 2) *(uint32_t *)(heli + 0x5D8) = (uint32_t)argv[1];
+        if (argc >= 3) {
+            union { uint64_t u; float f; } c; c.u = argv[2];
+            *(float *)(heli + 0x5DC) = c.f;
+        }
+        if (argc >= 4) {
+            union { uint64_t u; float f; } c; c.u = argv[3];
+            *(float *)(heli + 0x5E0) = c.f;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliSetTargetLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7F2E0: (heli-set-target-locator [heli-id] [locator-matrix] [speed]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        if (argc >= 2 && argv[1]) {
+            memcpy(heli + 0x5F0, (void *)argv[1], sizeof(float) * 16);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHeliSetTargetObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7F4A0: (heli-set-target-object [heli-id] [target-obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    uint32_t target_id = (argc >= 2 && argv && argv[1]) ? (uint32_t)argv[1] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *heli = get_ent ? get_ent(0, handle) : NULL;
+    uint8_t *target = target_id ? get_ent(0, target_id) : NULL;
+    if (heli && *(uint32_t *)(heli + 0x30) == 0x5C01F503) {
+        *(uint8_t **)(heli + 0x5E8) = target;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcHideMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x005DCA40: (hide-message [msg-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcHideMessageDeprecated(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x005DC650: (hide-message-deprecated [msg-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcInFrontOfTankP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00AA3E10: (in-front-of-tank? tank-id target-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t tank_id = (uint32_t)argv[0];
+    uint32_t target_id = (uint32_t)argv[1];
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *tank = get_ent ? get_ent(0, tank_id) : NULL;
+    uint8_t *target = get_ent ? get_ent(0, target_id) : NULL;
+    if (!tank || !target || *(uint32_t *)(tank + 0x30) != 0x9F81473C) return 0;
+    float *tank_pos = (float *)(tank + 0x50 + 0x30);
+    float *tank_fwd = (float *)(tank + 0x50 + 0x20);
+    float *tgt_pos = (float *)(target + 0x50 + 0x30);
+    float dx = tgt_pos[0] - tank_pos[0];
+    float dy = tgt_pos[1] - tank_pos[1];
+    float dz = tgt_pos[2] - tank_pos[2];
+    float dot = dx * tank_fwd[0] + dy * tank_fwd[1] + dz * tank_fwd[2];
+    return (dot > 0.0f) ? 1 : 0;
+}
+
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
@@ -3187,6 +3872,56 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcFireWeaponAtTarget", 0x00A0C4C0, (uintptr_t)detour_DcFireWeaponAtTarget },
     { "DcFollowSpline", 0x00A25E50, (uintptr_t)detour_DcFollowSpline },
     { "DcForGroup", 0x0054B830, (uintptr_t)detour_DcForGroup },
+    { "DcCameraLocalSpace", 0x00A0EA20, (uintptr_t)detour_DcCameraLocalSpace },
+    { "DcForceAimingCameraUltraTight", 0x00A03670, (uintptr_t)detour_DcForceAimingCameraUltraTight },
+    { "DcForceNoShiftCameraZoomMode", 0x00A035E0, (uintptr_t)detour_DcForceNoShiftCameraZoomMode },
+    { "DcForceStealthOff", 0x00A0BC40, (uintptr_t)detour_DcForceStealthOff },
+    { "DcForgetSignal", 0x00A3FF40, (uintptr_t)detour_DcForgetSignal },
+    { "DcFreezeBindingWhenNonPhysical", 0x00A03700, (uintptr_t)detour_DcFreezeBindingWhenNonPhysical },
+    { "DcGetActionPackLocator", 0x00A060C0, (uintptr_t)detour_DcGetActionPackLocator },
+    { "DcGetAlignLocator", 0x00A066F0, (uintptr_t)detour_DcGetAlignLocator },
+    { "DcGetApReferenceEffectLocator", 0x00A07340, (uintptr_t)detour_DcGetApReferenceEffectLocator },
+    { "DcGetApReferenceLocator", 0x00A07990, (uintptr_t)detour_DcGetApReferenceLocator },
+    { "DcGetApReferenceLocatorRadial", 0x00A06C20, (uintptr_t)detour_DcGetApReferenceLocatorRadial },
+    { "DcGetBoolean", 0x00A42BF0, (uintptr_t)detour_DcGetBoolean },
+    { "DcGetCurrentTime", 0x00A44800, (uintptr_t)detour_DcGetCurrentTime },
+    { "DcGetFloat", 0x00A43170, (uintptr_t)detour_DcGetFloat },
+    { "DcGetInt32", 0x00A42EB0, (uintptr_t)detour_DcGetInt32 },
+    { "DcGetJointAngleDiffFromBindpose", 0x00A06180, (uintptr_t)detour_DcGetJointAngleDiffFromBindpose },
+    { "DcGetJointLocator", 0x00A07E80, (uintptr_t)detour_DcGetJointLocator },
+    { "DcGetJointPosition", 0x00A120C0, (uintptr_t)detour_DcGetJointPosition },
+    { "DcGetLocatorDistance", 0x00A0EF50, (uintptr_t)detour_DcGetLocatorDistance },
+    { "DcGetObjectLocator", 0x00A08630, (uintptr_t)detour_DcGetObjectLocator },
+    { "DcGetObjectLocatorRadial", 0x00A081A0, (uintptr_t)detour_DcGetObjectLocatorRadial },
+    { "DcGetObjectOffsetLocator", 0x00A121E0, (uintptr_t)detour_DcGetObjectOffsetLocator },
+    { "DcGetObjectOffsetPosition", 0x00A12390, (uintptr_t)detour_DcGetObjectOffsetPosition },
+    { "DcGetObjectPosition", 0x00A12610, (uintptr_t)detour_DcGetObjectPosition },
+    { "DcGetObjectState", 0x00A04C10, (uintptr_t)detour_DcGetObjectState },
+    { "DcGetOriginLocator", 0x00A05F60, (uintptr_t)detour_DcGetOriginLocator },
+    { "DcGetPlayerAimTime", 0x005DCBA0, (uintptr_t)detour_DcGetPlayerAimTime },
+    { "DcGetQuaternionPitch", 0x009F37C0, (uintptr_t)detour_DcGetQuaternionPitch },
+    { "DcGetScriptState", 0x00A44290, (uintptr_t)detour_DcGetScriptState },
+    { "DcGetStatValue", 0x0097BD10, (uintptr_t)detour_DcGetStatValue },
+    { "DcGetStateTime", 0x00A44960, (uintptr_t)detour_DcGetStateTime },
+    { "DcGetSymbol", 0x00A43440, (uintptr_t)detour_DcGetSymbol },
+    { "DcGrabRope", 0x00A04740, (uintptr_t)detour_DcGrabRope },
+    { "DcGrenadeDirectorChangeSettings", 0x0069B910, (uintptr_t)detour_DcGrenadeDirectorChangeSettings },
+    { "DcGroupAnd", 0x0054AFD0, (uintptr_t)detour_DcGroupAnd },
+    { "DcGroupAt", 0x0054A6B0, (uintptr_t)detour_DcGroupAt },
+    { "DcGroupCount", 0x00549810, (uintptr_t)detour_DcGroupCount },
+    { "DcGroupIsMemberSymbolP", 0x0054A250, (uintptr_t)detour_DcGroupIsMemberSymbolP },
+    { "DcGroupOr", 0x0054A760, (uintptr_t)detour_DcGroupOr },
+    { "DcHeliAnimateGun", 0x00A7ECD0, (uintptr_t)detour_DcHeliAnimateGun },
+    { "DcHeliFireMissile", 0x00A7F140, (uintptr_t)detour_DcHeliFireMissile },
+    { "DcHeliSetBasePitch", 0x00A7EC00, (uintptr_t)detour_DcHeliSetBasePitch },
+    { "DcHeliSetFiringState", 0x00A7F5C0, (uintptr_t)detour_DcHeliSetFiringState },
+    { "DcHeliSetHover", 0x00A7ED80, (uintptr_t)detour_DcHeliSetHover },
+    { "DcHeliSetMgStats", 0x00A7F6B0, (uintptr_t)detour_DcHeliSetMgStats },
+    { "DcHeliSetTargetLocator", 0x00A7F2E0, (uintptr_t)detour_DcHeliSetTargetLocator },
+    { "DcHeliSetTargetObject", 0x00A7F4A0, (uintptr_t)detour_DcHeliSetTargetObject },
+    { "DcHideMessage", 0x005DCA40, (uintptr_t)detour_DcHideMessage },
+    { "DcHideMessageDeprecated", 0x005DC650, (uintptr_t)detour_DcHideMessageDeprecated },
+    { "DcInFrontOfTankP", 0x00AA3E10, (uintptr_t)detour_DcInFrontOfTankP },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
