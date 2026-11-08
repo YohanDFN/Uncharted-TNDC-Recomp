@@ -94,6 +94,84 @@ static int64_t ABI detour_DcPartModuleLoadedP(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcEnableGadgetry(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A039C0: (enable-gadgetry [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    if (!find_fn) return 0;
+    uint8_t *ent = (uint8_t *)find_fn(0, sym);
+    if (ent && (*(const uint8_t *)(ent + 0x36) & 1)) {
+        uint8_t *gadget_holder = *(uint8_t **)(ent + 0xB8);
+        if (gadget_holder) {
+            uint32_t count = *(const uint32_t *)(gadget_holder + 0x18);
+            if (count >= 2) {
+                void **gadgets = *(void ***)(gadget_holder + 0x48);
+                typedef void (ABI *SetPhysicsDrivenFn)(void *gadget, int32_t state);
+                SetPhysicsDrivenFn set_phys = (SetPhysicsDrivenFn)(uintptr_t)(g_u2_image_base + 0x00519370ull);
+                if (set_phys) {
+                    for (uint32_t i = 1; i < count; i++) {
+                        void *gadget = gadgets ? gadgets[i] : NULL;
+                        set_phys(gadget, 2);
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDisableGadgetry(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03A70: (disable-gadgetry [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    if (!find_fn) return 0;
+    uint8_t *ent = (uint8_t *)find_fn(0, sym);
+    if (ent && (*(const uint8_t *)(ent + 0x36) & 1)) {
+        uint8_t *gadget_holder = *(uint8_t **)(ent + 0xB8);
+        if (gadget_holder) {
+            uint32_t count = *(const uint32_t *)(gadget_holder + 0x18);
+            if (count >= 2) {
+                void **gadgets = *(void ***)(gadget_holder + 0x48);
+                typedef void (ABI *SetPhysicsDrivenFn)(void *gadget, int32_t state);
+                SetPhysicsDrivenFn set_phys = (SetPhysicsDrivenFn)(uintptr_t)(g_u2_image_base + 0x00519370ull);
+                if (set_phys) {
+                    for (uint32_t i = 1; i < count; i++) {
+                        void *gadget = gadgets ? gadgets[i] : NULL;
+                        set_phys(gadget, 0);
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcSymbolEqualP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00397620: (symbol-equal? a b) */
     (void)argc; (void)status;
@@ -343,6 +421,62 @@ static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32
     return 0;
 }
 
+static int64_t ABI detour_DcNetKillTerritory(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669800: (net-kill-territory) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    int32_t game_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
+    if (game_mode < 2) return 0;
+
+    const uint8_t *cfg = g_u2_image_base + 0x01065B08ull;
+    if (*(void * const *)(cfg + 0x10) != NULL) {
+        uint64_t val = *(const uint64_t *)(cfg + 0xB00);
+        uint32_t lo = (uint32_t)val;
+        uint32_t hi = (uint32_t)(val >> 32);
+        if (lo != hi) return 0;
+    }
+
+    void *net_mgr = (void *)(g_u2_image_base + 0x0113B760ull);
+    typedef void (ABI *KillTerritoryFn)(void *mgr);
+    KillTerritoryFn fn = (KillTerritoryFn)(uintptr_t)(g_u2_image_base + 0x0064C330ull);
+    if (fn) fn(net_mgr);
+
+    return 0;
+}
+
+static int64_t ABI detour_DcNetSpawnTerritory(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00669840: (net-spawn-territory) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    void *net_mgr = (void *)(g_u2_image_base + 0x0113B760ull);
+    uint32_t count = *(const uint32_t *)((const uint8_t *)net_mgr + 0x1DD0);
+    const uint8_t *entry = (const uint8_t *)net_mgr + 0x1D88;
+    void *found_ent = NULL;
+
+    for (uint32_t i = 0; i < count; i++, entry += 0x10) {
+        void **p_target = *(void ***)(entry - 8);
+        if (!p_target) continue;
+        uint32_t expected_tag = *(const uint32_t *)entry;
+        if (!expected_tag) continue;
+        uint8_t *obj = (uint8_t *)(*p_target);
+        if (!obj || *(const uint32_t *)(obj + 0x44) != expected_tag) continue;
+        if (*(const int32_t *)(obj + 0x250) == -1) {
+            found_ent = obj;
+            break;
+        }
+    }
+
+    typedef void (ABI *SpawnTerritoryFn)(void *mgr, void *ent);
+    SpawnTerritoryFn fn = (SpawnTerritoryFn)(uintptr_t)(g_u2_image_base + 0x0064BF20ull);
+    if (fn) fn(net_mgr, found_ent);
+
+    return 0;
+}
+
 static int64_t ABI detour_DcNetSpawnFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006698C0: (net-spawn-flag ...) */
     (void)argc;
@@ -353,6 +487,35 @@ static int64_t ABI detour_DcNetSpawnFlag(int32_t argc, uint64_t *argv, uint32_t 
     NetSpawnFlagFn spawn_fn = (NetSpawnFlagFn)(uintptr_t)(g_u2_image_base + 0x0063E1B0ull);
     if (spawn_fn) {
         spawn_fn(mgr, argv, 0u);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNetRespawnFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006698E0: (net-respawn-flag [flag-name]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    if (!sym) return 0;
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    if (!find_fn) return 0;
+    uint8_t *ent = (uint8_t *)find_fn(0, sym);
+    if (ent && *(const uint32_t *)(ent + 0x30) == 0x310F465Eu && (*(const uint8_t *)(ent + 0x428) & 2)) {
+        void *mgr = (void *)(g_u2_image_base + 0x0113B760ull);
+        typedef void (ABI *RespawnFn)(void *mgr, void *ent);
+        RespawnFn respawn_fn = (RespawnFn)(uintptr_t)(g_u2_image_base + 0x00649700ull);
+        if (respawn_fn) respawn_fn(mgr, ent);
     }
     return 0;
 }
@@ -1347,6 +1510,8 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
     { "DcEntityAutoSpawnOnce", 0x00A12830, (uintptr_t)detour_DcEntityAutoSpawnOnce },
     { "DcPartModuleLoadedP", 0x00A00970, (uintptr_t)detour_DcPartModuleLoadedP },
+    { "DcEnableGadgetry", 0x00A039C0, (uintptr_t)detour_DcEnableGadgetry },
+    { "DcDisableGadgetry", 0x00A03A70, (uintptr_t)detour_DcDisableGadgetry },
     { "DcSymbolEqualP", 0x00397620, (uintptr_t)detour_DcSymbolEqualP },
     { "DcCameraCancelAimOverride", 0x00A0DE30, (uintptr_t)detour_DcCameraCancelAimOverride },
     { "DcCameraRestoreLocator", 0x00A0E9B0, (uintptr_t)detour_DcCameraRestoreLocator },
@@ -1374,7 +1539,10 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcNetGetBoosterAmount", 0x00668820, (uintptr_t)detour_DcNetGetBoosterAmount },
     { "DcNetCoopTask", 0x006697E0, (uintptr_t)detour_DcNetCoopTask },
     { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
+    { "DcNetKillTerritory", 0x00669800, (uintptr_t)detour_DcNetKillTerritory },
+    { "DcNetSpawnTerritory", 0x00669840, (uintptr_t)detour_DcNetSpawnTerritory },
     { "DcNetSpawnFlag", 0x006698C0, (uintptr_t)detour_DcNetSpawnFlag },
+    { "DcNetRespawnFlag", 0x006698E0, (uintptr_t)detour_DcNetRespawnFlag },
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
     { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
     { "DcNetCoopHostScriptId", 0x00669C40, (uintptr_t)detour_DcNetCoopHostScriptId },
