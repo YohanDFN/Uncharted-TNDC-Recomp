@@ -136,6 +136,19 @@ static int64_t ABI detour_DcGetCaptureZone(int32_t argc, uint64_t *argv, uint32_
     return 0;
 }
 
+static int64_t ABI detour_DcNetEndWave(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006687E0: (net-end-wave) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef void (ABI *NetEndWaveFn)(void);
+    NetEndWaveFn end_wave = (NetEndWaveFn)(uintptr_t)(g_u2_image_base + 0x00617D50ull);
+    if (end_wave) {
+        end_wave();
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669240: (net-plyaer-coop-id) */
     (void)argc; (void)argv;
@@ -983,6 +996,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcJournalGetPage", 0x009FD110, (uintptr_t)detour_DcJournalGetPage },
     { "DcKillAllParticles", 0x00A0FE60, (uintptr_t)detour_DcKillAllParticles },
     { "DcGetCaptureZone", 0x006687D0, (uintptr_t)detour_DcGetCaptureZone },
+    { "DcNetEndWave", 0x006687E0, (uintptr_t)detour_DcNetEndWave },
     { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
     { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
