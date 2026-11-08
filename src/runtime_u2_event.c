@@ -466,6 +466,13 @@ static int64_t ABI detour_DcNetShowWaveScreen(int32_t argc, uint64_t *argv, uint
     return 1;
 }
 
+static int64_t ABI detour_DcNetHeliMoveOnSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A7FCC0: (net-heli-move-on-spline) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
     { "DcEventArgInt32", 0x004C2BE0, (uintptr_t)detour_DcEventArgInt32 },
@@ -505,6 +512,7 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcNetRevivePlayer", 0x00667D40, (uintptr_t)detour_DcNetRevivePlayer },
     { "DcNetSendEvent", 0x004C3B60, (uintptr_t)detour_DcNetSendEvent },
     { "DcNetShowWaveScreen", 0x00668890, (uintptr_t)detour_DcNetShowWaveScreen },
+    { "DcNetHeliMoveOnSpline", 0x00A7FCC0, (uintptr_t)detour_DcNetHeliMoveOnSpline },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

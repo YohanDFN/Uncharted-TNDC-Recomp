@@ -2700,6 +2700,91 @@ static int64_t ABI detour_DcSetWaterState(int32_t argc, uint64_t *argv, uint32_t
     return 1;
 }
 
+static int64_t ABI detour_DcSpawnSnowDisturb(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A01BB0: (spawn-snow-disturb locator-or-pos [radius]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
+    uint8_t *loc = (uint8_t *)argv[0];
+    float radius = 1.0f;
+    if (argc >= 2) {
+        union { uint64_t u; float f; } conv;
+        conv.u = argv[1];
+        radius = conv.f;
+    }
+    (void)loc;
+    (void)radius;
+    return 0;
+}
+
+static int64_t ABI detour_DcSullivanFlashlightToHand(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0A6A0: (sullivan-flashlight-to-hand) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSullivanFlashlightToWaist(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0A5F0: (sullivan-flashlight-to-waist) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcTurnOnFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0A250: (turn-on-flashlight [entity] [enable]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUpdateDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FEEE0: (update-dynamic-light light) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUseMaterialFromWaterUnit(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A02020: (use-material-from-water-unit unit mat) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0BD30: (set-visible [entity] [visible-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    int32_t vis = (argc >= 2 && argv) ? (int32_t)argv[1] : 1;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(entity_id, 0) : NULL;
+    if (ent) {
+        typedef void (ABI *vis_fn)(void *, int32_t);
+        vis_fn fn = (vis_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(ent, vis);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcDifficultyInterp(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FDAD0: (difficulty-interp easy med hard crushing) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcPadGetButtonPressInterval(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0D060: (pad-get-button-press-interval [btn-id]) -> float */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    float dt = 0.0f;
+    uint32_t bits;
+    memcpy(&bits, &dt, sizeof(bits));
+    return (int64_t)bits;
+}
+
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
@@ -2927,6 +3012,15 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSetRainState", 0x00A02830, (uintptr_t)detour_DcSetRainState },
     { "DcSetWaterOffset", 0x00A02FF0, (uintptr_t)detour_DcSetWaterOffset },
     { "DcSetWaterState", 0x00A02E20, (uintptr_t)detour_DcSetWaterState },
+    { "DcSpawnSnowDisturb", 0x00A01BB0, (uintptr_t)detour_DcSpawnSnowDisturb },
+    { "DcSullivanFlashlightToHand", 0x00A0A6A0, (uintptr_t)detour_DcSullivanFlashlightToHand },
+    { "DcSullivanFlashlightToWaist", 0x00A0A5F0, (uintptr_t)detour_DcSullivanFlashlightToWaist },
+    { "DcTurnOnFlashlight", 0x00A0A250, (uintptr_t)detour_DcTurnOnFlashlight },
+    { "DcUpdateDynamicLight", 0x009FEEE0, (uintptr_t)detour_DcUpdateDynamicLight },
+    { "DcUseMaterialFromWaterUnit", 0x00A02020, (uintptr_t)detour_DcUseMaterialFromWaterUnit },
+    { "DcSetVisible", 0x00A0BD30, (uintptr_t)detour_DcSetVisible },
+    { "DcDifficultyInterp", 0x009FDAD0, (uintptr_t)detour_DcDifficultyInterp },
+    { "DcPadGetButtonPressInterval", 0x00A0D060, (uintptr_t)detour_DcPadGetButtonPressInterval },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
