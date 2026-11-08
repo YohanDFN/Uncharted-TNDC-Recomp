@@ -2785,6 +2785,99 @@ static int64_t ABI detour_DcPadGetButtonPressInterval(int32_t argc, uint64_t *ar
     return (int64_t)bits;
 }
 
+static int64_t ABI detour_DcAllowCameraCutCompensate(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0DD40: (allow-camera-cut-compensate) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 0;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x01157738ull);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D2C0ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x309861E2u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDisableCoverCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0E290: (disable-cover-camera) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 0;
+    void *str_arg = (void *)(uintptr_t)(g_u2_image_base + 0x0104F693ull);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x17DDF893u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDisableMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x005DC990: (disable-message [msg-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *msg_fn)(uint32_t, int32_t);
+    msg_fn fn = (msg_fn)(uintptr_t)(g_u2_image_base + 0x005DC800ull);
+    if (fn) fn(msg_id, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcDisplayMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FE140: (display-message msg [time] [pos]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcDumpEntityInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A04970: (dump-entity-info entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEnableActionPack(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0A060: (enable-action-pack [ap-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ap_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *ap_fn)(uint32_t);
+    ap_fn fn = (ap_fn)(uintptr_t)(g_u2_image_base + 0x00A09F80ull);
+    if (fn) fn(ap_id);
+    return 1;
+}
+
+static int64_t ABI detour_DcEnableMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x005DC8E0: (enable-message [msg-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef void (ABI *msg_fn)(uint32_t, int32_t);
+    msg_fn fn = (msg_fn)(uintptr_t)(g_u2_image_base + 0x005DC800ull);
+    if (fn) fn(msg_id, 1);
+    return 1;
+}
+
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
@@ -3021,6 +3114,13 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSetVisible", 0x00A0BD30, (uintptr_t)detour_DcSetVisible },
     { "DcDifficultyInterp", 0x009FDAD0, (uintptr_t)detour_DcDifficultyInterp },
     { "DcPadGetButtonPressInterval", 0x00A0D060, (uintptr_t)detour_DcPadGetButtonPressInterval },
+    { "DcAllowCameraCutCompensate", 0x00A0DD40, (uintptr_t)detour_DcAllowCameraCutCompensate },
+    { "DcDisableCoverCamera", 0x00A0E290, (uintptr_t)detour_DcDisableCoverCamera },
+    { "DcDisableMessage", 0x005DC990, (uintptr_t)detour_DcDisableMessage },
+    { "DcDisplayMessage", 0x009FE140, (uintptr_t)detour_DcDisplayMessage },
+    { "DcDumpEntityInfo", 0x00A04970, (uintptr_t)detour_DcDumpEntityInfo },
+    { "DcEnableActionPack", 0x00A0A060, (uintptr_t)detour_DcEnableActionPack },
+    { "DcEnableMessage", 0x005DC8E0, (uintptr_t)detour_DcEnableMessage },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

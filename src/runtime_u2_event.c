@@ -473,6 +473,27 @@ static int64_t ABI detour_DcNetHeliMoveOnSpline(int32_t argc, uint64_t *argv, ui
     return 0;
 }
 
+static int64_t ABI detour_DcSendEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C18F0: (send-event [event-obj]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSendSimpleEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C1CF0: (send-simple-event [event-name]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUpdateFightRef(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00667F80: (update-fight-ref) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
     { "DcEventArgInt32", 0x004C2BE0, (uintptr_t)detour_DcEventArgInt32 },
@@ -513,6 +534,9 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcNetSendEvent", 0x004C3B60, (uintptr_t)detour_DcNetSendEvent },
     { "DcNetShowWaveScreen", 0x00668890, (uintptr_t)detour_DcNetShowWaveScreen },
     { "DcNetHeliMoveOnSpline", 0x00A7FCC0, (uintptr_t)detour_DcNetHeliMoveOnSpline },
+    { "DcSendEvent", 0x004C18F0, (uintptr_t)detour_DcSendEvent },
+    { "DcSendSimpleEvent", 0x004C1CF0, (uintptr_t)detour_DcSendSimpleEvent },
+    { "DcUpdateFightRef", 0x00667F80, (uintptr_t)detour_DcUpdateFightRef },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
