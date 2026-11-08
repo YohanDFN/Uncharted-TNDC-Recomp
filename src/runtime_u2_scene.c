@@ -1068,6 +1068,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSetJetskiFlowMultiplier", 0x00A01B70, (uintptr_t)detour_DcNoOp0 },
     { "DcSetJetskiMaxThrottle", 0x00A01B60, (uintptr_t)detour_DcNoOp0 },
     { "DcSetJetskiNearStupidRampInRuins2", 0x00A01B50, (uintptr_t)detour_DcNoOp0 },
+    { "DcJetskiClearEngineSoundOverride", 0x00A01B20, (uintptr_t)detour_DcNoOp0 },
     { "DcSetE3LoadingScreen", 0x009FD5B0, (uintptr_t)detour_DcNoOp0 },
     { "DcEntitySetLevelB", 0x00A64C30, (uintptr_t)detour_DcNoOp0 },
     { "DcFmaResetPartModules", 0x00A00130, (uintptr_t)detour_DcNoOp0 },
