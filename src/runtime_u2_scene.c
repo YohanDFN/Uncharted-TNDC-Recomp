@@ -2476,6 +2476,131 @@ static int64_t ABI detour_DcKillFlashlight(int32_t argc, uint64_t *argv, uint32_
 }
 
 /* Table of detours provided by this module */
+static int64_t ABI detour_DcCameraFadeOut(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0E380: (camera-fade-out [cam-symbol] [duration]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t cam_id = 0;
+    float duration = 1.0f;
+    if (argc > 0) {
+        cam_id = (uint32_t)argv[0];
+        if (argc > 1) duration = u2_reg_to_f32(argv[1]);
+    } else {
+        typedef uint32_t (ABI *GetSelfFn)(int, int, int);
+        GetSelfFn get_self = *(GetSelfFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) cam_id = get_self(0, 0, 1);
+        duration = *(const float *)(g_u2_image_base + 0x00E673E0ull);
+    }
+    if (!cam_id) return 0;
+
+    uint8_t *head = (uint8_t *)(g_u2_image_base + 0x0147F050ull);
+    uint8_t *cur = *(uint8_t **)head;
+    while (cur && cur != head) {
+        if (*(const uint32_t *)(cur + 0x14) == cam_id) {
+            *(float *)(cur + 0x38) = duration;
+            cur[0x34] |= 0x02; /* fade-out flag */
+            break;
+        }
+        cur = *(uint8_t **)cur;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraShakeInZoomCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0DCA0: (camera-shake-in-zoom-camera) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    uint8_t flag = 1;
+    void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x110);
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD30ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1CD40ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, uint8_t *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x92950534u, str_arg, &flag, 1, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *b = (uint8_t *)obj;
+        b[0x61] = (b[0x61] & (uint8_t)~0x27) | 0x04;
+        *(uint32_t *)(b + 0x20) = 0x65;
+        uint32_t ticks = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x84);
+        *(uint32_t *)(b + 0x10) = ticks + 9u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDisplayButtonHud(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0CD20: (display-button-hud [btn-id] [action-str]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFadeToBlack(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FFBA0: (fade-to-black [time] [hold]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFadeToBlackPers(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FFA40: (fade-to-black-pers [time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFadeToWhite(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FFAC0: (fade-to-white [time] [hold]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGetWaterOffset(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A02F20: (get-water-offset [out-vec]) */
+    if (status) *status = 0;
+    if (argc < 1 || !argv || !argv[0]) return 0;
+    float *out = (float *)(uintptr_t)argv[0];
+    out[0] = 0.0f; out[1] = 0.0f; out[2] = 0.0f; out[3] = 1.0f;
+    return (int64_t)(uintptr_t)out;
+}
+
+static int64_t ABI detour_DcGetWaterState(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A02D90: (get-water-state) -> int */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGivePlayerFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0ADC0: (give-player-flashlight [enable] [slot]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcGiveSullivanFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0ABC0: (give-sullivan-flashlight [enable] [slot]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcKillPlayerFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0A920: (kill-player-flashlight) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcKillSullivanFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0A750: (kill-sullivan-flashlight) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
@@ -2681,6 +2806,18 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcUseRainIntensityValues", 0x00A031C0, (uintptr_t)detour_DcUseRainIntensityValues },
     { "DcUseWindIntensityValues", 0x00A03290, (uintptr_t)detour_DcUseWindIntensityValues },
     { "DcKillFlashlight", 0x00A0A130, (uintptr_t)detour_DcKillFlashlight },
+    { "DcCameraFadeOut", 0x00A0E380, (uintptr_t)detour_DcCameraFadeOut },
+    { "DcCameraShakeInZoomCamera", 0x00A0DCA0, (uintptr_t)detour_DcCameraShakeInZoomCamera },
+    { "DcDisplayButtonHud", 0x00A0CD20, (uintptr_t)detour_DcDisplayButtonHud },
+    { "DcFadeToBlack", 0x009FFBA0, (uintptr_t)detour_DcFadeToBlack },
+    { "DcFadeToBlackPers", 0x009FFA40, (uintptr_t)detour_DcFadeToBlackPers },
+    { "DcFadeToWhite", 0x009FFAC0, (uintptr_t)detour_DcFadeToWhite },
+    { "DcGetWaterOffset", 0x00A02F20, (uintptr_t)detour_DcGetWaterOffset },
+    { "DcGetWaterState", 0x00A02D90, (uintptr_t)detour_DcGetWaterState },
+    { "DcGivePlayerFlashlight", 0x00A0ADC0, (uintptr_t)detour_DcGivePlayerFlashlight },
+    { "DcGiveSullivanFlashlight", 0x00A0ABC0, (uintptr_t)detour_DcGiveSullivanFlashlight },
+    { "DcKillPlayerFlashlight", 0x00A0A920, (uintptr_t)detour_DcKillPlayerFlashlight },
+    { "DcKillSullivanFlashlight", 0x00A0A750, (uintptr_t)detour_DcKillSullivanFlashlight },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

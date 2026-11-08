@@ -177,6 +177,73 @@ static int64_t ABI detour_DcRailOverrideSpeedForAudio(int32_t argc, uint64_t *ar
 }
 
 /* Table of detours provided by this module */
+static int64_t ABI detour_DcPlaySound(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A010C0: (play-sound sound-name [vol] [pitch]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sound_id = 0;
+    if (argc > 0 && argv && argv[0]) {
+        sound_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) sound_id = get_self(0, 0, 1);
+    }
+    if (!sound_id) return 0;
+    float vol = (argc >= 2) ? u2_reg_to_f32(argv[1]) : 1.0f;
+    float pitch = (argc >= 3) ? u2_reg_to_f32(argv[2]) : 0.0f;
+    typedef int32_t (ABI *PlayHelperFn)(uint32_t, void *, uint32_t, uint32_t, void *, float, float);
+    PlayHelperFn helper = (PlayHelperFn)(uintptr_t)(g_u2_image_base + 0x00A00B30ull);
+    return helper ? (int64_t)helper(sound_id, NULL, 0, 0, NULL, vol, pitch) : 0;
+}
+
+static int64_t ABI detour_DcPlaySoundAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A00DA0: (play-sound-at-joint sound-name entity joint-id [vol] [pitch]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sound_id = (uint32_t)argv[0];
+    uint32_t ent_id = (uint32_t)argv[1];
+    uint32_t joint_id = (argc >= 3) ? (uint32_t)argv[2] : 0;
+    float vol = (argc >= 4) ? u2_reg_to_f32(argv[3]) : 1.0f;
+    float pitch = (argc >= 5) ? u2_reg_to_f32(argv[4]) : 0.0f;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = get_ent ? get_ent(0, ent_id) : NULL;
+    typedef int32_t (ABI *PlayHelperFn)(uint32_t, void *, uint32_t, uint32_t, void *, float, float);
+    PlayHelperFn helper = (PlayHelperFn)(uintptr_t)(g_u2_image_base + 0x00A00B30ull);
+    return helper ? (int64_t)helper(sound_id, ent, joint_id, 0, NULL, vol, pitch) : 0;
+}
+
+static int64_t ABI detour_DcPlaySoundAtPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A00A30: (play-sound-at-position sound-name pos-ptr [vol] [pitch]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv || !argv[0] || !argv[1]) return 0;
+    uint32_t sound_id = (uint32_t)argv[0];
+    const float *pos = (const float *)(uintptr_t)argv[1];
+    float vol = (argc >= 3) ? u2_reg_to_f32(argv[2]) : 1.0f;
+    float pitch = (argc >= 4) ? u2_reg_to_f32(argv[3]) : 0.0f;
+    float vec[4] = { pos[0], pos[1], pos[2], 1.0f };
+    typedef int32_t (ABI *PlayHelperFn)(uint32_t, void *, uint32_t, uint32_t, void *, float, float);
+    PlayHelperFn helper = (PlayHelperFn)(uintptr_t)(g_u2_image_base + 0x00A00B30ull);
+    return helper ? (int64_t)helper(sound_id, NULL, 0, 0, vec, vol, pitch) : 0;
+}
+
+static int64_t ABI detour_DcPlaySoundAttached(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A00F30: (play-sound-attached sound-name entity [vol] [pitch]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sound_id = (uint32_t)argv[0];
+    uint32_t ent_id = (uint32_t)argv[1];
+    float vol = (argc >= 3) ? u2_reg_to_f32(argv[2]) : 1.0f;
+    float pitch = (argc >= 4) ? u2_reg_to_f32(argv[3]) : 0.0f;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = get_ent ? get_ent(0, ent_id) : NULL;
+    typedef int32_t (ABI *PlayHelperFn)(uint32_t, void *, uint32_t, uint32_t, void *, float, float);
+    PlayHelperFn helper = (PlayHelperFn)(uintptr_t)(g_u2_image_base + 0x00A00B30ull);
+    return helper ? (int64_t)helper(sound_id, ent, 0, 0, NULL, vol, pitch) : 0;
+}
+
 static const U2NativeDetour s_audio_detours[] = {
     { "DcSyncAudioMetaData", 0x009FD560, (uintptr_t)detour_DcSyncAudioMetaData },
     { "DcUseAudioRainLevel", 0x00A009F0, (uintptr_t)detour_DcUseAudioRainLevel },
@@ -191,6 +258,10 @@ static const U2NativeDetour s_audio_detours[] = {
     { "DcPlayMusicStinger", 0x009FD3F0, (uintptr_t)detour_DcPlayMusicStinger },
     { "DcStopSound", 0x00A01160, (uintptr_t)detour_DcStopSound },
     { "DcRailOverrideSpeedForAudio", 0x00AB9120, (uintptr_t)detour_DcRailOverrideSpeedForAudio },
+    { "DcPlaySound", 0x00A010C0, (uintptr_t)detour_DcPlaySound },
+    { "DcPlaySoundAtJoint", 0x00A00DA0, (uintptr_t)detour_DcPlaySoundAtJoint },
+    { "DcPlaySoundAtPosition", 0x00A00A30, (uintptr_t)detour_DcPlaySoundAtPosition },
+    { "DcPlaySoundAttached", 0x00A00F30, (uintptr_t)detour_DcPlaySoundAttached },
 };
 
 size_t u2_get_audio_detours(const U2NativeDetour **out) {

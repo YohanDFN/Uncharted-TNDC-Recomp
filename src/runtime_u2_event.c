@@ -342,6 +342,55 @@ static int64_t ABI detour_DcNetNpcConfirmCoopPlayersContact(int32_t argc, uint64
 }
 
 /* Table of detours provided by this module */
+static int64_t ABI detour_DcEventAttackSourceP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C3730: (event-attack-source? [source]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventAttackTypeP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C38A0: (event-attack-type? [type]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventGetAttackInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C3D50: (event-get-attack-info) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcEventLevelP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C34C0: (event-level? level-name) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEventMyLevelP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C32D0: (event-my-level? [event]) -> bool */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcEventObjectDamage(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C3610: (event-object-damage) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return 0;
+    const uint8_t *frame = *(const uint8_t **)(event_mgr + 0x18 + (uint64_t)depth * 32u);
+    if (!frame) return 0;
+    float dmg = *(const float *)(frame + 0x24);
+    return (int64_t)u2_f32_to_reg(dmg);
+}
+
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
     { "DcEventArgInt32", 0x004C2BE0, (uintptr_t)detour_DcEventArgInt32 },
@@ -365,6 +414,12 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcBroadcastEventToNpcs", 0x004C3A00, (uintptr_t)detour_DcBroadcastEventToNpcs },
     { "DcSignalRaisedP", 0x00A40220, (uintptr_t)detour_DcSignalRaisedP },
     { "DcNetNpcConfirmCoopPlayersContact", 0x006690C0, (uintptr_t)detour_DcNetNpcConfirmCoopPlayersContact },
+    { "DcEventAttackSourceP", 0x004C3730, (uintptr_t)detour_DcEventAttackSourceP },
+    { "DcEventAttackTypeP", 0x004C38A0, (uintptr_t)detour_DcEventAttackTypeP },
+    { "DcEventGetAttackInfo", 0x004C3D50, (uintptr_t)detour_DcEventGetAttackInfo },
+    { "DcEventLevelP", 0x004C34C0, (uintptr_t)detour_DcEventLevelP },
+    { "DcEventMyLevelP", 0x004C32D0, (uintptr_t)detour_DcEventMyLevelP },
+    { "DcEventObjectDamage", 0x004C3610, (uintptr_t)detour_DcEventObjectDamage },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
