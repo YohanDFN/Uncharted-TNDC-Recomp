@@ -124,18 +124,12 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
-* **Milestone 315/843** : 315 fonctions DC natives réécrites en C (`ABI`) - Lot 12 (batch de 20 fonctions) validé unitairement sans crash :
+* **Milestone 315/843** : 315 fonctions DC natives réécrites en C (`ABI`) - Lot 12 (batch de 20 fonctions) assaini et validé unitairement sans crash (test 20s avec FSR 3 / boot menu complet) :
   - `DcAddDynamicLight` (`0x009FF2C0`)
   - `DcAddDynamicLightJoint` (`0x009FF010`)
-  - `DcAddImportModule` (`0x00A0FF10`)
-  - `DcAddLoadModule` (`0x00A0FE90`)
   - `DcAllowLegIkByOthers` (`0x009FCDF0`)
   - `DcApplyExplosionImpulse` (`0x00A03B20`)
   - `DcAttachFlashlight` (`0x00A0A4C0`)
-  - `DcBattleSelectBestSpawnerFromGroup` (`0x00A11190`)
-  - `DcBroadcastEventToNpcs` (`0x004C3A00`)
-  - `DcCameraAimOverrideDirection` (`0x00A0DE40`)
-  - `DcCameraAimOverridePoint` (`0x00A0DF40`)
   - `DcCameraAnimationDisable` (`0x00A033B0`)
   - `DcCameraAnimationEnable` (`0x00A03480`)
   - `DcCameraShake` (`0x00A0E040`)
@@ -145,6 +139,12 @@ node scratch/status_report.js
   - `DcCreateWeaponDrawables` (`0x00A0C410`)
   - `DcDemoResetDefaults` (`0x0090DD50`)
   - `DcDetachRope` (`0x00A04530`)
+  - `DcBroadcastEventToNpcs` (`0x004C3A00`)
+  - `DcDisallowLegIkByOthers` (`0x009FCCF0`)
+  - `DcGrenadeDirectorEnable` (`0x0069BAB0`)
+  - `DcDontCollideAgainstAllies` (`0x009FCBB0`)
+  - `DcDropRope` (`0x00A045E0`)
+  - `DcDoRumblePtr` (`0x00A105F0`)
 * **Milestone 295/843** (`cb17b5c`) : 295 fonctions DC natives réécrites en C (`ABI`) - Lot 11 (batch de 20 fonctions) validé unitairement sans crash :
   - `DcSetWhiteFade` (`0x00A106A0`)
   - `DcSetBlackFade` (`0x00A10700`)

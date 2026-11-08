@@ -603,6 +603,31 @@ static int64_t ABI detour_DcAllowLegIkByOthers(int32_t argc, uint64_t *argv, uin
     return 0;
 }
 
+static int64_t ABI detour_DcDisallowLegIkByOthers(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCCF0: (disallow-leg-ik-by-others [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGrenadeDirectorEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0069BAB0: (grenade-director-enable) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    uint8_t *drake = (uint8_t *)u2_get_active_player();
+    if (drake) {
+        *(uint8_t *)(drake + 0x3120) = 1;
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcDontCollideAgainstAllies(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCBB0: (dont-collide-against-allies [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -639,6 +664,9 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcGrenadeDirectorDisable", 0x0069BA40, (uintptr_t)detour_DcGrenadeDirectorDisable },
     { "DcGrenadeDirectorIsEnabledP", 0x0069B9C0, (uintptr_t)detour_DcGrenadeDirectorIsEnabledP },
     { "DcAllowLegIkByOthers", 0x009FCDF0, (uintptr_t)detour_DcAllowLegIkByOthers },
+    { "DcDisallowLegIkByOthers", 0x009FCCF0, (uintptr_t)detour_DcDisallowLegIkByOthers },
+    { "DcGrenadeDirectorEnable", 0x0069BAB0, (uintptr_t)detour_DcGrenadeDirectorEnable },
+    { "DcDontCollideAgainstAllies", 0x009FCBB0, (uintptr_t)detour_DcDontCollideAgainstAllies },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {
