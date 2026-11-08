@@ -124,7 +124,28 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
-* **Milestone 235/843** : 235 fonctions DC natives réécrites en C (`ABI`) - Lot 8 (batch de 20 fonctions) validé unitairement sans crash :
+* **Milestone 255/843** : 255 fonctions DC natives réécrites en C (`ABI`) - Lot 9 (batch de 20 fonctions) validé unitairement sans crash :
+  - `DcRenderSettingsApplyDefaults` (`0x00A10760`)
+  - `DcSetObjectHealth` (`0x00A04A20`)
+  - `DcGetObjectHealth` (`0x00A04B10`)
+  - `DcTagBoolean` (`0x00A43700`)
+  - `DcTagInt32` (`0x00A43880`)
+  - `DcTagFloat` (`0x00A439D0`)
+  - `DcTagSymbol` (`0x00A43C90`)
+  - `DcTagSpecifiedP` (`0x00A43DE0`)
+  - `DcNpcDisableFlinch` (`0x002DC1D0`)
+  - `DcNpcSetPerfectAim` (`0x002DC490`)
+  - `DcNpcSetMovementSpeedScale` (`0x002DD030`)
+  - `DcNpcTriggerAmbush` (`0x002DD0D0`)
+  - `DcNpcSetLeadDrakeSpline` (`0x002DFEE0`)
+  - `DcNpcSetAccuracyMultiplier` (`0x002E00F0`)
+  - `DcNpcSetCommGroupId` (`0x002E0430`)
+  - `DcNpcMyBattleManagerId` (`0x002E4EF0`)
+  - `DcNpcEnteredActionPackP` (`0x002DFFB0`)
+  - `DcNpcLowerWeapon` (`0x002DBD00`)
+  - `DcNpcReloadWeapon` (`0x002DBDA0`)
+  - `DcNpcFireWeapon` (`0x002DBE80`)
+* **Milestone 235/843** (`b04b800`) : 235 fonctions DC natives réécrites en C (`ABI`) - Lot 8 (batch de 20 fonctions) validé unitairement sans crash :
   - `DcSay` (`0x00A01A80`)
   - `DcSetForceTension` (`0x00667EE0`)
   - `DcUnparent` (`0x00A03940`)

@@ -327,6 +327,226 @@ static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, 
     return fn ? (fn(sub) ? 1 : 0) : 0;
 }
 
+static uint8_t *u2_resolve_npc_from_args(int32_t argc, uint64_t *argv) {
+    if (!g_u2_image_base) return NULL;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) {
+        npc_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    if (!npc_id) return NULL;
+    typedef uint8_t *(ABI *get_npc_fn)(void *, uint32_t);
+    get_npc_fn get_npc = (get_npc_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    uint8_t *npc = get_npc(g_u2_image_base + 0x0110DCB8ull, npc_id);
+    if (!npc && *(const int32_t *)(g_u2_image_base + 0x014CE97Cull) >= 2) {
+        typedef uint8_t *(ABI *get_inst_fn)(uint64_t, uint32_t);
+        get_inst_fn get_inst = (get_inst_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        uint8_t *inst = get_inst(0, npc_id);
+        if (inst && (*(const uint16_t *)(inst + 0x36) & 0x4u)) {
+            npc = inst;
+        }
+    }
+    return npc;
+}
+
+static int64_t ABI detour_DcNpcDisableFlinch(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC1D0: (npc-disable-flinch [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint8_t *config = *(uint8_t **)(npc + 0x3FA0);
+    if (config) {
+        *config &= ~0x20u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetPerfectAim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC490: (npc-set-perfect-aim npc flag) */
+    if (status) *status = 0;
+    if (argc < 2 || !argv) return 0;
+    uint8_t *npc = u2_resolve_npc_from_args(1, argv);
+    if (!npc) return 0;
+    uint8_t *config = *(uint8_t **)(npc + 0x3FA0);
+    if (config) {
+        uint32_t flag = (argv[1] != 0) ? 0x400u : 0u;
+        *(uint32_t *)config = (*(uint32_t *)config & ~0x400u) | flag;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetMovementSpeedScale(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD030: (npc-set-movement-speed-scale [npc] scale) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    float scale = (argc >= 2 && argv) ? *(const float *)&argv[1] : 0.0f;
+    uint8_t *p1 = *(uint8_t **)(npc + 0x190);
+    if (p1) {
+        uint8_t *p2 = *(uint8_t **)(p1 + 0x140);
+        if (p2) {
+            *(float *)(p2 + 0x40) = scale;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcTriggerAmbush(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DD0D0: (npc-trigger-ambush [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint8_t *config = *(uint8_t **)(npc + 0x3FA0);
+    if (config) {
+        uint32_t val = *(uint32_t *)config;
+        if (val & 4u) {
+            *(uint32_t *)config = val & ~4u;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetLeadDrakeSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DFEE0: (npc-set-lead-drake-spline [npc] spline) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint32_t spline_id = 0;
+    if (argc > 1 && argv) {
+        spline_id = (uint32_t)argv[1];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) spline_id = get_self(0, 0, 1);
+    }
+    uint8_t *p1 = *(uint8_t **)(npc + 0x2638);
+    if (p1) {
+        uint8_t *p2 = *(uint8_t **)(p1 + 0x08);
+        if (p2) {
+            uint8_t *p3 = *(uint8_t **)(p2 + 0x370);
+            if (p3) {
+                *(uint32_t *)(p3 + 0x24) = spline_id;
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetAccuracyMultiplier(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E00F0: (npc-set-accuracy-multiplier [npc] mult) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    float mult = (argc >= 2 && argv) ? *(const float *)&argv[1] : 1.0f;
+    *(float *)(npc + 0x4044) = mult;
+    return 1;
+}
+
+static int64_t ABI detour_DcNpcSetCommGroupId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E0430: (npc-set-comm-group-id [npc] group-id) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint32_t group_id = (argc > 1 && argv) ? (uint32_t)argv[1] : 0;
+    if (*(uint32_t *)(npc + 0x40AC) != group_id) {
+        *(uint32_t *)(npc + 0x40AC) = group_id;
+        *(uint64_t *)(npc + 0x2658) = 0;
+        *(uint32_t *)(npc + 0x2660) = 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcMyBattleManagerId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E4EF0: (npc-my-battle-manager-id [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint8_t *slot = *(uint8_t **)(npc + 0x2548);
+    if (!slot) return 0;
+    uint8_t *mgr = *(uint8_t **)slot;
+    if (!mgr) return 0;
+    if (*(const uint32_t *)(mgr + 0x44) != *(const uint32_t *)(npc + 0x2550)) return 0;
+    return (int64_t)*(const uint32_t *)(mgr + 0x88);
+}
+
+static int64_t ABI detour_DcNpcEnteredActionPackP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DFFB0: (npc-entered-action-pack? [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    const void *const *vtable = *(const void *const **)npc;
+    if (!vtable) return 0;
+    typedef void * (ABI *ActionPackFn)(void *);
+    ActionPackFn fn = (ActionPackFn)vtable[0x2A0 / 8];
+    if (!fn) return 0;
+    return fn(npc) != NULL ? 1 : 0;
+}
+
+static int64_t ABI detour_DcNpcLowerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DBD00: (npc-lower-weapon [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint8_t *w1 = *(uint8_t **)(npc + 0x2208);
+    if (w1) {
+        uint8_t *w2 = *(uint8_t **)(w1 + 0x28);
+        if (w2) {
+            const void *const *vtable = *(const void *const **)w2;
+            if (vtable) {
+                typedef void (ABI *LowerFn)(void *);
+                LowerFn fn = (LowerFn)vtable[0x88 / 8];
+                if (fn) fn(w2);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcReloadWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DBDA0: (npc-reload-weapon [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint8_t *w1 = *(uint8_t **)(npc + 0x2208);
+    if (w1) {
+        uint8_t *w2 = *(uint8_t **)(w1 + 0x28);
+        if (w2) {
+            const void *const *vtable = *(const void *const **)w2;
+            if (vtable) {
+                typedef uint8_t (ABI *IsBusyFn)(void *);
+                typedef void (ABI *ReloadFn)(void *);
+                IsBusyFn is_busy = (IsBusyFn)vtable[0x30 / 8];
+                ReloadFn reload_fn = (ReloadFn)vtable[0xE0 / 8];
+                if (is_busy && !is_busy(w2) && reload_fn) {
+                    reload_fn(w2);
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcFireWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DBE80: (npc-fire-weapon [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    const void *const *vtable = *(const void *const **)npc;
+    if (vtable) {
+        typedef void (ABI *FireFn)(void *, int32_t, int32_t);
+        FireFn fn = (FireFn)vtable[0x438 / 8];
+        if (fn) {
+            fn(npc, 0, 0);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -346,6 +566,18 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcGroupAliveCount", 0x002DB160, (uintptr_t)detour_DcNpcGroupAliveCount },
     { "DcNpcGroupDeadCount", 0x002DAEE0, (uintptr_t)detour_DcNpcGroupDeadCount },
     { "DcNpcInMeleeWithPlayerP", 0x002E0050, (uintptr_t)detour_DcNpcInMeleeWithPlayerP },
+    { "DcNpcDisableFlinch", 0x002DC1D0, (uintptr_t)detour_DcNpcDisableFlinch },
+    { "DcNpcSetPerfectAim", 0x002DC490, (uintptr_t)detour_DcNpcSetPerfectAim },
+    { "DcNpcSetMovementSpeedScale", 0x002DD030, (uintptr_t)detour_DcNpcSetMovementSpeedScale },
+    { "DcNpcTriggerAmbush", 0x002DD0D0, (uintptr_t)detour_DcNpcTriggerAmbush },
+    { "DcNpcSetLeadDrakeSpline", 0x002DFEE0, (uintptr_t)detour_DcNpcSetLeadDrakeSpline },
+    { "DcNpcSetAccuracyMultiplier", 0x002E00F0, (uintptr_t)detour_DcNpcSetAccuracyMultiplier },
+    { "DcNpcSetCommGroupId", 0x002E0430, (uintptr_t)detour_DcNpcSetCommGroupId },
+    { "DcNpcMyBattleManagerId", 0x002E4EF0, (uintptr_t)detour_DcNpcMyBattleManagerId },
+    { "DcNpcEnteredActionPackP", 0x002DFFB0, (uintptr_t)detour_DcNpcEnteredActionPackP },
+    { "DcNpcLowerWeapon", 0x002DBD00, (uintptr_t)detour_DcNpcLowerWeapon },
+    { "DcNpcReloadWeapon", 0x002DBDA0, (uintptr_t)detour_DcNpcReloadWeapon },
+    { "DcNpcFireWeapon", 0x002DBE80, (uintptr_t)detour_DcNpcFireWeapon },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

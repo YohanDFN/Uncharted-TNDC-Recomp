@@ -1646,6 +1646,108 @@ static int64_t ABI detour_DcDebugBreak(int32_t argc, uint64_t *argv, uint32_t *s
     return 0;
 }
 
+static int64_t ABI detour_DcRenderSettingsApplyDefaults(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10760: (render-settings-apply-defaults [id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t id = (uint32_t)argv[0];
+    *(uint32_t *)(g_u2_image_base + 0x0104FAECull) = id;
+    uint8_t flag = *(const uint8_t *)(g_u2_image_base + 0x01059640ull + 0x488Dull);
+    uint32_t sym = (flag != 0) ? 0x30DE052Du : 0x9EC73B22u;
+    typedef void * (ABI *GetSettingsFn)(uint32_t, uint32_t);
+    GetSettingsFn get_fn = (GetSettingsFn)(uintptr_t)(g_u2_image_base + 0x00A17020ull);
+    void *src = get_fn ? get_fn(id, sym) : NULL;
+    if (src) {
+        memcpy(g_u2_image_base + 0x01162820ull, src, 0x910);
+        typedef void (ABI *VoidFn)(void);
+        VoidFn update_fn = (VoidFn)(uintptr_t)(g_u2_image_base + 0x009D7150ull);
+        if (update_fn) update_fn();
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetObjectHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04A20: (set-object-health [ent] [f_health]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    if (sym == 0) return 0;
+
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = find_fn ? (uint8_t *)find_fn(0, sym) : NULL;
+    if (!ent) return 0;
+
+    if (ent[0x36] & 4) {
+        uint8_t *comp = *(uint8_t **)(ent + 0x1F0);
+        if (comp) {
+            uint8_t **vtable = *(uint8_t ***)comp;
+            if (vtable) {
+                typedef int32_t (ABI *GetMaxHpFn)(uint8_t *);
+                GetMaxHpFn get_max = (GetMaxHpFn)(uintptr_t)vtable[0x50 / 8];
+                int32_t max_hp = get_max ? get_max(comp) : 0;
+                float f_health = (argc >= 2 && argv) ? u2_reg_to_f32(argv[1]) : 0.0f;
+                int32_t new_hp = (int32_t)((float)max_hp * f_health);
+                typedef void (ABI *SetHpFn)(uint8_t *, int32_t);
+                SetHpFn set_hp = (SetHpFn)(uintptr_t)vtable[0x20 / 8];
+                if (set_hp) set_hp(comp, new_hp);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGetObjectHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04B10: (get-object-health [ent]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return (int64_t)u2_f32_to_reg(0.0f);
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    if (sym == 0) return (int64_t)u2_f32_to_reg(0.0f);
+
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = find_fn ? (uint8_t *)find_fn(0, sym) : NULL;
+    if (!ent) return (int64_t)u2_f32_to_reg(0.0f);
+
+    float health = 0.0f;
+    if (*(const uint32_t *)(ent + 0x30) == 0x8B7D6F1Au) {
+        float max_hp = (float)*(const int32_t *)(ent + 0x22C);
+        float cur_hp = (float)*(const int32_t *)(ent + 0x228);
+        health = (max_hp != 0.0f) ? (cur_hp / max_hp) : 0.0f;
+    } else if (ent[0x36] & 4) {
+        uint8_t *comp = *(uint8_t **)(ent + 0x1F0);
+        if (comp) {
+            uint8_t **vtable = *(uint8_t ***)comp;
+            if (vtable) {
+                typedef float (ABI *GetHealthFn)(uint8_t *);
+                GetHealthFn get_h = (GetHealthFn)(uintptr_t)vtable[0x78 / 8];
+                if (get_h) health = get_h(comp);
+            }
+        }
+    }
+    return (int64_t)u2_f32_to_reg(health);
+}
+
 static int64_t ABI detour_DcPrintNoOp(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* Shipping build 16-byte no-op prints (0x009FDEE0..0x009FDF20) */
     (void)argc; (void)argv;
@@ -2013,6 +2115,9 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcHideHint", 0x00A0CC10, (uintptr_t)detour_DcHideHint },
     { "DcGetObjectId", 0x00A0BEE0, (uintptr_t)detour_DcGetObjectId },
     { "DcGetSelfId", 0x00A04A00, (uintptr_t)detour_DcGetSelfId },
+    { "DcSetObjectHealth", 0x00A04A20, (uintptr_t)detour_DcSetObjectHealth },
+    { "DcGetObjectHealth", 0x00A04B10, (uintptr_t)detour_DcGetObjectHealth },
+    { "DcRenderSettingsApplyDefaults", 0x00A10760, (uintptr_t)detour_DcRenderSettingsApplyDefaults },
     { "DcClearHarvestedBodies", 0x00A01A90, (uintptr_t)detour_DcClearHarvestedBodies },
     { "DcResetActors", 0x009FD690, (uintptr_t)detour_DcResetActors },
     { "DcSetBarrelFlowMultiplier", 0x00A01EF0, (uintptr_t)detour_DcNoOp0 },

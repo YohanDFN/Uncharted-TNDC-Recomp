@@ -228,6 +228,91 @@ static int64_t ABI detour_DcPrintEvent(int32_t argc, uint64_t *argv, uint32_t *s
     return 0;
 }
 
+static void *u2_get_script_instance(void) {
+    if (!g_u2_image_base) return NULL;
+    const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
+    int32_t depth = *(const int32_t *)(event_mgr + 0x200);
+    if (depth < 0 || depth >= 16) return NULL;
+    return *(void **)(event_mgr + ((uint64_t)depth << 5));
+}
+
+static int64_t ABI detour_DcTagBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43700: (tag-boolean tag-name) */
+    if (status) *status = 0;
+    void *inst = u2_get_script_instance();
+    if (!inst) return 0;
+    uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint8_t (ABI *fn_int_t)(void *, uint32_t, int32_t *);
+    typedef uint8_t (ABI *fn_flt_t)(void *, uint32_t, float *);
+    fn_int_t get_int = (fn_int_t)(uintptr_t)(g_u2_image_base + 0x00A2FE50ull);
+    int32_t i_val = 0;
+    if (get_int(inst, sym, &i_val)) {
+        return (i_val != 0) ? 1 : 0;
+    }
+    fn_flt_t get_flt = (fn_flt_t)(uintptr_t)(g_u2_image_base + 0x00A2FC20ull);
+    float f_val = 0.0f;
+    if (get_flt(inst, sym, &f_val)) {
+        return (f_val != 0.0f) ? 1 : 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTagInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43880: (tag-int32 tag-name) */
+    if (status) *status = 0;
+    void *inst = u2_get_script_instance();
+    if (!inst) return 0;
+    uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint8_t (ABI *fn_int_t)(void *, uint32_t, int32_t *);
+    fn_int_t get_int = (fn_int_t)(uintptr_t)(g_u2_image_base + 0x00A2FE50ull);
+    int32_t i_val = 0;
+    if (get_int(inst, sym, &i_val)) {
+        return (int64_t)i_val;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTagFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A439D0: (tag-float tag-name) */
+    if (status) *status = 0;
+    void *inst = u2_get_script_instance();
+    if (!inst) return 0;
+    uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint8_t (ABI *fn_flt_t)(void *, uint32_t, float *);
+    fn_flt_t get_flt = (fn_flt_t)(uintptr_t)(g_u2_image_base + 0x00A2FC20ull);
+    float f_val = 0.0f;
+    if (get_flt(inst, sym, &f_val)) {
+        return (int64_t)u2_f32_to_reg(f_val);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTagSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43C90: (tag-symbol tag-name) */
+    if (status) *status = 0;
+    void *inst = u2_get_script_instance();
+    if (!inst) return 0;
+    uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint8_t (ABI *fn_sym_t)(void *, uint32_t, uint32_t *);
+    fn_sym_t get_sym = (fn_sym_t)(uintptr_t)(g_u2_image_base + 0x00A2F780ull);
+    uint32_t s_val = 0;
+    if (get_sym(inst, sym, &s_val)) {
+        return (int64_t)s_val;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTagSpecifiedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A43DE0: (tag-specified? tag-name) */
+    if (status) *status = 0;
+    void *inst = u2_get_script_instance();
+    if (!inst) return 0;
+    uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    typedef uint8_t (ABI *fn_spec_t)(void *, uint32_t);
+    fn_spec_t spec_p = (fn_spec_t)(uintptr_t)(g_u2_image_base + 0x00A2F5F0ull);
+    return spec_p(inst, sym) ? 1 : 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -243,6 +328,11 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcEventReturnSymbol", 0x004C2720, (uintptr_t)detour_DcEventReturnSymbol },
     { "DcEventSender", 0x004C1DF0, (uintptr_t)detour_DcEventSender },
     { "DcPrintEvent", 0x004C1800, (uintptr_t)detour_DcPrintEvent },
+    { "DcTagBoolean", 0x00A43700, (uintptr_t)detour_DcTagBoolean },
+    { "DcTagInt32", 0x00A43880, (uintptr_t)detour_DcTagInt32 },
+    { "DcTagFloat", 0x00A439D0, (uintptr_t)detour_DcTagFloat },
+    { "DcTagSymbol", 0x00A43C90, (uintptr_t)detour_DcTagSymbol },
+    { "DcTagSpecifiedP", 0x00A43DE0, (uintptr_t)detour_DcTagSpecifiedP },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
