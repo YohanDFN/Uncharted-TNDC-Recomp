@@ -1748,6 +1748,226 @@ static int64_t ABI detour_DcGetObjectHealth(int32_t argc, uint64_t *argv, uint32
     return (int64_t)u2_f32_to_reg(health);
 }
 
+static int64_t ABI detour_DcSpawnParticlesAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00950: (spawn-particles-at-joint ...) */
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x009F2E80ull);
+    return fn(argc, argv, 2, status);
+}
+
+static int64_t ABI detour_DcSpawnParticlesAttached(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00960: (spawn-particles-attached ...) */
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x009F2E80ull);
+    return fn(argc, argv, 1, status);
+}
+
+static int64_t ABI detour_DcNetHideWaveScreen(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00668850: (net-hide-wave-screen) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (*(const int32_t *)(g_u2_image_base + 0x014CE97Cull) > 1) {
+        *(uint8_t *)(g_u2_image_base + 0x0104F544ull + 0x1C) = 0;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcStringFromFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDE60: (string-from-float f) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    double val = 0.0;
+    if (argc > 0 && argv) {
+        val = (double)u2_reg_to_f32(argv[0]);
+    }
+    char *buf = (char *)(g_u2_image_base + 0x01533EA0ull);
+    snprintf(buf, 0x1FF, "%g", val);
+    return (int64_t)(uintptr_t)buf;
+}
+
+static int64_t ABI detour_DcDebugDrawLine(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE090: (debug-draw-line ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayMovie(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE100: (play-movie movie-name) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint8_t *mgr = *(uint8_t **)(g_u2_image_base + 0x010608E0ull);
+    if (mgr) {
+        const void *const *vtable = *(const void *const **)mgr;
+        if (vtable) {
+            typedef uint8_t (ABI *IsPlayingFn)(void *);
+            typedef void (ABI *PlayFn)(void *, const char *, int32_t, float);
+            IsPlayingFn is_playing = (IsPlayingFn)vtable[0x38 / 8];
+            PlayFn play_fn = (PlayFn)vtable[0x10 / 8];
+            if (is_playing && !is_playing(mgr) && play_fn) {
+                const char *name = (argc > 0 && argv) ? (const char *)argv[0] : NULL;
+                play_fn(mgr, name, 0, 0.0f);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcStartRumble(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF3D0: (start-rumble [symbol]) */
+    if (status) *status = 0;
+    if (argc > 0 && argv && g_u2_image_base) {
+        uint32_t sym = (uint32_t)argv[0];
+        typedef void (ABI *RumbleFn)(uint32_t, int32_t, float, float);
+        RumbleFn fn = (RumbleFn)(uintptr_t)(g_u2_image_base + 0x009EAFB0ull);
+        if (fn) fn(sym, 1, 1.0f, 1.0f);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcStopRumble(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF370: (stop-rumble [symbol]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetAllPlayersDeadP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006694B0: (net-all-players-dead?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t out_val = 0;
+    typedef uint8_t (ABI *fn_t)(void *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x0063E040ull);
+    return fn ? (fn((void *)(g_u2_image_base + 0x0113B760ull), &out_val) ? 1 : 0) : 0;
+}
+
+static int64_t ABI detour_DcDebugDrawString(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FDFB0: (debug-draw-string ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcSetCharacterWetMaskState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02690: (set-character-wet-mask-state idx state) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    uint32_t idx = (uint32_t)argv[0];
+    if (idx <= 5) {
+        uint8_t state = (argc > 1 && argv[1] != 0) ? 1 : 0;
+        *(uint8_t *)(g_u2_image_base + 0x01117570ull + (uint64_t)idx * 64u + 0x6C) = state;
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcUseWaterUnitForReflection(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02C70: (use-water-unit-for-reflection unit flag) */
+    if (status) *status = 0;
+    if (argc < 2 || !argv || !g_u2_image_base) return 0;
+    if (argv[1] != 0) {
+        uint32_t unit = (uint32_t)argv[0];
+        uint8_t *slot = g_u2_image_base + 0x01164980ull;
+        slot[0x14] = 1;
+        *(uint32_t *)(slot + 0x18) = 3;
+        *(uint32_t *)(slot + 0x1C) = unit;
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcLerpReflectionPlaneOfWaterUnits(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02B10: (lerp-reflection-plane-of-water-units u1 u2 t) */
+    if (status) *status = 0;
+    if (argc < 2 || !argv || !g_u2_image_base) return 0;
+    if (argv[0] != 0) {
+        uint8_t *slot = g_u2_image_base + 0x01164980ull;
+        slot[0x14] = 1;
+        *(uint32_t *)(slot + 0x18) = 4;
+        *(uint32_t *)(slot + 0x1C) = (argc > 1) ? (uint32_t)argv[1] : 0;
+        *(uint32_t *)(slot + 0x20) = (argc > 2) ? (uint32_t)argv[2] : 0;
+        *(float *)(slot + 0x24) = (argc > 3) ? u2_reg_to_f32(argv[3]) : 0.0f;
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcRemoveCoverActionPacksFromObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04DC0: (remove-cover-action-packs-from-object obj-id) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    typedef void *(ABI *get_ent_fn)(uint32_t);
+    get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *obj = (uint8_t *)get_ent((uint32_t)argv[0]);
+    if (obj && (*(const uint32_t *)(obj + 0x36) & 0x100u)) {
+        typedef void (ABI *remove_fn)(void *);
+        remove_fn fn = (remove_fn)(uintptr_t)(g_u2_image_base + 0x00998BD0ull);
+        if (fn) fn(obj);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcRegenerateCoverActionPacksFromObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04E20: (regenerate-cover-action-packs-from-object obj-id) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    typedef void *(ABI *get_ent_fn)(uint32_t);
+    get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *obj = (uint8_t *)get_ent((uint32_t)argv[0]);
+    if (obj && (*(const uint32_t *)(obj + 0x36) & 0x100u)) {
+        typedef void (ABI *regen_fn)(void *);
+        regen_fn fn = (regen_fn)(uintptr_t)(g_u2_image_base + 0x009986C0ull);
+        if (fn) fn(obj);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcEnableNavBlockerObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04F60: (enable-nav-blocker-object obj-id) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    typedef void *(ABI *get_ent_fn)(uint32_t);
+    get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *obj = (uint8_t *)get_ent((uint32_t)argv[0]);
+    if (obj && (*(const uint32_t *)(obj + 0x36) & 0x100u)) {
+        *(uint8_t *)(obj + 0x154) |= 0x4u;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcBlockNavPolyUnderObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A05030: (block-nav-poly-under-object obj-id) */
+    if (status) *status = 0;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    typedef void *(ABI *get_ent_fn)(uint32_t);
+    get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *obj = (uint8_t *)get_ent((uint32_t)argv[0]);
+    if (obj && (*(const uint32_t *)(obj + 0x36) & 0x100u)) {
+        typedef void (ABI *block_fn)(void *, int32_t);
+        block_fn fn = (block_fn)(uintptr_t)(g_u2_image_base + 0x00990A80ull);
+        if (fn) fn(obj, 1);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcKillEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09D60: (kill-entity [ent-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t ent_id = 0;
+    if (argc > 0 && argv) {
+        ent_id = (uint32_t)argv[0];
+    } else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) ent_id = get_self(0, 0, 1);
+    }
+    typedef uint8_t (ABI *kill_fn)(uint32_t, uint64_t *, uint32_t *);
+    kill_fn fn = (kill_fn)(uintptr_t)(g_u2_image_base + 0x009F39B0ull);
+    return fn ? (fn(ent_id, argv, status) ? 1 : 0) : 0;
+}
+
 static int64_t ABI detour_DcPrintNoOp(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* Shipping build 16-byte no-op prints (0x009FDEE0..0x009FDF20) */
     (void)argc; (void)argv;
@@ -2130,6 +2350,24 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSetE3LoadingScreen", 0x009FD5B0, (uintptr_t)detour_DcNoOp0 },
     { "DcEntitySetLevelB", 0x00A64C30, (uintptr_t)detour_DcNoOp0 },
     { "DcFmaResetPartModules", 0x00A00130, (uintptr_t)detour_DcNoOp0 },
+    { "DcSpawnParticlesAtJoint", 0x00A00950, (uintptr_t)detour_DcSpawnParticlesAtJoint },
+    { "DcSpawnParticlesAttached", 0x00A00960, (uintptr_t)detour_DcSpawnParticlesAttached },
+    { "DcNetHideWaveScreen", 0x00668850, (uintptr_t)detour_DcNetHideWaveScreen },
+    { "DcStringFromFloat", 0x009FDE60, (uintptr_t)detour_DcStringFromFloat },
+    { "DcDebugDrawLine", 0x009FE090, (uintptr_t)detour_DcDebugDrawLine },
+    { "DcPlayMovie", 0x009FE100, (uintptr_t)detour_DcPlayMovie },
+    { "DcStartRumble", 0x009FF3D0, (uintptr_t)detour_DcStartRumble },
+    { "DcStopRumble", 0x009FF370, (uintptr_t)detour_DcStopRumble },
+    { "DcNetAllPlayersDeadP", 0x006694B0, (uintptr_t)detour_DcNetAllPlayersDeadP },
+    { "DcDebugDrawString", 0x009FDFB0, (uintptr_t)detour_DcDebugDrawString },
+    { "DcSetCharacterWetMaskState", 0x00A02690, (uintptr_t)detour_DcSetCharacterWetMaskState },
+    { "DcUseWaterUnitForReflection", 0x00A02C70, (uintptr_t)detour_DcUseWaterUnitForReflection },
+    { "DcLerpReflectionPlaneOfWaterUnits", 0x00A02B10, (uintptr_t)detour_DcLerpReflectionPlaneOfWaterUnits },
+    { "DcRemoveCoverActionPacksFromObject", 0x00A04DC0, (uintptr_t)detour_DcRemoveCoverActionPacksFromObject },
+    { "DcRegenerateCoverActionPacksFromObject", 0x00A04E20, (uintptr_t)detour_DcRegenerateCoverActionPacksFromObject },
+    { "DcEnableNavBlockerObject", 0x00A04F60, (uintptr_t)detour_DcEnableNavBlockerObject },
+    { "DcBlockNavPolyUnderObject", 0x00A05030, (uintptr_t)detour_DcBlockNavPolyUnderObject },
+    { "DcKillEntity", 0x00A09D60, (uintptr_t)detour_DcKillEntity },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

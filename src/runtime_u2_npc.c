@@ -547,6 +547,16 @@ static int64_t ABI detour_DcNpcFireWeapon(int32_t argc, uint64_t *argv, uint32_t
     return 0;
 }
 
+static int64_t ABI detour_DcNpcSetToPlayerFaction(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC960: (npc-set-to-player-faction [npc]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (npc) {
+        *(uint32_t *)(npc + 0x150) = 1;
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -578,6 +588,7 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcLowerWeapon", 0x002DBD00, (uintptr_t)detour_DcNpcLowerWeapon },
     { "DcNpcReloadWeapon", 0x002DBDA0, (uintptr_t)detour_DcNpcReloadWeapon },
     { "DcNpcFireWeapon", 0x002DBE80, (uintptr_t)detour_DcNpcFireWeapon },
+    { "DcNpcSetToPlayerFaction", 0x002DC960, (uintptr_t)detour_DcNpcSetToPlayerFaction },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

@@ -876,6 +876,13 @@ static int64_t ABI detour_DcCalcStartPhaseRange(int32_t argc, uint64_t *argv, ui
     return (int64_t)u2_f32_to_reg(res);
 }
 
+static int64_t ABI detour_DcSetWalkMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090D4B0: (set-walk-mode ...) - deprecated stub ("This is no longer supported") */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -923,6 +930,7 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcPlayerNoReload", 0x0090EC40, (uintptr_t)detour_DcPlayerNoReload },
     { "DcGivePlayerWeapon", 0x00906B20, (uintptr_t)detour_DcGivePlayerWeapon },
     { "DcPlayerCheckForGotHit", 0x00A0EF20, (uintptr_t)detour_DcPlayerCheckForGotHit },
+    { "DcSetWalkMode", 0x0090D4B0, (uintptr_t)detour_DcSetWalkMode },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {

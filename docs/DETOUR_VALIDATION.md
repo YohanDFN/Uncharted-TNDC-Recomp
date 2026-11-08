@@ -124,7 +124,28 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
-* **Milestone 255/843** : 255 fonctions DC natives réécrites en C (`ABI`) - Lot 9 (batch de 20 fonctions) validé unitairement sans crash :
+* **Milestone 275/843** : 275 fonctions DC natives réécrites en C (`ABI`) - Lot 10 (batch de 20 fonctions) validé unitairement sans crash :
+  - `DcSpawnParticlesAtJoint` (`0x00A00950`)
+  - `DcSpawnParticlesAttached` (`0x00A00960`)
+  - `DcNetHideWaveScreen` (`0x00668850`)
+  - `DcSetWalkMode` (`0x0090D4B0`)
+  - `DcStringFromFloat` (`0x009FDE60`)
+  - `DcDebugDrawLine` (`0x009FE090`)
+  - `DcPlayMovie` (`0x009FE100`)
+  - `DcStartRumble` (`0x009FF3D0`)
+  - `DcStopRumble` (`0x009FF370`)
+  - `DcNetAllPlayersDeadP` (`0x006694B0`)
+  - `DcDebugDrawString` (`0x009FDFB0`)
+  - `DcSetCharacterWetMaskState` (`0x00A02690`)
+  - `DcUseWaterUnitForReflection` (`0x00A02C70`)
+  - `DcLerpReflectionPlaneOfWaterUnits` (`0x00A02B10`)
+  - `DcRemoveCoverActionPacksFromObject` (`0x00A04DC0`)
+  - `DcRegenerateCoverActionPacksFromObject` (`0x00A04E20`)
+  - `DcEnableNavBlockerObject` (`0x00A04F60`)
+  - `DcBlockNavPolyUnderObject` (`0x00A05030`)
+  - `DcKillEntity` (`0x00A09D60`)
+  - `DcNpcSetToPlayerFaction` (`0x002DC960`)
+* **Milestone 255/843** (`7972c6a`) : 255 fonctions DC natives réécrites en C (`ABI`) - Lot 9 (batch de 20 fonctions) validé unitairement sans crash :
   - `DcRenderSettingsApplyDefaults` (`0x00A10760`)
   - `DcSetObjectHealth` (`0x00A04A20`)
   - `DcGetObjectHealth` (`0x00A04B10`)
