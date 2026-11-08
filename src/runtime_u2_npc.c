@@ -2234,6 +2234,14 @@ static int64_t ABI detour_DcWaitNpcUseScriptedAp(int32_t argc, uint64_t *argv, u
     return 0;
 }
 
+
+static int64_t ABI detour_DcXSpawnNpcAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A64C40: (x-spawn-npc-at type loc) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
     { "DcNpcAliveCount", 0x002DF000, (uintptr_t)detour_DcNpcAliveCount },
@@ -2359,6 +2367,7 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcWaitNpcTurnTo", 0x002DF9A0, (uintptr_t)detour_DcWaitNpcTurnTo },
     { "DcWaitNpcUseClosestCover", 0x002E4130, (uintptr_t)detour_DcWaitNpcUseClosestCover },
     { "DcWaitNpcUseScriptedAp", 0x002DDF20, (uintptr_t)detour_DcWaitNpcUseScriptedAp },
+    { "DcXSpawnNpcAt", 0x00A64C40, (uintptr_t)detour_DcXSpawnNpcAt },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

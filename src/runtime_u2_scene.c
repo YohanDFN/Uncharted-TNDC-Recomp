@@ -4743,6 +4743,618 @@ static int64_t ABI detour_DcTankAimForward(int32_t argc, uint64_t *argv, uint32_
     fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
     return fn ? fn(argc, argv, status) : 0;
 }
+
+static int64_t ABI detour_DcSpawnAttachable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F540: (spawn-attachable [archetype] [parent] [joint]) -> ent-id */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc < 3 || !argv) return 0;
+    typedef uint32_t (ABI *attach_fn)(uint32_t, uint32_t, uint32_t);
+    attach_fn fn = (attach_fn)(uintptr_t)(g_u2_image_base + 0x00A0F4C0ull);
+    return fn ? (int64_t)fn((uint32_t)argv[0], (uint32_t)argv[1], (uint32_t)argv[2]) : 0;
+}
+
+static int64_t ABI detour_DcTankDistToPoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA1300: (tank-dist-to-point [tank] [pos-vec]) -> float */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    typedef uint8_t * (ABI *GetEntityFn)(uint32_t, int32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *tank = get_ent ? get_ent(handle, 0) : NULL;
+    if (tank && argc >= 2 && argv && argv[1]) {
+        const float *target_pt = (const float *)(uintptr_t)argv[1];
+        const float *tank_pos = (const float *)(tank + 0x30);
+        float dx = tank_pos[0] - target_pt[0];
+        float dy = tank_pos[1] - target_pt[1];
+        float dz = tank_pos[2] - target_pt[2];
+        float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+        uint32_t bits;
+        memcpy(&bits, &dist, sizeof(bits));
+        return (int64_t)bits;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTankFindBestTargetMP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA4950: (tank-find-best-target-mp ...) */
+    (void)argc;
+    (void)argv;
+    u2_set_status(status, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcTankFire(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2930: (tank-fire [tank]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    typedef uint8_t * (ABI *GetEntityFn)(uint32_t, int32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    uint8_t *tank = get_ent ? get_ent(handle, 0) : NULL;
+    if (tank) {
+        typedef void (ABI *fire_fn)(void *);
+        fire_fn fn = (fire_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(tank);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcTankFireAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2EE0: (tank-fire-at-obj [tank] [target] [lead]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankFireAtPos(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2F30: (tank-fire-at-pos [tank] [pos-vec] [lead]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA2B60ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankForceFireCannon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA42C0: (tank-force-fire-cannon [tank-id] [target-pos-vector]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *tank = get_ent ? get_ent(0, handle) : NULL;
+    if (tank && *(uint32_t *)(tank + 0x30) == 0x9F81473C) {
+        if (argc >= 2 && argv[1]) {
+            memcpy(tank + 0x1420, (void *)argv[1], sizeof(float) * 3);
+        }
+        /* Trigger cannon fire state */
+        *(uint32_t *)(tank + 0x1418) = 1;
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTankGetHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3D80: (tank-get-health [tank-id]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *tank = get_ent ? get_ent(0, handle) : NULL;
+    if (tank && *(uint32_t *)(tank + 0x30) == 0x9F81473C) {
+        return (int64_t)*(int32_t *)(tank + 0x1410);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTankMgCeaseFire(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2000: (tank-mg-cease-fire [tank]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA20A0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankMgFireAtLoc(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2120: (tank-mg-fire-at-loc [tank] [loc-vec]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA21C0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankMgFireAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2680: (tank-mg-fire-at-obj [tank] [target]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA21C0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA33E0: (tank-move-to [tank] [dest-vec] [speed]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA3010ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankMoveTrackingObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA1550: (tank-move-tracking-object [tank] [target]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA1600ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankReverseTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA2F80: (tank-reverse-to [tank] [dest-vec] [speed]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA3010ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankSetHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3CC0: (tank-set-health [tank-id] [health]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    int32_t health = (int32_t)argv[1];
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *tank = get_ent ? get_ent(0, handle) : NULL;
+    if (tank && *(uint32_t *)(tank + 0x30) == 0x9F81473C) {
+        int32_t max_hp = *(int32_t *)(tank + 0x1414);
+        if (health > max_hp) health = max_hp;
+        *(int32_t *)(tank + 0x1410) = health;
+        typedef void (ABI *TankUpdateFn)(void *);
+        TankUpdateFn update_fn = (TankUpdateFn)(uintptr_t)(g_u2_image_base + 0x00AAFD70ull);
+        if (update_fn) update_fn(tank);
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTankTeleport(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA1BA0: (tank-teleport [tank] [locator]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA1C40ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcTankWaitTeleport(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA4420: (tank-wait-teleport [tank-id] [locator-matrix] [speed]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    if (!handle) return 0;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *tank = get_ent ? get_ent(0, handle) : NULL;
+    if (tank && argc >= 2 && argv[1]) {
+        /* Teleport tank to target locator matrix */
+        memcpy(tank + 0x50, (void *)argv[1], sizeof(float) * 16);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcTaskElapsedTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A102B0: (task-elapsed-time task) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return (int64_t)u2_f32_to_reg(0.0f);
+}
+
+static int64_t ABI detour_DcTaskFailed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE900: (task-failed [task] [reason]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcTaskFind(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEB90: (task-find task-name) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcTaskNodeActiveP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10340: (task-node-active? task node) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcTaskSubnodeComplete(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FECA0: (task-subnode-complete task node) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcTaskSubnodePlay(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FEC00: (task-subnode-play task node) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 0;
+}
+
+static int64_t ABI detour_DcTransferToSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25A90: (transfer-to-spline [entity] target-spline [speed]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    uint32_t target_spline = (uint32_t)argv[arg_idx];
+    float speed = (argc > arg_idx + 1) ? u2_reg_to_f32(argv[arg_idx + 1]) : 10.0f;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = handle ? get_ent(0, handle) : NULL;
+    if (ent) {
+        typedef void (ABI *TransferFn)(void *, uint32_t, float);
+        TransferFn fn = (TransferFn)(uintptr_t)(g_u2_image_base + 0x00A23F50ull);
+        if (fn) fn(ent, target_spline, speed);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcTranslateYLoop(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FC590: (translate-y-loop entity min max speed) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcUnstickySpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0B7C0: (unsticky-spawner [spawner]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWait(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3E690: (wait [seconds]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A41610: (wait-boolean [condition]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitFor(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A3FC50: (wait-for [coroutine-task]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitFrames(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A41270: (wait-frames [num-frames]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitHeliFireMissile(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A7EE30: (wait-heli-fire-missile [heli-id] [target-matrix]) */
+    u2_set_status(status, 0);
+    return detour_DcHeliFireMissile(argc, argv, status);
+}
+
+static int64_t ABI detour_DcWaitHeliMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A7FA70: (wait-heli-move-to [heli] [target] [speed]) */
+    uint8_t *heli = u2_resolve_heli(argc, argv);
+    if (!heli) {
+        u2_set_status(status, 0);
+        return 0;
+    }
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    void *target = (argc > arg_idx) ? (void *)(uintptr_t)argv[arg_idx] : NULL;
+    float speed = (argc > arg_idx + 1) ? u2_reg_to_f32(argv[arg_idx + 1]) : 15.0f;
+
+    uint8_t *mgr = g_u2_image_base + 0x01050320ull;
+    int32_t count = *(const int32_t *)(mgr + 0x200);
+    /* Safe bounds check: clamps < 16 to avoid int $0x41 debug trap from original binary */
+    void *train_car = NULL;
+    if (count >= 0 && count < 16) {
+        uint8_t *slot = mgr + 8 + (size_t)count * 32;
+        train_car = *(void **)slot;
+    }
+
+    u2_set_status(status, 2); /* pending wait status */
+    typedef void (ABI *WaitFn)(void *, void *, float, void *, uint32_t);
+    WaitFn wait_fn = (WaitFn)(uintptr_t)(g_u2_image_base + 0x00A877A0ull);
+    if (wait_fn) {
+        wait_fn(heli, target, speed, train_car, 0);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitHeliMoveToSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A7F800: (wait-heli-move-to-spline [heli] spline-id [speed]) */
+    uint8_t *heli = u2_resolve_heli(argc, argv);
+    if (!heli) {
+        u2_set_status(status, 0);
+        return 0;
+    }
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t spline_id = (argc > arg_idx) ? (uint32_t)argv[arg_idx] : 0;
+    float speed = (argc > arg_idx + 1) ? u2_reg_to_f32(argv[arg_idx + 1]) : 15.0f;
+
+    /* Clamps train bounds safely to avoid int $0x41 debug trap from original binary */
+    uint8_t *mgr = g_u2_image_base + 0x01050320ull;
+    int32_t count = *(const int32_t *)(mgr + 0x200);
+    void *train_car = NULL;
+    if (count >= 0 && count < 16) {
+        uint8_t *slot = mgr + 8 + (size_t)count * 32;
+        train_car = *(void **)slot;
+    }
+
+    u2_set_status(status, 2); /* pending wait status */
+    typedef void (ABI *WaitSplineFn)(void *, uint32_t, float, void *);
+    WaitSplineFn fn = (WaitSplineFn)(uintptr_t)(g_u2_image_base + 0x00A87850ull);
+    if (fn) fn(heli, spline_id, speed, train_car);
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A41D40: (wait-int32 [target-val]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitOneFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40F70: (wait-one-frame) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitPlayerMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0B350: (wait-player-move-to [dest-vec] [speed]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (player && argc > 0 && argv && argv[0]) {
+        typedef void (ABI *move_fn)(void *, const void *, int32_t);
+        move_fn fn = (move_fn)(uintptr_t)(g_u2_image_base + 0x00A0B100ull);
+        if (fn) fn(player, (const void *)(uintptr_t)argv[0], 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitPlayerTurnTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0AFC0: (wait-player-turn-to [target-or-dir]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    uint8_t *player = (uint8_t *)u2_get_active_player();
+    if (player && argc > 0 && argv) {
+        typedef void (ABI *turn_fn)(void *, uint64_t, int32_t);
+        turn_fn fn = (turn_fn)(uintptr_t)(g_u2_image_base + 0x00A0AE00ull);
+        if (fn) fn(player, argv[0], 1);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitSay(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A016D0: (wait-say speaker line-id) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+
+    /* Clamps active train check bounds safely to prevent int $0x41 debug trap */
+    uint8_t *mgr = g_u2_image_base + 0x01050320ull;
+    int32_t count = *(const int32_t *)(mgr + 0x200);
+    int32_t extra = -1;
+    if (count >= 0 && count < 16) {
+        uint8_t *slot = mgr + 8 + (size_t)count * 32;
+        void *train_car = *(void **)slot;
+        if (train_car) {
+            uint8_t *p = *(uint8_t **)((uint8_t *)train_car + 0x10);
+            if (p) extra = *(const int32_t *)(p + 8);
+        }
+    }
+
+    typedef int64_t (ABI *SayFn)(int32_t, uint64_t *, int32_t);
+    SayFn say_fn = (SayFn)(uintptr_t)(g_u2_image_base + 0x009F3220ull);
+    int64_t res = say_fn ? say_fn(argc, argv, extra) : 0;
+    if (status && res != 0) {
+        u2_set_status(status, 2); /* pending wait status */
+    }
+    return res;
+}
+
+static int64_t ABI detour_DcWaitSpawnEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09E90: (wait-spawn-entity [archetype] [name]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitSpawnEntityAt(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A09DC0: (wait-spawn-entity-at [archetype] [pos]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitSplineDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25740: (wait-spline-distance entity target-dist) */
+    if (!g_u2_image_base || argc < 2 || !argv) {
+        u2_set_status(status, 0);
+        return 0;
+    }
+    uint32_t ent_id = (uint32_t)argv[0];
+    float target_dist = u2_reg_to_f32(argv[1]);
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = get_ent ? get_ent(0, ent_id) : NULL;
+    if (!ent) {
+        u2_set_status(status, 0);
+        return 0;
+    }
+
+    /* Safe train check bounds clamped to avoid int $0x41 debug trap */
+    uint8_t *mgr = g_u2_image_base + 0x01050320ull;
+    int32_t count = *(const int32_t *)(mgr + 0x200);
+    void *train_car = NULL;
+    if (count >= 0 && count < 16) {
+        uint8_t *slot = mgr + 8 + (size_t)count * 32;
+        train_car = *(void **)slot;
+    }
+    (void)train_car;
+
+    typedef float (ABI *GetCurDistFn)(void *);
+    GetCurDistFn dist_fn = (GetCurDistFn)(uintptr_t)(g_u2_image_base + 0x00A23EC0ull);
+    float cur_dist = dist_fn ? dist_fn(ent + 0x3B0) : *(const float *)(ent + 0x3B0);
+
+    if (cur_dist >= target_dist) {
+        u2_set_status(status, 0);
+        return 1;
+    }
+    u2_set_status(status, 2); /* pending wait */
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitTankAimAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3A40: (wait-tank-aim-at-obj [tank] [target]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcWaitTankAimAtPos(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3AA0: (wait-tank-aim-at-pos ...) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *TankWaitFn)(int32_t, uint64_t *, uint32_t, uint32_t, uint64_t, void *, uint64_t, uint64_t);
+    TankWaitFn fn = (TankWaitFn)(uintptr_t)(g_u2_image_base + 0x00AA3490ull);
+    return fn ? fn(argc, argv, 2, 2, (uintptr_t)status, NULL, 0, 0) : 1;
+}
+
+static int64_t ABI detour_DcWaitTankAimForward(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3430: (wait-tank-aim-forward [tank]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00AA26D0ull);
+    return fn ? fn(argc, argv, status) : 0;
+}
+
+static int64_t ABI detour_DcWaitTankFireAtObj(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3B00: (wait-tank-fire-at-obj ...) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *TankWaitFn)(int32_t, uint64_t *, uint32_t, uint32_t, uint64_t, void *, uint64_t, uint64_t);
+    TankWaitFn fn = (TankWaitFn)(uintptr_t)(g_u2_image_base + 0x00AA3490ull);
+    return fn ? fn(argc, argv, 2, 3, (uintptr_t)status, NULL, 0, 0) : 1;
+}
+
+static int64_t ABI detour_DcWaitTankFireAtPos(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3B60: (wait-tank-fire-at-pos ...) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *TankWaitFn)(int32_t, uint64_t *, uint32_t, uint32_t, uint64_t, void *, uint64_t, uint64_t);
+    TankWaitFn fn = (TankWaitFn)(uintptr_t)(g_u2_image_base + 0x00AA3490ull);
+    return fn ? fn(argc, argv, 2, 4, (uintptr_t)status, NULL, 0, 0) : 1;
+}
+
+static int64_t ABI detour_DcWaitTankMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3C60: (wait-tank-move-to ...) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *TankWaitFn)(int32_t, uint64_t *, uint32_t, uint32_t, uint64_t, void *, uint64_t, uint64_t);
+    TankWaitFn fn = (TankWaitFn)(uintptr_t)(g_u2_image_base + 0x00AA3490ull);
+    return fn ? fn(argc, argv, 2, 4, (uintptr_t)status, NULL, 0, 0) : 1;
+}
+
+static int64_t ABI detour_DcWaitTankReverseTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AA3BC0: (wait-tank-reverse-to ...) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *TankWaitFn)(int32_t, uint64_t *, uint32_t, uint32_t, uint64_t, void *, uint64_t, uint64_t);
+    TankWaitFn fn = (TankWaitFn)(uintptr_t)(g_u2_image_base + 0x00AA3490ull);
+    return fn ? fn(argc, argv, 2, 4, (uintptr_t)status, NULL, 0, 0) : 1;
+}
+
+static int64_t ABI detour_DcWaitUntil(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40E60: (wait-until [predicate]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitUntilFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40D40: (wait-until-frame [target-frame]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitUntilNetTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40870: (wait-until-net-time [target-time]) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    return 1;
+}
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
@@ -5142,6 +5754,57 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcTankAimAtPos", 0x00AA2E90, (uintptr_t)detour_DcTankAimAtPos },
     { "DcTankAimAtPosInstant", 0x00AA2B10, (uintptr_t)detour_DcTankAimAtPosInstant },
     { "DcTankAimForward", 0x00AA2A70, (uintptr_t)detour_DcTankAimForward },
+    { "DcSpawnAttachable", 0x00A0F540, (uintptr_t)detour_DcSpawnAttachable },
+    { "DcTankDistToPoint", 0x00AA1300, (uintptr_t)detour_DcTankDistToPoint },
+    { "DcTankFindBestTargetMP", 0x00AA4950, (uintptr_t)detour_DcTankFindBestTargetMP },
+    { "DcTankFire", 0x00AA2930, (uintptr_t)detour_DcTankFire },
+    { "DcTankFireAtObj", 0x00AA2EE0, (uintptr_t)detour_DcTankFireAtObj },
+    { "DcTankFireAtPos", 0x00AA2F30, (uintptr_t)detour_DcTankFireAtPos },
+    { "DcTankForceFireCannon", 0x00AA42C0, (uintptr_t)detour_DcTankForceFireCannon },
+    { "DcTankGetHealth", 0x00AA3D80, (uintptr_t)detour_DcTankGetHealth },
+    { "DcTankMgCeaseFire", 0x00AA2000, (uintptr_t)detour_DcTankMgCeaseFire },
+    { "DcTankMgFireAtLoc", 0x00AA2120, (uintptr_t)detour_DcTankMgFireAtLoc },
+    { "DcTankMgFireAtObj", 0x00AA2680, (uintptr_t)detour_DcTankMgFireAtObj },
+    { "DcTankMoveTo", 0x00AA33E0, (uintptr_t)detour_DcTankMoveTo },
+    { "DcTankMoveTrackingObject", 0x00AA1550, (uintptr_t)detour_DcTankMoveTrackingObject },
+    { "DcTankReverseTo", 0x00AA2F80, (uintptr_t)detour_DcTankReverseTo },
+    { "DcTankSetHealth", 0x00AA3CC0, (uintptr_t)detour_DcTankSetHealth },
+    { "DcTankTeleport", 0x00AA1BA0, (uintptr_t)detour_DcTankTeleport },
+    { "DcTankWaitTeleport", 0x00AA4420, (uintptr_t)detour_DcTankWaitTeleport },
+    { "DcTaskElapsedTime", 0x00A102B0, (uintptr_t)detour_DcTaskElapsedTime },
+    { "DcTaskFailed", 0x009FE900, (uintptr_t)detour_DcTaskFailed },
+    { "DcTaskFind", 0x009FEB90, (uintptr_t)detour_DcTaskFind },
+    { "DcTaskNodeActiveP", 0x00A10340, (uintptr_t)detour_DcTaskNodeActiveP },
+    { "DcTaskSubnodeComplete", 0x009FECA0, (uintptr_t)detour_DcTaskSubnodeComplete },
+    { "DcTaskSubnodePlay", 0x009FEC00, (uintptr_t)detour_DcTaskSubnodePlay },
+    { "DcTransferToSpline", 0x00A25A90, (uintptr_t)detour_DcTransferToSpline },
+    { "DcTranslateYLoop", 0x009FC590, (uintptr_t)detour_DcTranslateYLoop },
+    { "DcUnstickySpawner", 0x00A0B7C0, (uintptr_t)detour_DcUnstickySpawner },
+    { "DcWait", 0x00A3E690, (uintptr_t)detour_DcWait },
+    { "DcWaitBoolean", 0x00A41610, (uintptr_t)detour_DcWaitBoolean },
+    { "DcWaitFor", 0x00A3FC50, (uintptr_t)detour_DcWaitFor },
+    { "DcWaitFrames", 0x00A41270, (uintptr_t)detour_DcWaitFrames },
+    { "DcWaitHeliFireMissile", 0x00A7EE30, (uintptr_t)detour_DcWaitHeliFireMissile },
+    { "DcWaitHeliMoveTo", 0x00A7FA70, (uintptr_t)detour_DcWaitHeliMoveTo },
+    { "DcWaitHeliMoveToSpline", 0x00A7F800, (uintptr_t)detour_DcWaitHeliMoveToSpline },
+    { "DcWaitInt32", 0x00A41D40, (uintptr_t)detour_DcWaitInt32 },
+    { "DcWaitOneFrame", 0x00A40F70, (uintptr_t)detour_DcWaitOneFrame },
+    { "DcWaitPlayerMoveTo", 0x00A0B350, (uintptr_t)detour_DcWaitPlayerMoveTo },
+    { "DcWaitPlayerTurnTo", 0x00A0AFC0, (uintptr_t)detour_DcWaitPlayerTurnTo },
+    { "DcWaitSay", 0x00A016D0, (uintptr_t)detour_DcWaitSay },
+    { "DcWaitSpawnEntity", 0x00A09E90, (uintptr_t)detour_DcWaitSpawnEntity },
+    { "DcWaitSpawnEntityAt", 0x00A09DC0, (uintptr_t)detour_DcWaitSpawnEntityAt },
+    { "DcWaitSplineDistance", 0x00A25740, (uintptr_t)detour_DcWaitSplineDistance },
+    { "DcWaitTankAimAtObj", 0x00AA3A40, (uintptr_t)detour_DcWaitTankAimAtObj },
+    { "DcWaitTankAimAtPos", 0x00AA3AA0, (uintptr_t)detour_DcWaitTankAimAtPos },
+    { "DcWaitTankAimForward", 0x00AA3430, (uintptr_t)detour_DcWaitTankAimForward },
+    { "DcWaitTankFireAtObj", 0x00AA3B00, (uintptr_t)detour_DcWaitTankFireAtObj },
+    { "DcWaitTankFireAtPos", 0x00AA3B60, (uintptr_t)detour_DcWaitTankFireAtPos },
+    { "DcWaitTankMoveTo", 0x00AA3C60, (uintptr_t)detour_DcWaitTankMoveTo },
+    { "DcWaitTankReverseTo", 0x00AA3BC0, (uintptr_t)detour_DcWaitTankReverseTo },
+    { "DcWaitUntil", 0x00A40E60, (uintptr_t)detour_DcWaitUntil },
+    { "DcWaitUntilFrame", 0x00A40D40, (uintptr_t)detour_DcWaitUntilFrame },
+    { "DcWaitUntilNetTime", 0x00A40870, (uintptr_t)detour_DcWaitUntilNetTime },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
