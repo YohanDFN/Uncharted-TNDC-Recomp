@@ -195,6 +195,19 @@ static int64_t ABI detour_DcNetGetGrappleTime(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcNetCoopTask(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006697E0: (net-coop-task) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef uint64_t* (ABI *LookupSymbolValueFn)(uint32_t hash);
+    LookupSymbolValueFn lookup_fn = (LookupSymbolValueFn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
+    if (lookup_fn) {
+        lookup_fn(0x3B9A067Du);
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669240: (net-plyaer-coop-id) */
     (void)argc; (void)argv;
@@ -1046,6 +1059,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcGetCaptureZone", 0x006687D0, (uintptr_t)detour_DcGetCaptureZone },
     { "DcNetEndWave", 0x006687E0, (uintptr_t)detour_DcNetEndWave },
     { "DcNetGetGrappleTime", 0x006687F0, (uintptr_t)detour_DcNetGetGrappleTime },
+    { "DcNetCoopTask", 0x006697E0, (uintptr_t)detour_DcNetCoopTask },
     { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
     { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
