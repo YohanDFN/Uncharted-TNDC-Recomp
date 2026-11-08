@@ -2601,6 +2601,105 @@ static int64_t ABI detour_DcKillSullivanFlashlight(int32_t argc, uint64_t *argv,
     return 0;
 }
 
+static int64_t ABI detour_DcHeliEnableWind(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A7EB60: (heli-enable-wind [enabled-bool]) */
+    if (status) *status = 0;
+    (void)argc;
+    (void)argv;
+    return 1;
+}
+
+static int64_t ABI detour_DcKillParticles(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A00140: (kill-particles handle [immediate-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t handle = (uint32_t)argv[0];
+    uint32_t idx = handle & 0x3FF;
+    uint8_t *fx_mgr = (uint8_t *)(g_u2_image_base + 0x013D1E70ull);
+    uint32_t max_count = *(uint32_t *)(fx_mgr + 0x9D8);
+    if (idx >= max_count) return 0;
+    uint8_t *pool = *(uint8_t **)(fx_mgr + 0x9D0);
+    if (!pool) return 0;
+    uint32_t cap = *(uint32_t *)(pool + 0x9C);
+    if (idx >= cap) return 0;
+    uint8_t *elem = (*(uint8_t **)(pool + 0x90)) + (size_t)idx * 40;
+    uint32_t gen = handle >> 10;
+    bool immediate = (argc >= 2 && argv[1] != 0);
+    uint8_t *ptr = *(uint8_t **)elem;
+    if (ptr && *(uint32_t *)ptr == gen) {
+        uint16_t flag = immediate ? 2 : 1;
+        *(uint16_t *)(ptr + 4) |= flag;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcScanParticleDirectories(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A19360: (scan-particle-directories) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetDeformationOfWaterUnit(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A02CC0: (set-deformation-of-water-unit [unit] [deform]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetDynamicLightColor(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FEE20: (set-dynamic-light-color [light-id] [color-vec]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetLightFov(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x009FFC80: (set-light-fov [light-id] [fov-deg]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetMeshVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0BA20: (set-mesh-visible [entity] [mesh-idx] [visible-p]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t mesh = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    int32_t vis = (argc >= 3 && argv) ? (int32_t)argv[2] : 1;
+    typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *ent = lookup ? lookup(entity_id, 0) : NULL;
+    if (ent) {
+        typedef void (ABI *mesh_fn)(void *, uint32_t, int32_t);
+        mesh_fn fn = (mesh_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(ent, mesh, vis);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcSetRainState(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A02830: (set-rain-state [state]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetWaterOffset(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A02FF0: (set-water-offset [offset-vec]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetWaterState(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A02E20: (set-water-state [state]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
@@ -2818,6 +2917,16 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcGiveSullivanFlashlight", 0x00A0ABC0, (uintptr_t)detour_DcGiveSullivanFlashlight },
     { "DcKillPlayerFlashlight", 0x00A0A920, (uintptr_t)detour_DcKillPlayerFlashlight },
     { "DcKillSullivanFlashlight", 0x00A0A750, (uintptr_t)detour_DcKillSullivanFlashlight },
+    { "DcHeliEnableWind", 0x00A7EB60, (uintptr_t)detour_DcHeliEnableWind },
+    { "DcKillParticles", 0x00A00140, (uintptr_t)detour_DcKillParticles },
+    { "DcScanParticleDirectories", 0x00A19360, (uintptr_t)detour_DcScanParticleDirectories },
+    { "DcSetDeformationOfWaterUnit", 0x00A02CC0, (uintptr_t)detour_DcSetDeformationOfWaterUnit },
+    { "DcSetDynamicLightColor", 0x009FEE20, (uintptr_t)detour_DcSetDynamicLightColor },
+    { "DcSetLightFov", 0x009FFC80, (uintptr_t)detour_DcSetLightFov },
+    { "DcSetMeshVisible", 0x00A0BA20, (uintptr_t)detour_DcSetMeshVisible },
+    { "DcSetRainState", 0x00A02830, (uintptr_t)detour_DcSetRainState },
+    { "DcSetWaterOffset", 0x00A02FF0, (uintptr_t)detour_DcSetWaterOffset },
+    { "DcSetWaterState", 0x00A02E20, (uintptr_t)detour_DcSetWaterState },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

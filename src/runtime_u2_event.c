@@ -391,6 +391,81 @@ static int64_t ABI detour_DcEventObjectDamage(int32_t argc, uint64_t *argv, uint
     return (int64_t)u2_f32_to_reg(dmg);
 }
 
+static int64_t ABI detour_DcNetAllPlayersInRegionP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00669500: (net-all-players-in-region? [region-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetCaptureFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00669960: (net-capture-flag ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetCurrentNetTask(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00669780: (net-current-net-task) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *net = g_u2_image_base + 0x0113B760ull;
+    return (int64_t)*(const uint32_t *)(net + 0x1cf8);
+}
+
+static int64_t ABI detour_DcNetDrawObjectiveIcon(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00669250: (net-draw-objective-icon ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcTagString(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A43B40: (tag-string [tag-list] [tag-symbol] [default]) */
+    if (status) *status = 0;
+    if (argc >= 3 && argv) return (int64_t)argv[2];
+    return 0;
+}
+
+static int64_t ABI detour_DcNetHudSetGrappleIndicator(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00668980: (net-hud-set-grapple-indicator ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetKillEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x006696A0: (net-kill-entity [ent-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetRevivePlayer(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00667D40: (net-revive-player [player-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetSendEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x004C3B60: (net-send-event ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcNetShowWaveScreen(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00668890: (net-show-wave-screen wave) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t wave = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint8_t *net = g_u2_image_base + 0x0113B760ull;
+    *(uint32_t *)(net + 0x1c90) = wave;
+    return 1;
+}
+
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
     { "DcEventArgInt32", 0x004C2BE0, (uintptr_t)detour_DcEventArgInt32 },
@@ -420,6 +495,16 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcEventLevelP", 0x004C34C0, (uintptr_t)detour_DcEventLevelP },
     { "DcEventMyLevelP", 0x004C32D0, (uintptr_t)detour_DcEventMyLevelP },
     { "DcEventObjectDamage", 0x004C3610, (uintptr_t)detour_DcEventObjectDamage },
+    { "DcNetAllPlayersInRegionP", 0x00669500, (uintptr_t)detour_DcNetAllPlayersInRegionP },
+    { "DcNetCaptureFlag", 0x00669960, (uintptr_t)detour_DcNetCaptureFlag },
+    { "DcNetCurrentNetTask", 0x00669780, (uintptr_t)detour_DcNetCurrentNetTask },
+    { "DcNetDrawObjectiveIcon", 0x00669250, (uintptr_t)detour_DcNetDrawObjectiveIcon },
+    { "DcTagString", 0x00A43B40, (uintptr_t)detour_DcTagString },
+    { "DcNetHudSetGrappleIndicator", 0x00668980, (uintptr_t)detour_DcNetHudSetGrappleIndicator },
+    { "DcNetKillEntity", 0x006696A0, (uintptr_t)detour_DcNetKillEntity },
+    { "DcNetRevivePlayer", 0x00667D40, (uintptr_t)detour_DcNetRevivePlayer },
+    { "DcNetSendEvent", 0x004C3B60, (uintptr_t)detour_DcNetSendEvent },
+    { "DcNetShowWaveScreen", 0x00668890, (uintptr_t)detour_DcNetShowWaveScreen },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {
