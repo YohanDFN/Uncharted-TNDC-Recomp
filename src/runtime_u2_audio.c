@@ -143,6 +143,25 @@ static int64_t ABI detour_DcStartMovieAudio(int32_t argc, uint64_t *argv, uint32
     return 0;
 }
 
+static int64_t ABI detour_DcPlayMusicStinger(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD3F0: (play-music-stinger stinger-sym) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    uint8_t *music_mgr = g_u2_image_base + 0x01113C58ull;
+    if (*(const uint8_t *)music_mgr != 0 && sym != 0xF114B39Du) {
+        typedef void * (ABI *EvalFn)(uint32_t);
+        EvalFn eval_sym = (EvalFn)(uintptr_t)(g_u2_image_base + 0x00A15300ull);
+        void *obj = eval_sym ? eval_sym(sym) : NULL;
+        if (obj && *(void **)obj) {
+            typedef void (ABI *PlayStingerFn)(void *, void *);
+            PlayStingerFn fn = (PlayStingerFn)(uintptr_t)(g_u2_image_base + 0x003BE420ull);
+            if (fn) fn(music_mgr, *(void **)obj);
+        }
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_audio_detours[] = {
     { "DcSyncAudioMetaData", 0x009FD560, (uintptr_t)detour_DcSyncAudioMetaData },
@@ -155,6 +174,7 @@ static const U2NativeDetour s_audio_detours[] = {
     { "DcSetMixerOverride", 0x009FD3B0, (uintptr_t)detour_DcSetMixerOverride },
     { "DcCacheMusicPlaylist", 0x009FD460, (uintptr_t)detour_DcCacheMusicPlaylist },
     { "DcStartMovieAudio", 0x009FE0D0, (uintptr_t)detour_DcStartMovieAudio },
+    { "DcPlayMusicStinger", 0x009FD3F0, (uintptr_t)detour_DcPlayMusicStinger },
 };
 
 size_t u2_get_audio_detours(const U2NativeDetour **out) {

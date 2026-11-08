@@ -883,6 +883,70 @@ static int64_t ABI detour_DcSetWalkMode(int32_t argc, uint64_t *argv, uint32_t *
     return 0;
 }
 
+static int64_t ABI detour_DcPlayerRunSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090B180: (player-run-speed [min] [max]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcGuarantee1Bullet(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090C8F0: (guarantee-1-bullet) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    uint8_t *drake = (uint8_t *)u2_get_active_player();
+    if (!drake || !g_u2_image_base) return 0;
+
+    uint8_t *inv = *(uint8_t **)(drake + 0x2768);
+    if (!inv) return 0;
+
+    uint8_t *vt = *(uint8_t **)inv;
+    typedef U2WeaponHandle (ABI *GetActiveWeaponFn)(void *);
+    GetActiveWeaponFn get_active = *(GetActiveWeaponFn *)(vt + 0x70);
+    U2WeaponHandle h = get_active ? get_active(inv) : (U2WeaponHandle){0, 0};
+    if (h.ptr && h.tag != 0) {
+        uint8_t *weapon = *(uint8_t **)h.ptr;
+        if (weapon && *(const uint32_t *)(weapon + 0x44) == (uint32_t)h.tag) {
+            int16_t clip = *(const int16_t *)(weapon + 0x620);
+            if (clip == 0) {
+                typedef void (ABI *AddAmmoFn)(void *, int32_t, int32_t);
+                AddAmmoFn add_ammo = (AddAmmoFn)(uintptr_t)(g_u2_image_base + 0x00AE4930ull);
+                if (add_ammo) add_ammo(weapon, 1, 0);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcForceHairAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00906840: (force-hair-anim [anim-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerSetCornerClimbDistScale(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DE90: (player-set-corner-climb-dist-scale scale) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float scale = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 1.0f;
+    uint8_t **str_base = (uint8_t **)(g_u2_image_base + 0x0104AD78ull);
+    void *str_arg = (str_base && *str_base) ? (void *)(*str_base + 0x12c) : NULL;
+    void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D290ull);
+    void *t2 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D2A0ull);
+    typedef void * (ABI *PropHelperFn)(uint32_t, void *, float *, uint32_t, void *, void *, void *);
+    PropHelperFn prop_fn = (PropHelperFn)(uintptr_t)(g_u2_image_base + 0x00A1CD50ull);
+    void *obj = prop_fn ? prop_fn(0x9B47D004u, str_arg, &scale, 4, t1, t2, NULL) : NULL;
+    if (obj) {
+        uint8_t *p = (uint8_t *)obj;
+        p[0x61] = (p[0x61] & ~0x27) | 0x04;
+        *(uint32_t *)(p + 0x20) = 0x65;
+        uint8_t *mgr = g_u2_image_base + 0x01116180ull;
+        if (mgr) *(uint32_t *)(p + 0x10) = *(uint32_t *)(mgr + 0x84) + 9;
+    }
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -931,6 +995,10 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcGivePlayerWeapon", 0x00906B20, (uintptr_t)detour_DcGivePlayerWeapon },
     { "DcPlayerCheckForGotHit", 0x00A0EF20, (uintptr_t)detour_DcPlayerCheckForGotHit },
     { "DcSetWalkMode", 0x0090D4B0, (uintptr_t)detour_DcSetWalkMode },
+    { "DcPlayerRunSpeed", 0x0090B180, (uintptr_t)detour_DcPlayerRunSpeed },
+    { "DcGuarantee1Bullet", 0x0090C8F0, (uintptr_t)detour_DcGuarantee1Bullet },
+    { "DcForceHairAnim", 0x00906840, (uintptr_t)detour_DcForceHairAnim },
+    { "DcPlayerSetCornerClimbDistScale", 0x0090DE90, (uintptr_t)detour_DcPlayerSetCornerClimbDistScale },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {

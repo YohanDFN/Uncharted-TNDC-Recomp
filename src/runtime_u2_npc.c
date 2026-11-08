@@ -557,6 +557,45 @@ static int64_t ABI detour_DcNpcSetToPlayerFaction(int32_t argc, uint64_t *argv, 
     return 0;
 }
 
+static int64_t ABI detour_DcNpcIgnoreExplosionDamage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DC9C0: (npc-ignore-explosion-damage [npc-id] [ignore]) */
+    if (status) *status = 0;
+    uint8_t *npc = u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    int32_t ignore = (argc > 1 && argv) ? (int32_t)argv[1] : 1;
+    uint8_t *dmg_ctrl = *(uint8_t **)(npc + 0x1F0);
+    if (dmg_ctrl) {
+        void **vt = *(void ***)dmg_ctrl;
+        if (vt && vt[0x68 / 8]) {
+            typedef void (ABI *ExplosionDmgFn)(void *, int32_t);
+            ExplosionDmgFn fn = (ExplosionDmgFn)vt[0x68 / 8];
+            fn(dmg_ctrl, ignore ? 0 : -1);
+        } else {
+            *(uint8_t *)(dmg_ctrl + 0x48) = ignore ? 1 : 0;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGrenadeDirectorDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0069BA40: (grenade-director-disable) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    uint8_t *drake = (uint8_t *)u2_get_active_player();
+    if (drake) {
+        *(uint8_t *)(drake + 0x3120) = 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcGrenadeDirectorIsEnabledP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0069B9C0: (grenade-director-is-enabled?) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    uint8_t *drake = (uint8_t *)u2_get_active_player();
+    return drake ? (*(const uint8_t *)(drake + 0x3120) != 0) : 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -589,6 +628,9 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcReloadWeapon", 0x002DBDA0, (uintptr_t)detour_DcNpcReloadWeapon },
     { "DcNpcFireWeapon", 0x002DBE80, (uintptr_t)detour_DcNpcFireWeapon },
     { "DcNpcSetToPlayerFaction", 0x002DC960, (uintptr_t)detour_DcNpcSetToPlayerFaction },
+    { "DcNpcIgnoreExplosionDamage", 0x002DC9C0, (uintptr_t)detour_DcNpcIgnoreExplosionDamage },
+    { "DcGrenadeDirectorDisable", 0x0069BA40, (uintptr_t)detour_DcGrenadeDirectorDisable },
+    { "DcGrenadeDirectorIsEnabledP", 0x0069B9C0, (uintptr_t)detour_DcGrenadeDirectorIsEnabledP },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

@@ -2193,6 +2193,143 @@ static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *
     return 0;
 }
 
+static int64_t ABI detour_DcSetWhiteFade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A106A0: (set-white-fade [fade-amount]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float fade = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *p_fade = (float *)(uintptr_t)(g_u2_image_base + 0x01150498ull);
+    if (p_fade) *p_fade = fade;
+    return 0;
+}
+
+static int64_t ABI detour_DcSetBlackFade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A10700: (set-black-fade [fade-amount]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    float fade = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
+    float *p_fade = (float *)(uintptr_t)(g_u2_image_base + 0x01150494ull);
+    if (p_fade) *p_fade = fade;
+    return 0;
+}
+
+static int64_t ABI detour_DcMakeInert(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD850: (make-inert entity) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcDisablePlatformControlOnObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04E80: (disable-platform-control-on-object [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t obj_id = (uint32_t)argv[0];
+    typedef void * (ABI *LookupFn)(uint32_t, int32_t);
+    LookupFn lookup = (LookupFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *obj = lookup ? (uint8_t *)lookup(obj_id, 0) : NULL;
+    if (obj && (obj[0x36] & 0x01)) {
+        uint8_t *plat = *(uint8_t **)(obj + 0x1A8);
+        if (plat) {
+            typedef void (ABI *DisableFn)(void *, void *);
+            DisableFn disable = (DisableFn)(uintptr_t)(g_u2_image_base + 0x0067DA10ull);
+            if (disable) disable(plat, obj);
+            *(uint8_t **)(obj + 0x1A8) = NULL;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDisableNavBlockerObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04EF0: (disable-nav-blocker-object [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t obj_id = (uint32_t)argv[0];
+    typedef void * (ABI *LookupFn)(uint32_t, int32_t);
+    LookupFn lookup = (LookupFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *obj = lookup ? (uint8_t *)lookup(obj_id, 0) : NULL;
+    if (obj && (obj[0x36] & 0x01)) {
+        uint8_t *nav = *(uint8_t **)(obj + 0x170);
+        if (nav) {
+            *(uint64_t *)(nav + 0x10) = 0;
+            obj[0x154] &= ~0x04;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcUnblockNavPolyUnderObject(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04FC0: (unblock-nav-poly-under-object [entity]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t obj_id = (uint32_t)argv[0];
+    typedef void * (ABI *LookupFn)(uint32_t, int32_t);
+    LookupFn lookup = (LookupFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *obj = lookup ? (uint8_t *)lookup(obj_id, 0) : NULL;
+    if (obj && (obj[0x36] & 0x01)) {
+        uint8_t *nav = *(uint8_t **)(obj + 0x178);
+        if (nav) {
+            nav[0x0A] &= ~0x40;
+            *(uint64_t *)(obj + 0x178) = 0;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDumpLevelsInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04900: (dump-levels-info) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcLerpReflectionPlanes(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02AA0: (lerp-reflection-planes p1 p2 t) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc >= 3 && argv && argv[0] && argv[1]) {
+        uint8_t *slot = g_u2_image_base + 0x01164980ull;
+        slot[0x14] = 1;
+        *(uint32_t *)(slot + 0x18) = 6;
+        memcpy(slot + 0x30, (const void *)argv[0], 16);
+        memcpy(slot + 0x40, (const void *)argv[1], 16);
+        *(float *)(slot + 0x24) = *(const float *)&argv[2];
+        return 1;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSlowMoEffect(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0EE10: (slow-mo-effect [speed] [duration]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcRailSetNpcArchetype(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9660: (rail-set-npc-archetype [rail] [archetype]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    uint32_t arch = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *LookupFn)(uint32_t, int32_t);
+    LookupFn lookup = (LookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+    void *rail = lookup ? lookup(rail_id, 0) : NULL;
+    if (rail) {
+        typedef void (ABI *ArchFn)(void *, uint32_t);
+        ArchFn fn = (ArchFn)(uintptr_t)(g_u2_image_base + 0x00A904E0ull);
+        if (fn) fn(rail, arch);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcDebugDrawLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE000: (debug-draw-locator loc [color]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -2368,6 +2505,17 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcEnableNavBlockerObject", 0x00A04F60, (uintptr_t)detour_DcEnableNavBlockerObject },
     { "DcBlockNavPolyUnderObject", 0x00A05030, (uintptr_t)detour_DcBlockNavPolyUnderObject },
     { "DcKillEntity", 0x00A09D60, (uintptr_t)detour_DcKillEntity },
+    { "DcSetWhiteFade", 0x00A106A0, (uintptr_t)detour_DcSetWhiteFade },
+    { "DcSetBlackFade", 0x00A10700, (uintptr_t)detour_DcSetBlackFade },
+    { "DcMakeInert", 0x009FD850, (uintptr_t)detour_DcMakeInert },
+    { "DcDisablePlatformControlOnObject", 0x00A04E80, (uintptr_t)detour_DcDisablePlatformControlOnObject },
+    { "DcDisableNavBlockerObject", 0x00A04EF0, (uintptr_t)detour_DcDisableNavBlockerObject },
+    { "DcUnblockNavPolyUnderObject", 0x00A04FC0, (uintptr_t)detour_DcUnblockNavPolyUnderObject },
+    { "DcDumpLevelsInfo", 0x00A04900, (uintptr_t)detour_DcDumpLevelsInfo },
+    { "DcLerpReflectionPlanes", 0x00A02AA0, (uintptr_t)detour_DcLerpReflectionPlanes },
+    { "DcSlowMoEffect", 0x00A0EE10, (uintptr_t)detour_DcSlowMoEffect },
+    { "DcRailSetNpcArchetype", 0x00AB9660, (uintptr_t)detour_DcRailSetNpcArchetype },
+    { "DcDebugDrawLocator", 0x009FE000, (uintptr_t)detour_DcDebugDrawLocator },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

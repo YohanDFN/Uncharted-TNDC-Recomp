@@ -313,6 +313,13 @@ static int64_t ABI detour_DcTagSpecifiedP(int32_t argc, uint64_t *argv, uint32_t
     return spec_p(inst, sym) ? 1 : 0;
 }
 
+static int64_t ABI detour_DcNetIsGameTypeP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667E60: (net-is-game-type? [type]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -333,6 +340,7 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcTagFloat", 0x00A439D0, (uintptr_t)detour_DcTagFloat },
     { "DcTagSymbol", 0x00A43C90, (uintptr_t)detour_DcTagSymbol },
     { "DcTagSpecifiedP", 0x00A43DE0, (uintptr_t)detour_DcTagSpecifiedP },
+    { "DcNetIsGameTypeP", 0x00667E60, (uintptr_t)detour_DcNetIsGameTypeP },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

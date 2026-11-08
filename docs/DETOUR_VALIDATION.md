@@ -124,7 +124,28 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
-* **Milestone 275/843** : 275 fonctions DC natives réécrites en C (`ABI`) - Lot 10 (batch de 20 fonctions) validé unitairement sans crash :
+* **Milestone 295/843** : 295 fonctions DC natives réécrites en C (`ABI`) - Lot 11 (batch de 20 fonctions) validé unitairement sans crash :
+  - `DcSetWhiteFade` (`0x00A106A0`)
+  - `DcSetBlackFade` (`0x00A10700`)
+  - `DcMakeInert` (`0x009FD850`)
+  - `DcDisablePlatformControlOnObject` (`0x00A04E80`)
+  - `DcDisableNavBlockerObject` (`0x00A04EF0`)
+  - `DcUnblockNavPolyUnderObject` (`0x00A04FC0`)
+  - `DcDumpLevelsInfo` (`0x00A04900`)
+  - `DcLerpReflectionPlanes` (`0x00A02AA0`)
+  - `DcSlowMoEffect` (`0x00A0EE10`)
+  - `DcRailSetNpcArchetype` (`0x00AB9660`)
+  - `DcNpcIgnoreExplosionDamage` (`0x002DC9C0`)
+  - `DcGrenadeDirectorDisable` (`0x0069BA40`)
+  - `DcGrenadeDirectorIsEnabledP` (`0x0069B9C0`)
+  - `DcPlayerRunSpeed` (`0x0090B180`)
+  - `DcGuarantee1Bullet` (`0x0090C8F0`)
+  - `DcPlayMusicStinger` (`0x009FD3F0`)
+  - `DcDebugDrawLocator` (`0x009FE000`)
+  - `DcNetIsGameTypeP` (`0x00667E60`)
+  - `DcForceHairAnim` (`0x00906840`)
+  - `DcPlayerSetCornerClimbDistScale` (`0x0090DE90`)
+* **Milestone 275/843** (`d654ccc`) : 275 fonctions DC natives réécrites en C (`ABI`) - Lot 10 (batch de 20 fonctions) validé unitairement sans crash :
   - `DcSpawnParticlesAtJoint` (`0x00A00950`)
   - `DcSpawnParticlesAttached` (`0x00A00960`)
   - `DcNetHideWaveScreen` (`0x00668850`)
