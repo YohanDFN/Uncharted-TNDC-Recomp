@@ -95,6 +95,13 @@ static int64_t ABI detour_DcSetHarvestingEnabled(int32_t argc, uint64_t *argv, u
     return 0;
 }
 
+static int64_t ABI detour_DcGroundPrintsType(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01F00: (ground-prints-type ...) */
+    (void)argv;
+    if (status) *status = 0;
+    return (argc > 0) ? 1 : 0;
+}
+
 static int64_t ABI detour_DcHideHud(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0CD00: (hide-hud) */
     (void)argc; (void)argv; (void)status;
@@ -107,6 +114,17 @@ static int64_t ABI detour_DcIsFma(int32_t argc, uint64_t *argv, uint32_t *status
     /* 0x00A0FE80: (is-fma) */
     (void)argc; (void)argv; (void)status;
     return *(const uint8_t *)(g_u2_image_base + 0x0105DECDull);
+}
+
+static int64_t ABI detour_DcGetDda(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD010: (get-dda) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef float (ABI *GetDdaFn)(void);
+    GetDdaFn get_dda = (GetDdaFn)(uintptr_t)(g_u2_image_base + 0x004ABA00ull);
+    float dda = get_dda ? get_dda() : 0.0f;
+    return (int64_t)u2_f32_to_reg(dda);
 }
 
 static int64_t ABI detour_DcJournalClearPage(int32_t argc, uint64_t *argv, uint32_t *status) {
@@ -215,6 +233,20 @@ static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32
     return 0;
 }
 
+static int64_t ABI detour_DcNetSpawnFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006698C0: (net-spawn-flag ...) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    void *mgr = (void *)(g_u2_image_base + 0x0113B760ull);
+    typedef void (ABI *NetSpawnFlagFn)(void *mgr, uint64_t *argv, uint32_t flag);
+    NetSpawnFlagFn spawn_fn = (NetSpawnFlagFn)(uintptr_t)(g_u2_image_base + 0x0063E1B0ull);
+    if (spawn_fn) {
+        spawn_fn(mgr, argv, 0u);
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcNetCoopTeamFailedP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669C20: (net-coop-team-failed?) */
     (void)argc; (void)argv; (void)status;
@@ -252,6 +284,13 @@ static int64_t ABI detour_DcPsnDemoShowUpsell(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcDebugDrawCross(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE070: (debug-draw-cross ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 static int64_t ABI detour_DcAutoSaveGame(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FE820: (auto-save-game) */
     (void)argc; (void)argv;
@@ -267,6 +306,32 @@ static int64_t ABI detour_DcAutoSaveGame(int32_t argc, uint64_t *argv, uint32_t 
     if (save_fn) {
         save_fn(save_mgr, 1, 10, 0, 4, -1);
         save_fn(save_mgr, 1, slot, 0, 0, -1);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcUpdateTaskMenu(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FE8C0: (update-task-menu) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    void **task_menu_ptr = (void **)(g_u2_image_base + 0x0153BD78ull);
+    if (task_menu_ptr && *task_menu_ptr) {
+        void *menu = *task_menu_ptr;
+        void **vtable = *(void ***)menu;
+        if (vtable) {
+            typedef void (ABI *MenuFn)(void *this_ptr);
+            MenuFn fn20 = (MenuFn)vtable[4]; /* 0x20 / 8 = 4 */
+            if (fn20) fn20(menu);
+            menu = *task_menu_ptr;
+            if (menu) {
+                vtable = *(void ***)menu;
+                if (vtable) {
+                    MenuFn fn38 = (MenuFn)vtable[7]; /* 0x38 / 8 = 7 */
+                    if (fn38) fn38(menu);
+                }
+            }
+        }
     }
     return 0;
 }
@@ -1049,6 +1114,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcResetHarvestingPriority", 0x00A01AE0, (uintptr_t)detour_DcResetHarvestingPriority },
     { "DcHarvestingEnabledP", 0x00A01AF0, (uintptr_t)detour_DcHarvestingEnabledP },
     { "DcSetHarvestingEnabled", 0x00A01B00, (uintptr_t)detour_DcSetHarvestingEnabled },
+    { "DcGroundPrintsType", 0x00A01F00, (uintptr_t)detour_DcGroundPrintsType },
     { "DcHideHud", 0x00A0CD00, (uintptr_t)detour_DcHideHud },
     { "DcIsFma", 0x00A0FE80, (uintptr_t)detour_DcIsFma },
     { "DcJournalClearPage", 0x009FD090, (uintptr_t)detour_DcJournalClearPage },
@@ -1061,12 +1127,15 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcNetGetGrappleTime", 0x006687F0, (uintptr_t)detour_DcNetGetGrappleTime },
     { "DcNetCoopTask", 0x006697E0, (uintptr_t)detour_DcNetCoopTask },
     { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
+    { "DcNetSpawnFlag", 0x006698C0, (uintptr_t)detour_DcNetSpawnFlag },
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
     { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
     { "DcNetCoopHostScriptId", 0x00669C40, (uintptr_t)detour_DcNetCoopHostScriptId },
     { "DcNetIsCinema", 0x00669C50, (uintptr_t)detour_DcNetIsCinema },
     { "DcPsnDemoShowUpsell", 0x009FD590, (uintptr_t)detour_DcPsnDemoShowUpsell },
+    { "DcDebugDrawCross", 0x009FE070, (uintptr_t)detour_DcDebugDrawCross },
     { "DcAutoSaveGame", 0x009FE820, (uintptr_t)detour_DcAutoSaveGame },
+    { "DcUpdateTaskMenu", 0x009FE8C0, (uintptr_t)detour_DcUpdateTaskMenu },
     { "DcGameTaskGraphLogin", 0x009FE8F0, (uintptr_t)detour_DcGameTaskGraphLogin },
     { "DcRailSetIgcFadeOutTime", 0x00AB93F0, (uintptr_t)detour_DcRailSetIgcFadeOutTime },
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
@@ -1134,6 +1203,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcOceanBobEnable", 0x00A033A0, (uintptr_t)detour_DcNoOp0 },
     { "DcOceanBobDisable", 0x00A03390, (uintptr_t)detour_DcNoOp0 },
     { "DcDisplay", 0x009FD000, (uintptr_t)detour_DcNoOp0 },
+    { "DcGetDda", 0x009FD010, (uintptr_t)detour_DcGetDda },
     { "DcDisplayInt", 0x009FCFF0, (uintptr_t)detour_DcNoOp0 },
     { "DcMessage", 0x005DC620, (uintptr_t)detour_DcNoOp0 },
     { "DcAnimStateAdvancePhase", 0x00397690, (uintptr_t)detour_DcNoOp0 },
