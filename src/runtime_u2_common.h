@@ -30,6 +30,14 @@ typedef struct U2NativeDetour {
 /* Native DC function signature */
 typedef int64_t (ABI *U2DcNativeFn)(int32_t argc, uint64_t *argv, uint32_t *out_status);
 
+/* Safe status write helper (guards against garbage rdx when callers pass fewer than 3 args) */
+static inline void u2_set_status(uint32_t *status, uint32_t val) {
+    uintptr_t p = (uintptr_t)status;
+    if (p >= 0x10000ull && p < 0x0000800000000000ull && (p & 3) == 0) {
+        *status = val;
+    }
+}
+
 /* Float <-> Register conversion helpers */
 static inline float u2_reg_to_f32(uint64_t r) {
     uint32_t u = (uint32_t)r;
