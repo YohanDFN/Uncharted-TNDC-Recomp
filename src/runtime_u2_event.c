@@ -327,6 +327,20 @@ static int64_t ABI detour_DcBroadcastEventToNpcs(int32_t argc, uint64_t *argv, u
     return 0;
 }
 
+static int64_t ABI detour_DcSignalRaisedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A40220: (signal-raised? sig [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNetNpcConfirmCoopPlayersContact(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006690C0: (net-npc-confirm-coop-players-contact [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -349,6 +363,8 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcTagSpecifiedP", 0x00A43DE0, (uintptr_t)detour_DcTagSpecifiedP },
     { "DcNetIsGameTypeP", 0x00667E60, (uintptr_t)detour_DcNetIsGameTypeP },
     { "DcBroadcastEventToNpcs", 0x004C3A00, (uintptr_t)detour_DcBroadcastEventToNpcs },
+    { "DcSignalRaisedP", 0x00A40220, (uintptr_t)detour_DcSignalRaisedP },
+    { "DcNetNpcConfirmCoopPlayersContact", 0x006690C0, (uintptr_t)detour_DcNetNpcConfirmCoopPlayersContact },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

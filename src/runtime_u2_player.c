@@ -983,6 +983,34 @@ static int64_t ABI detour_DcDemoResetDefaults(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcPlayerPushForwardSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00908750: (player-push-forward-speed [speed]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcPlayerDisableMelee(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090E9C0: (player-disable-melee) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcEnableDynoJumpFailLooks(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090CA00: (enable-dyno-jump-fail-looks) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcDisableDynoJumpFailLooks(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090CA90: (disable-dyno-jump-fail-looks) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -1038,6 +1066,10 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcChooseStumbleAnim", 0x00907370, (uintptr_t)detour_DcChooseStumbleAnim },
     { "DcCreateBeltAttachment", 0x0090AD30, (uintptr_t)detour_DcCreateBeltAttachment },
     { "DcDemoResetDefaults", 0x0090DD50, (uintptr_t)detour_DcDemoResetDefaults },
+    { "DcPlayerPushForwardSpeed", 0x00908750, (uintptr_t)detour_DcPlayerPushForwardSpeed },
+    { "DcPlayerDisableMelee", 0x0090E9C0, (uintptr_t)detour_DcPlayerDisableMelee },
+    { "DcEnableDynoJumpFailLooks", 0x0090CA00, (uintptr_t)detour_DcEnableDynoJumpFailLooks },
+    { "DcDisableDynoJumpFailLooks", 0x0090CA90, (uintptr_t)detour_DcDisableDynoJumpFailLooks },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {

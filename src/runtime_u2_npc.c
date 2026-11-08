@@ -628,6 +628,34 @@ static int64_t ABI detour_DcDontCollideAgainstAllies(int32_t argc, uint64_t *arg
     return 1;
 }
 
+static int64_t ABI detour_DcNpcTurnTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DFD20: (npc-turn-to [npc] target) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcUnbind(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002E1D20: (npc-unbind [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetInCombat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DA720: (npc-set-in-combat [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcSetPreoccupied(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x002DA830: (npc-set-preoccupied [npc] [flag]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -667,6 +695,10 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcDisallowLegIkByOthers", 0x009FCCF0, (uintptr_t)detour_DcDisallowLegIkByOthers },
     { "DcGrenadeDirectorEnable", 0x0069BAB0, (uintptr_t)detour_DcGrenadeDirectorEnable },
     { "DcDontCollideAgainstAllies", 0x009FCBB0, (uintptr_t)detour_DcDontCollideAgainstAllies },
+    { "DcNpcTurnTo", 0x002DFD20, (uintptr_t)detour_DcNpcTurnTo },
+    { "DcNpcUnbind", 0x002E1D20, (uintptr_t)detour_DcNpcUnbind },
+    { "DcNpcSetInCombat", 0x002DA720, (uintptr_t)detour_DcNpcSetInCombat },
+    { "DcNpcSetPreoccupied", 0x002DA830, (uintptr_t)detour_DcNpcSetPreoccupied },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

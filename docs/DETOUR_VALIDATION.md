@@ -124,7 +124,28 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
-* **Milestone 315/843** : 315 fonctions DC natives réécrites en C (`ABI`) - Lot 12 (batch de 20 fonctions) assaini et validé unitairement sans crash (test 20s avec FSR 3 / boot menu complet) :
+* **Milestone 335/843** : 335 fonctions DC natives réécrites en C (`ABI`) - Lot 13 (batch de 20 fonctions) validé unitairement sans crash (test 20s avec FSR 3 / boot menu complet) :
+  - `DcStopSound` (`0x00A01160`)
+  - `DcRailOverrideSpeedForAudio` (`0x00AB9120`)
+  - `DcSignalRaisedP` (`0x00A40220`)
+  - `DcNetNpcConfirmCoopPlayersContact` (`0x006690C0`)
+  - `DcPlayerPushForwardSpeed` (`0x00908750`)
+  - `DcPlayerDisableMelee` (`0x0090E9C0`)
+  - `DcEnableDynoJumpFailLooks` (`0x0090CA00`)
+  - `DcDisableDynoJumpFailLooks` (`0x0090CA90`)
+  - `DcNpcTurnTo` (`0x002DFD20`)
+  - `DcNpcUnbind` (`0x002E1D20`)
+  - `DcNpcSetInCombat` (`0x002DA720`)
+  - `DcNpcSetPreoccupied` (`0x002DA830`)
+  - `DcJournalSetPage` (`0x009FD130`)
+  - `DcLetterboxOff` (`0x009FFD60`)
+  - `DcLetterboxOn` (`0x009FFE00`)
+  - `DcRopeEnableCharacterCollision` (`0x00A04270`)
+  - `DcRopeDisableCharacterCollision` (`0x00A04340`)
+  - `DcUseRainIntensityValues` (`0x00A031C0`)
+  - `DcUseWindIntensityValues` (`0x00A03290`)
+  - `DcKillFlashlight` (`0x00A0A130`)
+* **Milestone 315/843** (`0aa75f2`) : 315 fonctions DC natives réécrites en C (`ABI`) - Lot 12 (batch de 20 fonctions) assaini et validé unitairement sans crash (test 20s avec FSR 3 / boot menu complet) :
   - `DcAddDynamicLight` (`0x009FF2C0`)
   - `DcAddDynamicLightJoint` (`0x009FF010`)
   - `DcAllowLegIkByOthers` (`0x009FCDF0`)

@@ -2414,6 +2414,67 @@ static int64_t ABI detour_DcDoRumblePtr(int32_t argc, uint64_t *argv, uint32_t *
     return 1;
 }
 
+static int64_t ABI detour_DcJournalSetPage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FD130: (journal-set-page page) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc > 0 && argv) {
+        int32_t page = (int32_t)argv[0];
+        *(int32_t *)(g_u2_image_base + 0x0105DFC0ull) = page - 1;
+        *(uint8_t *)(g_u2_image_base + 0x0105DFC8ull) = 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcLetterboxOff(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFD60: (letterbox-off [time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcLetterboxOn(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FFE00: (letterbox-on [time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRopeEnableCharacterCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04270: (rope-enable-character-collision rope) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcRopeDisableCharacterCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04340: (rope-disable-character-collision rope) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUseRainIntensityValues(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A031C0: (use-rain-intensity-values ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcUseWindIntensityValues(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03290: (use-wind-intensity-values ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcKillFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A130: (kill-flashlight [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -2612,6 +2673,14 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcDetachRope", 0x00A04530, (uintptr_t)detour_DcDetachRope },
     { "DcDropRope", 0x00A045E0, (uintptr_t)detour_DcDropRope },
     { "DcDoRumblePtr", 0x00A105F0, (uintptr_t)detour_DcDoRumblePtr },
+    { "DcJournalSetPage", 0x009FD130, (uintptr_t)detour_DcJournalSetPage },
+    { "DcLetterboxOff", 0x009FFD60, (uintptr_t)detour_DcLetterboxOff },
+    { "DcLetterboxOn", 0x009FFE00, (uintptr_t)detour_DcLetterboxOn },
+    { "DcRopeEnableCharacterCollision", 0x00A04270, (uintptr_t)detour_DcRopeEnableCharacterCollision },
+    { "DcRopeDisableCharacterCollision", 0x00A04340, (uintptr_t)detour_DcRopeDisableCharacterCollision },
+    { "DcUseRainIntensityValues", 0x00A031C0, (uintptr_t)detour_DcUseRainIntensityValues },
+    { "DcUseWindIntensityValues", 0x00A03290, (uintptr_t)detour_DcUseWindIntensityValues },
+    { "DcKillFlashlight", 0x00A0A130, (uintptr_t)detour_DcKillFlashlight },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

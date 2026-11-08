@@ -162,6 +162,20 @@ static int64_t ABI detour_DcPlayMusicStinger(int32_t argc, uint64_t *argv, uint3
     return 0;
 }
 
+static int64_t ABI detour_DcStopSound(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01160: (stop-sound sound-handle) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcRailOverrideSpeedForAudio(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00AB9120: (rail-override-speed-for-audio [rail-entity] [speed]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_audio_detours[] = {
     { "DcSyncAudioMetaData", 0x009FD560, (uintptr_t)detour_DcSyncAudioMetaData },
@@ -175,6 +189,8 @@ static const U2NativeDetour s_audio_detours[] = {
     { "DcCacheMusicPlaylist", 0x009FD460, (uintptr_t)detour_DcCacheMusicPlaylist },
     { "DcStartMovieAudio", 0x009FE0D0, (uintptr_t)detour_DcStartMovieAudio },
     { "DcPlayMusicStinger", 0x009FD3F0, (uintptr_t)detour_DcPlayMusicStinger },
+    { "DcStopSound", 0x00A01160, (uintptr_t)detour_DcStopSound },
+    { "DcRailOverrideSpeedForAudio", 0x00AB9120, (uintptr_t)detour_DcRailOverrideSpeedForAudio },
 };
 
 size_t u2_get_audio_detours(const U2NativeDetour **out) {
