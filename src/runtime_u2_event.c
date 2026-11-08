@@ -320,6 +320,13 @@ static int64_t ABI detour_DcNetIsGameTypeP(int32_t argc, uint64_t *argv, uint32_
     return 0;
 }
 
+static int64_t ABI detour_DcBroadcastEventToNpcs(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x004C3A00: (broadcast-event-to-npcs [event-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_event_detours[] = {
     { "DcEventArgBoolean", 0x004C2A40, (uintptr_t)detour_DcEventArgBoolean },
@@ -341,6 +348,7 @@ static const U2NativeDetour s_event_detours[] = {
     { "DcTagSymbol", 0x00A43C90, (uintptr_t)detour_DcTagSymbol },
     { "DcTagSpecifiedP", 0x00A43DE0, (uintptr_t)detour_DcTagSpecifiedP },
     { "DcNetIsGameTypeP", 0x00667E60, (uintptr_t)detour_DcNetIsGameTypeP },
+    { "DcBroadcastEventToNpcs", 0x004C3A00, (uintptr_t)detour_DcBroadcastEventToNpcs },
 };
 
 size_t u2_get_event_detours(const U2NativeDetour **out) {

@@ -2330,6 +2330,127 @@ static int64_t ABI detour_DcDebugDrawLocator(int32_t argc, uint64_t *argv, uint3
     return 0;
 }
 
+static int64_t ABI detour_DcAddDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF2C0: (add-dynamic-light ...) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcAddDynamicLightJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FF010: (add-dynamic-light-joint light entity joint) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcAddImportModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FF10: (add-import-module mod-name) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcAddLoadModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FE90: (add-load-module mod-name) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcApplyExplosionImpulse(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03B20: (apply-explosion-impulse pos force radius) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcAttachFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0A4C0: (attach-flashlight [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcBattleSelectBestSpawnerFromGroup(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A11190: (battle-select-best-spawner-from-group [group]) -> spawner-id */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    uint32_t group_id = (uint32_t)argv[0];
+    typedef uint32_t (ABI *select_fn)(uint32_t);
+    select_fn fn = (select_fn)(uintptr_t)(g_u2_image_base + 0x00A10F70ull);
+    return fn ? (int64_t)fn(group_id) : 0;
+}
+
+static int64_t ABI detour_DcCameraAimOverrideDirection(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0DE40: (camera-aim-override-direction pitch yaw) */
+    if (status) *status = 0;
+    if (argc < 2 || !g_u2_image_base) return 0;
+    float pitch = u2_reg_to_f32(argv[0]);
+    float yaw   = u2_reg_to_f32(argv[1]);
+    *(uint32_t *)(g_u2_image_base + 0x0147F0BCull) = 2u;
+    float *dest = (float *)(g_u2_image_base + 0x0147F090ull);
+    dest[0] = pitch;
+    dest[1] = yaw;
+    return 1;
+}
+
+static int64_t ABI detour_DcCameraAimOverridePoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0DF40: (camera-aim-override-point point) */
+    if (status) *status = 0;
+    if (argc < 1 || !argv || !argv[0] || !g_u2_image_base) return 0;
+    const float *pt = (const float *)(uintptr_t)argv[0];
+    *(uint32_t *)(g_u2_image_base + 0x0147F0BCull) = 1u;
+    float *dest = (float *)(g_u2_image_base + 0x0147F080ull);
+    dest[0] = pt[0];
+    dest[1] = pt[1];
+    dest[2] = pt[2];
+    dest[3] = 1.0f;
+    return 1;
+}
+
+static int64_t ABI detour_DcCameraAnimationDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A033B0: (camera-animation-disable track-id [blend-time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraAnimationEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03480: (camera-animation-enable track-id [blend-time]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraShake(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E040: (camera-shake type intensity [duration]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcConstrainRopeAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04430: (constrain-rope-at-joint rope joint) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcCreateWeaponDrawables(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0C410: (create-weapon-drawables [entity]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcDetachRope(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A04530: (detach-rope rope) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
@@ -2516,6 +2637,21 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSlowMoEffect", 0x00A0EE10, (uintptr_t)detour_DcSlowMoEffect },
     { "DcRailSetNpcArchetype", 0x00AB9660, (uintptr_t)detour_DcRailSetNpcArchetype },
     { "DcDebugDrawLocator", 0x009FE000, (uintptr_t)detour_DcDebugDrawLocator },
+    { "DcAddDynamicLight", 0x009FF2C0, (uintptr_t)detour_DcAddDynamicLight },
+    { "DcAddDynamicLightJoint", 0x009FF010, (uintptr_t)detour_DcAddDynamicLightJoint },
+    { "DcAddImportModule", 0x00A0FF10, (uintptr_t)detour_DcAddImportModule },
+    { "DcAddLoadModule", 0x00A0FE90, (uintptr_t)detour_DcAddLoadModule },
+    { "DcApplyExplosionImpulse", 0x00A03B20, (uintptr_t)detour_DcApplyExplosionImpulse },
+    { "DcAttachFlashlight", 0x00A0A4C0, (uintptr_t)detour_DcAttachFlashlight },
+    { "DcBattleSelectBestSpawnerFromGroup", 0x00A11190, (uintptr_t)detour_DcBattleSelectBestSpawnerFromGroup },
+    { "DcCameraAimOverrideDirection", 0x00A0DE40, (uintptr_t)detour_DcCameraAimOverrideDirection },
+    { "DcCameraAimOverridePoint", 0x00A0DF40, (uintptr_t)detour_DcCameraAimOverridePoint },
+    { "DcCameraAnimationDisable", 0x00A033B0, (uintptr_t)detour_DcCameraAnimationDisable },
+    { "DcCameraAnimationEnable", 0x00A03480, (uintptr_t)detour_DcCameraAnimationEnable },
+    { "DcCameraShake", 0x00A0E040, (uintptr_t)detour_DcCameraShake },
+    { "DcConstrainRopeAtJoint", 0x00A04430, (uintptr_t)detour_DcConstrainRopeAtJoint },
+    { "DcCreateWeaponDrawables", 0x00A0C410, (uintptr_t)detour_DcCreateWeaponDrawables },
+    { "DcDetachRope", 0x00A04530, (uintptr_t)detour_DcDetachRope },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

@@ -596,6 +596,13 @@ static int64_t ABI detour_DcGrenadeDirectorIsEnabledP(int32_t argc, uint64_t *ar
     return drake ? (*(const uint8_t *)(drake + 0x3120) != 0) : 1;
 }
 
+static int64_t ABI detour_DcAllowLegIkByOthers(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009FCDF0: (allow-leg-ik-by-others [npc]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
@@ -631,6 +638,7 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcIgnoreExplosionDamage", 0x002DC9C0, (uintptr_t)detour_DcNpcIgnoreExplosionDamage },
     { "DcGrenadeDirectorDisable", 0x0069BA40, (uintptr_t)detour_DcGrenadeDirectorDisable },
     { "DcGrenadeDirectorIsEnabledP", 0x0069B9C0, (uintptr_t)detour_DcGrenadeDirectorIsEnabledP },
+    { "DcAllowLegIkByOthers", 0x009FCDF0, (uintptr_t)detour_DcAllowLegIkByOthers },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

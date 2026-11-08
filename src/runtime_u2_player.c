@@ -947,6 +947,42 @@ static int64_t ABI detour_DcPlayerSetCornerClimbDistScale(int32_t argc, uint64_t
     return 0;
 }
 
+static int64_t ABI detour_DcChooseStumbleAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00907370: (choose-stumble-anim [hit-dir]) -> anim-id */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcCreateBeltAttachment(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090AD30: (create-belt-attachment [item-id]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcDemoResetDefaults(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090DD50: (demo-reset-defaults) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    *(float *)(g_u2_image_base + 0x0104F5A4ull) = 0.08f;
+    uint8_t *cfg = g_u2_image_base + 0x01059640ull;
+    *(uint32_t *)(cfg + 0x4888) = 0;
+    *(uint32_t *)(cfg + 0x4880) = 0;
+    *(uint32_t *)(cfg + 0x4884) = 0;
+    *(uint64_t *)(cfg + 0x4874) = 0;
+    *(uint64_t *)(cfg + 0x486C) = 0;
+    *(uint64_t *)(cfg + 0x4864) = 0;
+    *(uint64_t *)(cfg + 0x485C) = 0;
+    *(uint32_t *)(cfg + 0x48A4) = 2;
+    uint8_t *s2 = g_u2_image_base + 0x01136640ull;
+    *(uint32_t *)(s2 + 0x1054) = 2;
+    uint8_t *s3 = g_u2_image_base + 0x0124A0B4ull;
+    *(uint32_t *)(s3 + 0x140) = 1;
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
@@ -999,6 +1035,9 @@ static const U2NativeDetour s_player_detours[] = {
     { "DcGuarantee1Bullet", 0x0090C8F0, (uintptr_t)detour_DcGuarantee1Bullet },
     { "DcForceHairAnim", 0x00906840, (uintptr_t)detour_DcForceHairAnim },
     { "DcPlayerSetCornerClimbDistScale", 0x0090DE90, (uintptr_t)detour_DcPlayerSetCornerClimbDistScale },
+    { "DcChooseStumbleAnim", 0x00907370, (uintptr_t)detour_DcChooseStumbleAnim },
+    { "DcCreateBeltAttachment", 0x0090AD30, (uintptr_t)detour_DcCreateBeltAttachment },
+    { "DcDemoResetDefaults", 0x0090DD50, (uintptr_t)detour_DcDemoResetDefaults },
 };
 
 size_t u2_get_player_detours(const U2NativeDetour **out) {
