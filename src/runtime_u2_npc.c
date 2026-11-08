@@ -1992,6 +1992,248 @@ static int64_t ABI detour_DcNpcUseClosestCover(int32_t argc, uint64_t *argv, uin
     return 1;
 }
 
+static int64_t ABI detour_DcNpcUseScriptedAp(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002DE250: (npc-use-scripted-ap [npc] [ap-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    uint32_t ap_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *ap_fn)(void *, uint32_t);
+        ap_fn fn = (ap_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor, ap_id);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcNpcUsingSkillP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002E3CB0: (npc-using-skill? [npc] skill_idx) */
+    if (status) *status = 0;
+    const uint8_t *npc = (const uint8_t *)u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint32_t skill_idx = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    const uint8_t *skill_ctrl = *(const uint8_t * const *)(npc + 0x3fa0);
+    if (!skill_ctrl) return 0;
+    uint64_t mask = *(const uint64_t *)(skill_ctrl + 0x20);
+    return ((mask & (1ull << (skill_idx & 63u))) != 0) ? 1 : 0;
+}
+
+static int64_t ABI detour_DcNpcsGetPlayerPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002DE830: (npcs-get-player-position [out-vec]) */
+    (void)argc;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const float *player_pos = (const float *)(uintptr_t)(g_u2_image_base + 0x01161EE8ull);
+    if (player_pos && argv && argv[0]) {
+        float *out = (float *)(uintptr_t)argv[0];
+        out[0] = player_pos[0];
+        out[1] = player_pos[1];
+        out[2] = player_pos[2];
+        out[3] = 1.0f;
+        return (int64_t)(uintptr_t)out;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSetHealthParameters(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002DAAA0: (set-health-parameters [npc] [max-hp] [regen-rate]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    float max_hp = (argc >= 2 && argv) ? *(const float *)&argv[1] : 100.0f;
+    float regen = (argc >= 3 && argv) ? *(const float *)&argv[2] : 1.0f;
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *hp_fn)(void *, float, float);
+        hp_fn fn = (hp_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor, max_hp, regen);
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcThrowGrenade(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002E2C30: (throw-grenade [npc] [target-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void (ABI *throw_fn)(uint32_t, const void *);
+    throw_fn fn = (throw_fn)(uintptr_t)(g_u2_image_base + 0x002E2990ull);
+    if (fn) fn(npc_id, (argc >= 2 && argv) ? (const void *)(uintptr_t)argv[1] : NULL);
+    return 1;
+}
+
+static int64_t ABI detour_DcThrowSlaGrenade(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002E2810: (throw-sla-grenade [npc] [target-pos]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void (ABI *throw_fn)(uint32_t, const void *);
+    throw_fn fn = (throw_fn)(uintptr_t)(g_u2_image_base + 0x002E2990ull);
+    if (fn) fn(npc_id, (argc >= 2 && argv) ? (const void *)(uintptr_t)argv[1] : NULL);
+    return 1;
+}
+
+static int64_t ABI detour_DcWaitForNpcNotBusy(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002DF6A0: (wait-for-npc-not-busy [npc]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (!actor) return 0;
+    typedef int32_t (ABI *check_busy_fn)(void *);
+    check_busy_fn fn = (check_busy_fn)(uintptr_t)(g_u2_image_base + 0x00A35970ull);
+    return fn ? (fn(actor) != 0 ? 0 : 1) : 1;
+}
+
+static int64_t ABI detour_DcWaitNpcBind(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002E1E80: (wait-npc-bind [npc] ...) */
+    if (status) *status = 0;
+    uint8_t *npc = (uint8_t *)u2_resolve_npc_from_args(argc, argv);
+    if (!npc) return 0;
+    uint8_t *ctrl = *(uint8_t **)(npc + 0x2638);
+    if (ctrl) {
+        ctrl = *(uint8_t **)(ctrl + 0x08);
+        if (ctrl) {
+            uint8_t *cover_mgr = *(uint8_t **)(ctrl + 0x40);
+            if (cover_mgr) {
+                *(int32_t *)(cover_mgr + 0x30) = 0;
+                *(uint8_t *)(cover_mgr + 0xc1) = 0;
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitNpcLeaveScriptedAp(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002DDD20: (wait-npc-leave-scripted-ap [npc]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *leave_fn)(void *);
+        leave_fn fn = (leave_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitNpcMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002E15F0: (wait-npc-move-to ...) */
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x002E1600ull);
+    return fn ? fn(argc, argv, 1, status) : 0;
+}
+
+static int64_t ABI detour_DcWaitNpcMoveToSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002E0F10: (wait-npc-move-to-spawner ...) */
+    typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
+    fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x002E0F20ull);
+    return fn ? fn(argc, argv, 1, status) : 0;
+}
+
+static int64_t ABI detour_DcWaitNpcTurnTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002DF9A0: (wait-npc-turn-to ...) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *turn_fn)(void *, uint64_t);
+        turn_fn fn = (turn_fn)(uintptr_t)(g_u2_image_base + 0x002DFC00ull);
+        if (fn) fn(actor, (argc >= 2 && argv) ? argv[1] : 0);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitNpcUseClosestCover(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002E4130: (wait-npc-use-closest-cover [npc] [cover-pos]) */
+    detour_DcNpcUseClosestCover(argc, argv, status);
+    return 0;
+}
+
+static int64_t ABI detour_DcWaitNpcUseScriptedAp(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x002DDF20: (wait-npc-use-scripted-ap [npc] [ap-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t npc_id = 0;
+    if (argc > 0 && argv) npc_id = (uint32_t)argv[0];
+    else {
+        typedef uint32_t (ABI *self_fn)(uint32_t, uint32_t, uint32_t);
+        self_fn get_self = *(self_fn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (get_self) npc_id = get_self(0, 0, 1);
+    }
+    uint32_t ap_id = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
+    typedef void * (ABI *lookup_fn)(void *, uint32_t);
+    lookup_fn lookup = (lookup_fn)(uintptr_t)(g_u2_image_base + 0x00231C50ull);
+    void *npc_pool = (void *)(uintptr_t)(g_u2_image_base + 0x0110DCB8ull);
+    void *actor = lookup ? lookup(npc_pool, npc_id) : NULL;
+    if (actor) {
+        typedef void (ABI *ap_fn)(void *, uint32_t);
+        ap_fn fn = (ap_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        if (fn) fn(actor, ap_id);
+    }
+    return 0;
+}
+
 static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcMaxCount", 0x002DEFF0, (uintptr_t)detour_DcNpcMaxCount },
     { "DcNpcAliveCount", 0x002DF000, (uintptr_t)detour_DcNpcAliveCount },
@@ -2103,6 +2345,20 @@ static const U2NativeDetour s_npc_detours[] = {
     { "DcNpcUpdateMoveDest", 0x002E01D0, (uintptr_t)detour_DcNpcUpdateMoveDest },
     { "DcNpcUseCap", 0x002E3F60, (uintptr_t)detour_DcNpcUseCap },
     { "DcNpcUseClosestCover", 0x002E43B0, (uintptr_t)detour_DcNpcUseClosestCover },
+    { "DcNpcUseScriptedAp", 0x002DE250, (uintptr_t)detour_DcNpcUseScriptedAp },
+    { "DcNpcUsingSkillP", 0x002E3CB0, (uintptr_t)detour_DcNpcUsingSkillP },
+    { "DcNpcsGetPlayerPosition", 0x002DE830, (uintptr_t)detour_DcNpcsGetPlayerPosition },
+    { "DcSetHealthParameters", 0x002DAAA0, (uintptr_t)detour_DcSetHealthParameters },
+    { "DcThrowGrenade", 0x002E2C30, (uintptr_t)detour_DcThrowGrenade },
+    { "DcThrowSlaGrenade", 0x002E2810, (uintptr_t)detour_DcThrowSlaGrenade },
+    { "DcWaitForNpcNotBusy", 0x002DF6A0, (uintptr_t)detour_DcWaitForNpcNotBusy },
+    { "DcWaitNpcBind", 0x002E1E80, (uintptr_t)detour_DcWaitNpcBind },
+    { "DcWaitNpcLeaveScriptedAp", 0x002DDD20, (uintptr_t)detour_DcWaitNpcLeaveScriptedAp },
+    { "DcWaitNpcMoveTo", 0x002E15F0, (uintptr_t)detour_DcWaitNpcMoveTo },
+    { "DcWaitNpcMoveToSpawner", 0x002E0F10, (uintptr_t)detour_DcWaitNpcMoveToSpawner },
+    { "DcWaitNpcTurnTo", 0x002DF9A0, (uintptr_t)detour_DcWaitNpcTurnTo },
+    { "DcWaitNpcUseClosestCover", 0x002E4130, (uintptr_t)detour_DcWaitNpcUseClosestCover },
+    { "DcWaitNpcUseScriptedAp", 0x002DDF20, (uintptr_t)detour_DcWaitNpcUseScriptedAp },
 };
 
 size_t u2_get_npc_detours(const U2NativeDetour **out) {

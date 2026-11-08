@@ -2878,6 +2878,66 @@ static int64_t ABI detour_DcEnableMessage(int32_t argc, uint64_t *argv, uint32_t
     return 1;
 }
 
+static int64_t ABI detour_DcEndScript(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A44190: (end-script script) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFacingPointP(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0F6D0: (facing-point? [entity] [pt-vec]) -> bool */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFireWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0C930: (fire-weapon [entity] [target]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFireWeaponAtTarget(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A0C4C0: (fire-weapon-at-target entity target) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
+static int64_t ABI detour_DcFollowSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x00A25E50: (follow-spline [entity] spline-id [speed] [accel]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc <= 0 || !argv) return 0;
+    int32_t arg_idx = (argc >= 2) ? 1 : 0;
+    uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
+    if (!handle) {
+        typedef uint32_t (ABI *GetSelfFn)(uint32_t, const void *, uint32_t);
+        GetSelfFn get_self = (GetSelfFn)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x010666C8ull));
+        if (get_self) handle = get_self(0, 0, 1);
+    }
+    uint32_t spline_id = (uint32_t)argv[arg_idx];
+    float speed = (argc > arg_idx + 1) ? u2_reg_to_f32(argv[arg_idx + 1]) : 10.0f;
+    float accel = (argc > arg_idx + 2) ? u2_reg_to_f32(argv[arg_idx + 2]) : 5.0f;
+    typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
+    GetEntityFn get_ent = (GetEntityFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = handle ? get_ent(0, handle) : NULL;
+    if (ent) {
+        typedef void (ABI *FollowFn)(void *, uint32_t, float, float);
+        FollowFn fn = (FollowFn)(uintptr_t)(g_u2_image_base + 0x00A241B0ull);
+        if (fn) fn(ent, spline_id, speed, accel);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcForGroup(int32_t argc, uint64_t *argv, uint32_t *status) {
+/* 0x0054B830: (for-group [group-id] [lambda]) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 1;
+}
+
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
@@ -3121,6 +3181,12 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcDumpEntityInfo", 0x00A04970, (uintptr_t)detour_DcDumpEntityInfo },
     { "DcEnableActionPack", 0x00A0A060, (uintptr_t)detour_DcEnableActionPack },
     { "DcEnableMessage", 0x005DC8E0, (uintptr_t)detour_DcEnableMessage },
+    { "DcEndScript", 0x00A44190, (uintptr_t)detour_DcEndScript },
+    { "DcFacingPointP", 0x00A0F6D0, (uintptr_t)detour_DcFacingPointP },
+    { "DcFireWeapon", 0x00A0C930, (uintptr_t)detour_DcFireWeapon },
+    { "DcFireWeaponAtTarget", 0x00A0C4C0, (uintptr_t)detour_DcFireWeaponAtTarget },
+    { "DcFollowSpline", 0x00A25E50, (uintptr_t)detour_DcFollowSpline },
+    { "DcForGroup", 0x0054B830, (uintptr_t)detour_DcForGroup },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {
