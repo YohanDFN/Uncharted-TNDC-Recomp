@@ -29,6 +29,71 @@ static int64_t ABI detour_DcEntityName(int32_t argc, uint64_t *argv, uint32_t *s
     return *(const uint32_t *)(uintptr_t)(argv[0] + 0x28u);
 }
 
+static int64_t ABI detour_DcEntityAutoSpawnOnce(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A12830: (entity-auto-spawn-once) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+
+    typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+    typedef uint8_t * (ABI *GetScriptInstanceFn)(void *ctx, uint32_t name_id);
+
+    uint32_t name_id = 0;
+    if (argc > 0 && argv) {
+        name_id = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(name_id, NULL);
+    } else {
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) {
+            name_id = (*p_make_sym)(0, NULL, 1);
+        }
+    }
+
+    void *ss_context = (void *)(g_u2_image_base + 0x01130390ull);
+    GetScriptInstanceFn get_inst = (GetScriptInstanceFn)(uintptr_t)(g_u2_image_base + 0x0056C7B0ull);
+    if (!get_inst) return 0;
+
+    uint8_t *inst = get_inst(ss_context, name_id);
+    if (!inst) return 0;
+
+    uint32_t val = (uint32_t)*(const uint16_t *)(inst + 0x50) | ((uint32_t)*(const uint8_t *)(inst + 0x52) << 16);
+    val = (val & 0xFFBFFDu) | 0x4000u;
+    *(uint16_t *)(inst + 0x50) = (uint16_t)(val & 0xFFFF);
+    *(uint8_t *)(inst + 0x52) = (uint8_t)((val >> 16) & 0xFF);
+
+    return 1;
+}
+
+static int64_t ABI detour_DcPartModuleLoadedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A00970: (part-module-loaded? [symbol-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
+    if (argc > 0 && argv) {
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const void *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) {
+            sym = (*p_make_sym)(0, NULL, 1);
+        }
+    }
+    const uint8_t *fx_mgr = g_u2_image_base + 0x013D1E70ull;
+    uint32_t count = *(const uint32_t *)(fx_mgr + 0x8C8);
+    if (!count) return 0;
+    const uint8_t *entry = fx_mgr + 0x298;
+    for (uint32_t i = 0; i < count; ++i) {
+        if (*(const uint32_t *)entry == sym) {
+            return 1;
+        }
+        entry += 0x30;
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcSymbolEqualP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00397620: (symbol-equal? a b) */
     (void)argc; (void)status;
@@ -475,6 +540,47 @@ static int64_t ABI detour_DcTrainGetDefaultAcceleration(int32_t argc, uint64_t *
     /* 0x00A682E0: (train-get-default-acceleration) -> 2.0f (0x40000000) */
     (void)argc; (void)argv; (void)status;
     return 0x40000000ll;
+}
+
+static int64_t ABI detour_DcKillAllDroppedWeapons(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F1B0: (kill-all-dropped-weapons) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    const uint8_t *entity_mgr = g_u2_image_base + 0x0115F1A0ull;
+    const void *head = *(const void * const *)(entity_mgr + 0xC90);
+    typedef void * (ABI *GetNextEntityFn)(const void *cur, int32_t mode);
+    typedef void (ABI *KillEntityFn)(void *ent);
+    typedef uint32_t (ABI *MakeSymbolFn)(uint32_t rdi, const char *name, int32_t flag);
+
+    GetNextEntityFn get_next = (GetNextEntityFn)(uintptr_t)(g_u2_image_base + 0x009BCDF0ull);
+    KillEntityFn kill_ent = (KillEntityFn)(uintptr_t)(g_u2_image_base + 0x009BE760ull);
+    MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+
+    if (!get_next || !kill_ent || !p_make_sym || !*p_make_sym) return 0;
+
+    MakeSymbolFn make_sym = *p_make_sym;
+    const char *dropped_str = (const char *)(g_u2_image_base + 0x00EAB13Full);
+
+    void *cur = get_next(head, 0);
+    while (cur) {
+        uint16_t flags = *(const uint16_t *)((const uint8_t *)cur + 0x34);
+        if ((flags & 1) && *(const uint32_t *)((const uint8_t *)cur + 0x30) == 0x9DF97F47u) {
+            uint32_t sym = make_sym(0, dropped_str, 1);
+            const uint8_t *c50 = *(const uint8_t * const *)((const uint8_t *)cur + 0x50);
+            if (c50) {
+                const uint8_t *sub = *(const uint8_t * const *)c50;
+                if (sub) {
+                    const uint8_t *p10 = *(const uint8_t * const *)(sub + 0x10);
+                    if (p10 && *(const uint32_t *)(p10 + 0x18) == sym) {
+                        kill_ent(cur);
+                    }
+                }
+            }
+        }
+        cur = get_next(cur, 0);
+    }
+    return 0;
 }
 
 static int64_t ABI detour_DcKillAllBreakables(int32_t argc, uint64_t *argv, uint32_t *status) {
@@ -1239,6 +1345,8 @@ static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *
 static const U2NativeDetour s_scene_detours[] = {
     { "DcEntityName", 0x00A127D0, (uintptr_t)detour_DcEntityName },
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
+    { "DcEntityAutoSpawnOnce", 0x00A12830, (uintptr_t)detour_DcEntityAutoSpawnOnce },
+    { "DcPartModuleLoadedP", 0x00A00970, (uintptr_t)detour_DcPartModuleLoadedP },
     { "DcSymbolEqualP", 0x00397620, (uintptr_t)detour_DcSymbolEqualP },
     { "DcCameraCancelAimOverride", 0x00A0DE30, (uintptr_t)detour_DcCameraCancelAimOverride },
     { "DcCameraRestoreLocator", 0x00A0E9B0, (uintptr_t)detour_DcCameraRestoreLocator },
@@ -1282,6 +1390,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcDeactivateBlur", 0x009FFF50, (uintptr_t)detour_DcDeactivateBlur },
     { "DcRailSetIgcFadeOutTime", 0x00AB93F0, (uintptr_t)detour_DcRailSetIgcFadeOutTime },
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
+    { "DcKillAllDroppedWeapons", 0x00A0F1B0, (uintptr_t)detour_DcKillAllDroppedWeapons },
     { "DcKillAllBreakables", 0x00A0F260, (uintptr_t)detour_DcKillAllBreakables },
     { "DcTutorialHintsOnP", 0x00A0F490, (uintptr_t)detour_DcTutorialHintsOnP },
     { "DcUseWaterUnitForReflectionIfVisible", 0x00A02C50, (uintptr_t)detour_DcUseWaterUnitForReflectionIfVisible },

@@ -792,10 +792,59 @@ static int64_t ABI detour_DcPlayerCheckForGotHit(int32_t argc, uint64_t *argv, u
     return 0;
 }
 
+static int64_t ABI detour_DcCalcNewPhaseFromSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FBF0: (calc-new-phase-from-speed) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || !argv || argc < 4) return (int64_t)u2_f32_to_reg(0.0f);
+
+    float arg0 = u2_reg_to_f32(argv[0]);
+    float arg1 = u2_reg_to_f32(argv[1]);
+    int32_t arg2 = (int32_t)argv[2];
+    float arg3 = u2_reg_to_f32(argv[3]);
+    float arg4 = (argc >= 5) ? u2_reg_to_f32(argv[4]) : 0.0f;
+
+    const uint8_t *ctx = g_u2_image_base + 0x0115BD20ull;
+    void **p_target = *(void ***)ctx;
+    if (!p_target || !*p_target) return (int64_t)u2_f32_to_reg(0.0f);
+
+    uint8_t *player = (uint8_t *)(*p_target);
+    uint32_t tag = *(const uint32_t *)(player + 0x44);
+    uint32_t expected_tag = *(const uint32_t *)(ctx + 8);
+    if (tag != expected_tag) return (int64_t)u2_f32_to_reg(0.0f);
+
+    uint8_t *comp = *(uint8_t **)(player + 0x190);
+    if (!comp) return (int64_t)u2_f32_to_reg(0.0f);
+
+    void *rdi = (void *)(comp + 0x150);
+    float xmm1 = arg1 * arg3;
+    float xmm2 = arg4 * arg3;
+
+    typedef float (ABI *CalcPhaseFn)(void *comp, int32_t anim_idx, float f0, float f1, float f2);
+    CalcPhaseFn fn = (CalcPhaseFn)(uintptr_t)(g_u2_image_base + 0x003A7360ull);
+    if (!fn) return (int64_t)u2_f32_to_reg(0.0f);
+
+    float result = fn(rdi, arg2, arg0, xmm1, xmm2);
+    return (int64_t)u2_f32_to_reg(result);
+}
+
+static int64_t ABI detour_DcDrawReticle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x0090E6E0: (draw-reticle) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    void *hud_mgr = (void *)(g_u2_image_base + 0x011579F0ull);
+    typedef void (ABI *DrawReticleInternalFn)(void *hud_mgr, float x, float y, float z);
+    DrawReticleInternalFn fn = (DrawReticleInternalFn)(uintptr_t)(g_u2_image_base + 0x00936780ull);
+    if (fn) fn(hud_mgr, -1.0f, -1.0f, -1.0f);
+    return 0;
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
     { "DcMinmax", 0x009FDBF0, (uintptr_t)detour_DcMinmax },
+    { "DcCalcNewPhaseFromSpeed", 0x00A0FBF0, (uintptr_t)detour_DcCalcNewPhaseFromSpeed },
+    { "DcDrawReticle", 0x0090E6E0, (uintptr_t)detour_DcDrawReticle },
     { "DcForcePlayerSwim", 0x0090D740, (uintptr_t)detour_DcForcePlayerSwim },
     { "DcPlayerInitiateMelee", 0x00909420, (uintptr_t)detour_DcPlayerInitiateMelee },
     { "DcGetPlayerTeachComboTriangle", 0x005DCDE0, (uintptr_t)detour_DcGetPlayerTeachComboTriangle },
