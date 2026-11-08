@@ -1070,6 +1070,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcSetJetskiNearStupidRampInRuins2", 0x00A01B50, (uintptr_t)detour_DcNoOp0 },
     { "DcJetskiClearEngineSoundOverride", 0x00A01B20, (uintptr_t)detour_DcNoOp0 },
     { "DcJetskiOverrideEngineSound", 0x00A01B30, (uintptr_t)detour_DcNoOp0 },
+    { "DcJetskiStartEngineSound", 0x00A01B40, (uintptr_t)detour_DcNoOp0 },
     { "DcSetE3LoadingScreen", 0x009FD5B0, (uintptr_t)detour_DcNoOp0 },
     { "DcEntitySetLevelB", 0x00A64C30, (uintptr_t)detour_DcNoOp0 },
     { "DcFmaResetPartModules", 0x00A00130, (uintptr_t)detour_DcNoOp0 },
