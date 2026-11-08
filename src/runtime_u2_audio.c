@@ -36,6 +36,15 @@ static int64_t ABI detour_DcSuppressIdleSpeech(int32_t argc, uint64_t *argv, uin
     return 0;
 }
 
+static int64_t ABI detour_DcSay(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A01A80: (say speaker line-id) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    typedef int64_t (ABI *SayFn)(int32_t argc, uint64_t *argv, int32_t channel);
+    SayFn fn = (SayFn)(uintptr_t)(g_u2_image_base + 0x009F3220ull);
+    return fn ? fn(argc, argv, -1) : 0;
+}
+
 static int64_t ABI detour_DcCacheSoundBank(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD540: (cache-sound-bank bank-name) */
     if (status) *status = 0;
@@ -139,6 +148,7 @@ static const U2NativeDetour s_audio_detours[] = {
     { "DcSyncAudioMetaData", 0x009FD560, (uintptr_t)detour_DcSyncAudioMetaData },
     { "DcUseAudioRainLevel", 0x00A009F0, (uintptr_t)detour_DcUseAudioRainLevel },
     { "DcSuppressIdleSpeech", 0x00A01360, (uintptr_t)detour_DcSuppressIdleSpeech },
+    { "DcSay", 0x00A01A80, (uintptr_t)detour_DcSay },
     { "DcCacheSoundBank", 0x009FD540, (uintptr_t)detour_DcCacheSoundBank },
     { "DcCacheSoundStream", 0x009FD510, (uintptr_t)detour_DcCacheSoundStream },
     { "DcCacheSpeechStream", 0x009FD4E0, (uintptr_t)detour_DcCacheSpeechStream },

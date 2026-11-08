@@ -94,6 +94,74 @@ static int64_t ABI detour_DcPartModuleLoadedP(int32_t argc, uint64_t *argv, uint
     return 0;
 }
 
+static int64_t ABI detour_DcDisableFrameForward(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A038A0: (disable-frame-forward [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    if (!find_fn) return 0;
+    uint8_t *ent = (uint8_t *)find_fn(0, sym);
+    if (ent && (*(const uint8_t *)(ent + 0x36) & 1)) {
+        uint8_t *holder = *(uint8_t **)(ent + 0xB8);
+        if (holder) {
+            uint32_t count = *(const uint32_t *)holder;
+            if (count >= 2) {
+                uint8_t *base = *(uint8_t **)(holder + 0x28);
+                if (base) {
+                    uint8_t *p = base + 0x1DE;
+                    for (uint32_t i = count - 1; i > 0; i--) {
+                        *p = 1;
+                        p += 0x110;
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcUnparent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A03940: (unparent [obj-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    if (!find_fn) return 0;
+    uint8_t *ent = (uint8_t *)find_fn(0, sym);
+    if (ent && (*(const uint8_t *)(ent + 0x36) & 1)) {
+        void **vtable = *(void ***)ent;
+        if (vtable) {
+            typedef void (ABI *UnparentFn)(void *ent, int32_t zero);
+            UnparentFn fn = (UnparentFn)vtable[0x198 / 8];
+            if (fn) fn(ent, 0);
+        }
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcEnableGadgetry(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A039C0: (enable-gadgetry [obj-id]) */
     if (status) *status = 0;
@@ -190,6 +258,184 @@ static int64_t ABI detour_DcCameraRestoreLocator(int32_t argc, uint64_t *argv, u
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x0147F0B0ull) = 1u;
     return 0;
+}
+
+static int64_t ABI detour_DcCameraAbandon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E5E0: (camera-abandon [name-or-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+
+    uint32_t target_id = 0;
+    typedef uint8_t * (ABI *GetScriptInstanceFn)(void *ctx, uint32_t name_id);
+    GetScriptInstanceFn get_inst = (GetScriptInstanceFn)(uintptr_t)(g_u2_image_base + 0x0056C7B0ull);
+    uint8_t *inst = get_inst ? get_inst((void *)(g_u2_image_base + 0x01130390ull), sym) : NULL;
+    if (inst) {
+        target_id = *(const uint32_t *)(inst + 0x28);
+    } else {
+        typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+        FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        uint8_t *ent = find_fn ? (uint8_t *)find_fn(0, sym) : NULL;
+        if (ent) target_id = *(const uint32_t *)(ent + 0x68);
+    }
+
+    if (target_id != 0) {
+        const uint8_t *head = g_u2_image_base + 0x0147F050ull;
+        const uint8_t *cur = *(const uint8_t * const *)head;
+        while (cur && cur != head) {
+            if (*(const uint32_t *)(cur + 0x14) == target_id) {
+                *(uint8_t *)(cur + 0x34) |= 1;
+                break;
+            }
+            cur = *(const uint8_t * const *)cur;
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcCameraDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0E500: (camera-disable [name-or-id]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+
+    uint32_t target_id = 0;
+    typedef uint8_t * (ABI *GetScriptInstanceFn)(void *ctx, uint32_t name_id);
+    GetScriptInstanceFn get_inst = (GetScriptInstanceFn)(uintptr_t)(g_u2_image_base + 0x0056C7B0ull);
+    uint8_t *inst = get_inst ? get_inst((void *)(g_u2_image_base + 0x01130390ull), sym) : NULL;
+    if (inst) {
+        target_id = *(const uint32_t *)(inst + 0x28);
+    } else {
+        typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+        FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+        uint8_t *ent = find_fn ? (uint8_t *)find_fn(0, sym) : NULL;
+        if (ent) target_id = *(const uint32_t *)(ent + 0x68);
+    }
+    if (target_id == 0) return 0;
+
+    const uint8_t *head = g_u2_image_base + 0x0147F050ull;
+    const uint8_t *cur = *(const uint8_t * const *)(head + 8);
+    uint8_t *match = NULL;
+    while (cur && cur != head) {
+        if (!(*(const uint8_t *)(cur + 0x34) & 1)) {
+            if (*(const uint32_t *)(cur + 0x14) == target_id) {
+                match = (uint8_t *)cur;
+                break;
+            }
+        }
+        cur = *(const uint8_t * const *)(cur + 8);
+    }
+    if (!match) return 0;
+
+    const uint8_t *fwd = *(const uint8_t * const *)head;
+    const uint8_t *active = NULL;
+    while (fwd && fwd != head) {
+        if (!(*(const uint8_t *)(fwd + 0x34) & 1)) {
+            active = fwd;
+            break;
+        }
+        fwd = *(const uint8_t * const *)fwd;
+    }
+
+    match[0x34] |= 1;
+
+    if (match == active) {
+        typedef void (ABI *CamActivateFn)(uint32_t, int32_t, int32_t);
+        CamActivateFn act_fn = (CamActivateFn)(uintptr_t)(g_u2_image_base + 0x00404860ull);
+        uint32_t cam_mgr_id = *(const uint32_t *)(g_u2_image_base + 0x0147F0B4ull);
+        if (act_fn) act_fn(cam_mgr_id, 1, 0);
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSetFocusableGrappled(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0F2C0: (set-focusable-grappled [ent] [flag]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    uint8_t *ent = find_fn ? (uint8_t *)find_fn(0, sym) : NULL;
+    if (!ent) return 0;
+
+    typedef uint8_t * (ABI *GetCompFn)(uint8_t *);
+    uint8_t **vtable = *(uint8_t ***)ent;
+    if (!vtable) return 0;
+    GetCompFn get_comp = (GetCompFn)(uintptr_t)vtable[0x88 / 8];
+    uint8_t *comp = get_comp ? get_comp(ent) : NULL;
+    if (!comp) return 0;
+
+    int32_t flag = (argc >= 2 && argv && argv[1] != 0) ? 1 : 0;
+    uint16_t w = *(uint16_t *)(comp + 0x3C);
+    w = (uint16_t)((w & ~0x100u) | (flag ? 0x100u : 0u));
+    *(uint16_t *)(comp + 0x3C) = w;
+
+    if (sym == 0xCDE4B742u) {
+        int32_t game_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
+        if (game_mode >= 2) {
+            uint8_t *net_mgr = *(uint8_t **)(g_u2_image_base + 0x0113B760ull);
+            if (net_mgr) {
+                *(uint32_t *)(net_mgr + 0x184) = *(const uint32_t *)(g_u2_image_base + 0x01116180ull + 0x204);
+            }
+        }
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcSplineTransferPendingP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A25A20: (spline-transfer-pending? [ent]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    if (!find_fn) return 0;
+    uint8_t *ent = (uint8_t *)find_fn(0, sym);
+    if (!ent || !(*(const uint8_t *)(ent + 0x36) & 1)) return 0;
+    const uint8_t *comp = *(const uint8_t * const *)(ent + 0x1B8);
+    if (!comp) return 0;
+    return (*(const uint32_t *)(comp + 0x60) != 0) ? 1 : 0;
 }
 
 static int64_t ABI detour_DcDebugPause(int32_t argc, uint64_t *argv, uint32_t *status) {
@@ -418,6 +664,18 @@ static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32
     /* 0x00669240: (net-plyaer-coop-id) */
     (void)argc; (void)argv;
     if (status) *status = 0;
+    return 0;
+}
+
+static int64_t ABI detour_DcSetForceTension(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00667EE0: (set-force-tension flag) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    int32_t mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
+    if (mode > 1) {
+        uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
+        *(uint8_t *)(g_u2_image_base + 0x0113B760ull + 0x21C8) = flag;
+    }
     return 0;
 }
 
@@ -1045,6 +1303,92 @@ static int64_t ABI detour_DcStateCharacterAccumulatesWetnessFromWater(int32_t ar
     return 1;
 }
 
+static int64_t ABI detour_DcSetMaxCharacterWetness(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02510: (set-max-character-wetness val) */
+    (void)status;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    *(float *)(g_u2_image_base + 0x01117570ull + 0x1CCull) = u2_reg_to_f32(argv[0]);
+    return 1;
+}
+
+static int64_t ABI detour_DcSetTimeToDryPeriod(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02780: (set-time-to-dry-period val) */
+    (void)status;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    float val = u2_reg_to_f32(argv[0]);
+    uint8_t *mgr = g_u2_image_base + 0x01117570ull;
+    *(float *)(mgr + 0x58ull) = val;
+    *(float *)(mgr + 0x98ull) = val;
+    *(float *)(mgr + 0xD8ull) = val;
+    *(float *)(mgr + 0x118ull) = val;
+    *(float *)(mgr + 0x158ull) = val;
+    *(float *)(mgr + 0x198ull) = val;
+    return 1;
+}
+
+static int64_t ABI detour_DcForceReflections(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02960: (force-reflections flag) */
+    (void)status;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    *(uint8_t *)(g_u2_image_base + 0x01164980ull + 0x5Cull) = (argv[0] != 0) ? 1u : 0u;
+    return 1;
+}
+
+static int64_t ABI detour_DcUseReflectionPlane(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A029A0: (use-reflection-plane nx ny nz d) */
+    (void)status;
+    if (argc < 4 || !argv || !g_u2_image_base) return 0;
+    uint8_t *refl = g_u2_image_base + 0x01164980ull;
+    refl[0x14] = 1;
+    *(uint32_t *)(refl + 0x18) = 5;
+    float *plane = (float *)(refl + 0x30);
+    plane[0] = u2_reg_to_f32(argv[0]);
+    plane[1] = u2_reg_to_f32(argv[1]);
+    plane[2] = u2_reg_to_f32(argv[2]);
+    plane[3] = u2_reg_to_f32(argv[3]);
+    return 1;
+}
+
+static int64_t ABI detour_DcUseVisibleWaterUnitForReflectionWithTolerance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02B70: (use-visible-water-unit-for-reflection-with-tolerance flag tol) */
+    (void)status;
+    if (argc < 2 || !argv || !g_u2_image_base) return 0;
+    if (argv[0] != 0) {
+        uint8_t *refl = g_u2_image_base + 0x01164980ull;
+        refl[0x14] = 1;
+        *(uint32_t *)(refl + 0x18) = 2;
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcUseVisibleWaterUnitForReflection(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02BC0: (use-visible-water-unit-for-reflection flag) */
+    (void)status;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    if (argv[0] != 0) {
+        uint8_t *refl = g_u2_image_base + 0x01164980ull;
+        refl[0x14] = 1;
+        *(uint32_t *)(refl + 0x18) = 2;
+    }
+    return 1;
+}
+
+static int64_t ABI detour_DcUseReflections(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A02C10: (use-reflections flag) */
+    (void)status;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    *(uint8_t *)(g_u2_image_base + 0x01164980ull + 0x14ull) = (argv[0] != 0) ? 1u : 0u;
+    return 1;
+}
+
+static int64_t ABI detour_DcSetRainRipplesState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A027F0: (set-rain-ripples-state flag) */
+    (void)status;
+    if (argc <= 0 || !argv || !g_u2_image_base) return 0;
+    *(uint8_t *)(g_u2_image_base + 0x01164980ull + 0x5Full) = (argv[0] != 0) ? 1u : 0u;
+    return 1;
+}
+
 static int64_t ABI detour_DcStopScriptRumbles(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A105B0: (stop-script-rumbles) */
     (void)argc; (void)argv; (void)status;
@@ -1467,6 +1811,29 @@ static int64_t ABI detour_DcHideHint(int32_t argc, uint64_t *argv, uint32_t *sta
     return 0;
 }
 
+static int64_t ABI detour_DcGetObjectId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0BEE0: (get-object-id [obj]) */
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    uint32_t sym = 0;
+    if (argc > 0 && argv) {
+        sym = (uint32_t)argv[0];
+        typedef void (ABI *StringLookupFn)(uint32_t, const void *);
+        StringLookupFn str_lookup = (StringLookupFn)(uintptr_t)(g_u2_image_base + 0x00CE33A0ull);
+        if (str_lookup) str_lookup(sym, NULL);
+    } else {
+        typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
+        MakeSymbolFn *p_make_sym = (MakeSymbolFn *)(uintptr_t)(g_u2_image_base + 0x010666C8ull);
+        if (p_make_sym && *p_make_sym) sym = (*p_make_sym)(0, NULL, 1);
+    }
+    typedef void * (ABI *FindEntityByNameFn)(uint64_t dummy, uint32_t name_id);
+    FindEntityByNameFn find_fn = (FindEntityByNameFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
+    if (!find_fn) return 0;
+    uint8_t *ent = (uint8_t *)find_fn(0, sym);
+    if (!ent) return 0;
+    return (int64_t)*(const uint32_t *)(ent + 0x68);
+}
+
 static int64_t ABI detour_DcGetSelfId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04A00: (get-self-id) */
     (void)argc; (void)argv;
@@ -1510,11 +1877,16 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcObjectSpawnedP", 0x00A12780, (uintptr_t)detour_DcObjectSpawnedP },
     { "DcEntityAutoSpawnOnce", 0x00A12830, (uintptr_t)detour_DcEntityAutoSpawnOnce },
     { "DcPartModuleLoadedP", 0x00A00970, (uintptr_t)detour_DcPartModuleLoadedP },
+    { "DcDisableFrameForward", 0x00A038A0, (uintptr_t)detour_DcDisableFrameForward },
+    { "DcUnparent", 0x00A03940, (uintptr_t)detour_DcUnparent },
     { "DcEnableGadgetry", 0x00A039C0, (uintptr_t)detour_DcEnableGadgetry },
     { "DcDisableGadgetry", 0x00A03A70, (uintptr_t)detour_DcDisableGadgetry },
     { "DcSymbolEqualP", 0x00397620, (uintptr_t)detour_DcSymbolEqualP },
     { "DcCameraCancelAimOverride", 0x00A0DE30, (uintptr_t)detour_DcCameraCancelAimOverride },
     { "DcCameraRestoreLocator", 0x00A0E9B0, (uintptr_t)detour_DcCameraRestoreLocator },
+    { "DcCameraAbandon", 0x00A0E5E0, (uintptr_t)detour_DcCameraAbandon },
+    { "DcCameraDisable", 0x00A0E500, (uintptr_t)detour_DcCameraDisable },
+    { "DcSplineTransferPendingP", 0x00A25A20, (uintptr_t)detour_DcSplineTransferPendingP },
     { "DcDebugPause", 0x00A102A0, (uintptr_t)detour_DcDebugPause },
     { "DcDiscP", 0x009FD910, (uintptr_t)detour_DcDiscP },
     { "DcResetAimFov", 0x0090D780, (uintptr_t)detour_DcResetAimFov },
@@ -1537,6 +1909,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcNetGetGrappleTime", 0x006687F0, (uintptr_t)detour_DcNetGetGrappleTime },
     { "DcNetGetBoosterEnabled", 0x00668810, (uintptr_t)detour_DcNetGetBoosterEnabled },
     { "DcNetGetBoosterAmount", 0x00668820, (uintptr_t)detour_DcNetGetBoosterAmount },
+    { "DcSetForceTension", 0x00667EE0, (uintptr_t)detour_DcSetForceTension },
     { "DcNetCoopTask", 0x006697E0, (uintptr_t)detour_DcNetCoopTask },
     { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
     { "DcNetKillTerritory", 0x00669800, (uintptr_t)detour_DcNetKillTerritory },
@@ -1560,6 +1933,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcTrainGetDefaultAcceleration", 0x00A682E0, (uintptr_t)detour_DcTrainGetDefaultAcceleration },
     { "DcKillAllDroppedWeapons", 0x00A0F1B0, (uintptr_t)detour_DcKillAllDroppedWeapons },
     { "DcKillAllBreakables", 0x00A0F260, (uintptr_t)detour_DcKillAllBreakables },
+    { "DcSetFocusableGrappled", 0x00A0F2C0, (uintptr_t)detour_DcSetFocusableGrappled },
     { "DcTutorialHintsOnP", 0x00A0F490, (uintptr_t)detour_DcTutorialHintsOnP },
     { "DcUseWaterUnitForReflectionIfVisible", 0x00A02C50, (uintptr_t)detour_DcUseWaterUnitForReflectionIfVisible },
     { "DcAngleMod", 0x00397630, (uintptr_t)detour_DcAngleMod },
@@ -1584,6 +1958,14 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcStateCharacterAccumulatesSnowFromGround", 0x00A01FE0, (uintptr_t)detour_DcStateCharacterAccumulatesSnowFromGround },
     { "DcStateCharacterAccumulatesSnowFromSky", 0x00A01F70, (uintptr_t)detour_DcStateCharacterAccumulatesSnowFromSky },
     { "DcStateCharacterAccumulatesWetnessFromWater", 0x00A01F30, (uintptr_t)detour_DcStateCharacterAccumulatesWetnessFromWater },
+    { "DcSetMaxCharacterWetness", 0x00A02510, (uintptr_t)detour_DcSetMaxCharacterWetness },
+    { "DcSetTimeToDryPeriod", 0x00A02780, (uintptr_t)detour_DcSetTimeToDryPeriod },
+    { "DcForceReflections", 0x00A02960, (uintptr_t)detour_DcForceReflections },
+    { "DcUseReflectionPlane", 0x00A029A0, (uintptr_t)detour_DcUseReflectionPlane },
+    { "DcUseVisibleWaterUnitForReflectionWithTolerance", 0x00A02B70, (uintptr_t)detour_DcUseVisibleWaterUnitForReflectionWithTolerance },
+    { "DcUseVisibleWaterUnitForReflection", 0x00A02BC0, (uintptr_t)detour_DcUseVisibleWaterUnitForReflection },
+    { "DcUseReflections", 0x00A02C10, (uintptr_t)detour_DcUseReflections },
+    { "DcSetRainRipplesState", 0x00A027F0, (uintptr_t)detour_DcSetRainRipplesState },
     { "DcStopScriptRumbles", 0x00A105B0, (uintptr_t)detour_DcStopScriptRumbles },
     { "DcStringFromStringId", 0x009FDE30, (uintptr_t)detour_DcStringFromStringId },
     { "DcStringIdFromString", 0x009FDE00, (uintptr_t)detour_DcStringIdFromString },
@@ -1629,6 +2011,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcMessage", 0x005DC620, (uintptr_t)detour_DcNoOp0 },
     { "DcAnimStateAdvancePhase", 0x00397690, (uintptr_t)detour_DcNoOp0 },
     { "DcHideHint", 0x00A0CC10, (uintptr_t)detour_DcHideHint },
+    { "DcGetObjectId", 0x00A0BEE0, (uintptr_t)detour_DcGetObjectId },
     { "DcGetSelfId", 0x00A04A00, (uintptr_t)detour_DcGetSelfId },
     { "DcClearHarvestedBodies", 0x00A01A90, (uintptr_t)detour_DcClearHarvestedBodies },
     { "DcResetActors", 0x009FD690, (uintptr_t)detour_DcResetActors },

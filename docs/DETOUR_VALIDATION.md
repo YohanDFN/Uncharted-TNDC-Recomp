@@ -124,7 +124,28 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
-* **Milestone 215/843** : 215 fonctions DC natives réécrites en C (`ABI`) - Lot 7 validé unitairement sans crash (`DcEnableGadgetry`, `DcDisableGadgetry`, `DcNetRespawnFlag`, `DcNetSpawnTerritory`, `DcNetKillTerritory`).
+* **Milestone 235/843** : 235 fonctions DC natives réécrites en C (`ABI`) - Lot 8 (batch de 20 fonctions) validé unitairement sans crash :
+  - `DcSay` (`0x00A01A80`)
+  - `DcSetForceTension` (`0x00667EE0`)
+  - `DcUnparent` (`0x00A03940`)
+  - `DcDisableFrameForward` (`0x00A038A0`)
+  - `DcGetObjectId` (`0x00A0BEE0`)
+  - `DcCameraAbandon` (`0x00A0E5E0`)
+  - `DcSplineTransferPendingP` (`0x00A25A20`)
+  - `DcSetMaxCharacterWetness` (`0x00A02510`)
+  - `DcSetTimeToDryPeriod` (`0x00A02780`)
+  - `DcForceReflections` (`0x00A02960`)
+  - `DcUseReflectionPlane` (`0x00A029A0`)
+  - `DcUseVisibleWaterUnitForReflectionWithTolerance` (`0x00A02B70`)
+  - `DcUseVisibleWaterUnitForReflection` (`0x00A02BC0`)
+  - `DcUseReflections` (`0x00A02C10`)
+  - `DcSetRainRipplesState` (`0x00A027F0`)
+  - `DcSetFocusableGrappled` (`0x00A0F2C0`)
+  - `DcCameraDisable` (`0x00A0E500`)
+  - `DcCalcStartPhase` (`0x00A0FB70`)
+  - `DcCalcStartPhaseMaxFrames` (`0x00A0FAF0`)
+  - `DcCalcStartPhaseRange` (`0x00A0FA70`)
+* **Milestone 215/843** (`09af430`) : 215 fonctions DC natives réécrites en C (`ABI`) - Lot 7 validé unitairement sans crash (`DcEnableGadgetry`, `DcDisableGadgetry`, `DcNetRespawnFlag`, `DcNetSpawnTerritory`, `DcNetKillTerritory`).
 * **Milestone 210/843** (`0134ce9`) : 210 fonctions DC natives réécrites en C (`ABI`) - Lot 6 validé unitairement sans crash (`DcKillAllDroppedWeapons`, `DcCalcNewPhaseFromSpeed`, `DcEntityAutoSpawnOnce`, `DcPartModuleLoadedP`, `DcDrawReticle`).
 * **Milestone 205/843** (`34bfb38`) : 205 fonctions DC natives réécrites en C (`ABI`), couvrant audio, player et scene avec 0 crash runtime.
 * **Milestone 200/843** (`aace663`) : 200 fonctions DC natives réécrites en C (`ABI`), compilées sous Clang64 et vérifiées en direct à l'amorçage avec 0 crash.

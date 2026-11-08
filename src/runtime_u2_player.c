@@ -839,11 +839,51 @@ static int64_t ABI detour_DcDrawReticle(int32_t argc, uint64_t *argv, uint32_t *
     return 0;
 }
 
+static int64_t ABI detour_DcCalcStartPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FB70: (calc-start-phase ent) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return (int64_t)u2_f32_to_reg(0.0f);
+    typedef float (ABI *CalcPhaseFn)(uint32_t ent_id, int32_t max_frames, float min_phase, float max_phase);
+    CalcPhaseFn fn = (CalcPhaseFn)(uintptr_t)(g_u2_image_base + 0x0067E600ull);
+    if (!fn) return (int64_t)u2_f32_to_reg(0.0f);
+    float max_p = *(const float *)(g_u2_image_base + 0x00E67410ull);
+    float res = fn((uint32_t)argv[0], -1, 0.0f, max_p);
+    return (int64_t)u2_f32_to_reg(res);
+}
+
+static int64_t ABI detour_DcCalcStartPhaseMaxFrames(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FAF0: (calc-start-phase-max-frames ent max-frames) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 2 || !argv) return (int64_t)u2_f32_to_reg(0.0f);
+    typedef float (ABI *CalcPhaseFn)(uint32_t ent_id, int32_t max_frames, float min_phase, float max_phase);
+    CalcPhaseFn fn = (CalcPhaseFn)(uintptr_t)(g_u2_image_base + 0x0067E600ull);
+    if (!fn) return (int64_t)u2_f32_to_reg(0.0f);
+    float max_p = *(const float *)(g_u2_image_base + 0x00E6740Cull);
+    float res = fn((uint32_t)argv[0], (int32_t)argv[1], 0.0f, max_p);
+    return (int64_t)u2_f32_to_reg(res);
+}
+
+static int64_t ABI detour_DcCalcStartPhaseRange(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FA70: (calc-start-phase-range ent min-phase max-phase) */
+    if (status) *status = 0;
+    if (!g_u2_image_base || argc < 3 || !argv) return (int64_t)u2_f32_to_reg(0.0f);
+    typedef float (ABI *CalcPhaseFn)(uint32_t ent_id, int32_t max_frames, float min_phase, float max_phase);
+    CalcPhaseFn fn = (CalcPhaseFn)(uintptr_t)(g_u2_image_base + 0x0067E600ull);
+    if (!fn) return (int64_t)u2_f32_to_reg(0.0f);
+    float min_p = u2_reg_to_f32(argv[1]);
+    float max_p = u2_reg_to_f32(argv[2]);
+    float res = fn((uint32_t)argv[0], -1, min_p, max_p);
+    return (int64_t)u2_f32_to_reg(res);
+}
+
 /* Table of detours provided by this module */
 static const U2NativeDetour s_player_detours[] = {
     { "DcFromUps", 0x003976A0, (uintptr_t)detour_DcFromUps },
     { "DcMinmax", 0x009FDBF0, (uintptr_t)detour_DcMinmax },
     { "DcCalcNewPhaseFromSpeed", 0x00A0FBF0, (uintptr_t)detour_DcCalcNewPhaseFromSpeed },
+    { "DcCalcStartPhase", 0x00A0FB70, (uintptr_t)detour_DcCalcStartPhase },
+    { "DcCalcStartPhaseMaxFrames", 0x00A0FAF0, (uintptr_t)detour_DcCalcStartPhaseMaxFrames },
+    { "DcCalcStartPhaseRange", 0x00A0FA70, (uintptr_t)detour_DcCalcStartPhaseRange },
     { "DcDrawReticle", 0x0090E6E0, (uintptr_t)detour_DcDrawReticle },
     { "DcForcePlayerSwim", 0x0090D740, (uintptr_t)detour_DcForcePlayerSwim },
     { "DcPlayerInitiateMelee", 0x00909420, (uintptr_t)detour_DcPlayerInitiateMelee },
