@@ -129,6 +129,22 @@ static int64_t ABI detour_DcKillAllParticles(int32_t argc, uint64_t *argv, uint3
     return 0;
 }
 
+static int64_t ABI detour_DcDespawnMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x005DC8C0: (despawn-message id) */
+    (void)status;
+    if (status) *status = 0;
+    if (!g_u2_image_base) return 0;
+    if (argc > 0 && argv) {
+        void *mgr = (void *)(g_u2_image_base + 0x01139EA0ull);
+        typedef void (ABI *DespawnMsgFn)(void *mgr, uint32_t msg_id);
+        DespawnMsgFn despawn_fn = (DespawnMsgFn)(uintptr_t)(g_u2_image_base + 0x005D9D80ull);
+        if (despawn_fn) {
+            despawn_fn(mgr, (uint32_t)argv[0]);
+        }
+    }
+    return 0;
+}
+
 static int64_t ABI detour_DcPauseCoopCombo(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00667F60: (pause-coop-combo) */
     (void)argc; (void)argv;
@@ -1025,6 +1041,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcJournalClearPage", 0x009FD090, (uintptr_t)detour_DcJournalClearPage },
     { "DcJournalGetPage", 0x009FD110, (uintptr_t)detour_DcJournalGetPage },
     { "DcKillAllParticles", 0x00A0FE60, (uintptr_t)detour_DcKillAllParticles },
+    { "DcDespawnMessage", 0x005DC8C0, (uintptr_t)detour_DcDespawnMessage },
     { "DcPauseCoopCombo", 0x00667F60, (uintptr_t)detour_DcPauseCoopCombo },
     { "DcGetCaptureZone", 0x006687D0, (uintptr_t)detour_DcGetCaptureZone },
     { "DcNetEndWave", 0x006687E0, (uintptr_t)detour_DcNetEndWave },
