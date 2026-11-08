@@ -129,6 +129,13 @@ static int64_t ABI detour_DcKillAllParticles(int32_t argc, uint64_t *argv, uint3
     return 0;
 }
 
+static int64_t ABI detour_DcGetCaptureZone(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x006687D0: (get-capture-zone) */
+    (void)argc; (void)argv;
+    if (status) *status = 0;
+    return 0;
+}
+
 static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669240: (net-plyaer-coop-id) */
     (void)argc; (void)argv;
@@ -975,6 +982,7 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcJournalClearPage", 0x009FD090, (uintptr_t)detour_DcJournalClearPage },
     { "DcJournalGetPage", 0x009FD110, (uintptr_t)detour_DcJournalGetPage },
     { "DcKillAllParticles", 0x00A0FE60, (uintptr_t)detour_DcKillAllParticles },
+    { "DcGetCaptureZone", 0x006687D0, (uintptr_t)detour_DcGetCaptureZone },
     { "DcNetPlyaerCoopId", 0x00669240, (uintptr_t)detour_DcNetPlyaerCoopId },
     { "DcNetCoopTeamFailedP", 0x00669C20, (uintptr_t)detour_DcNetCoopTeamFailedP },
     { "DcNetCoopScriptId", 0x00669C30, (uintptr_t)detour_DcNetCoopScriptId },
