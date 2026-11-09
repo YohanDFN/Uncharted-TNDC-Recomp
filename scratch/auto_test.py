@@ -28,6 +28,7 @@ def main():
     
     # Force windowed mode for headless/test runs if desired, or keep launcher settings
     env = game_environment(settings)
+    env.setdefault("BB_U2_SELFTEST", "1")
     for k, v in os.environ.items():
         if k.startswith("BB_U2_"):
             env[k] = v

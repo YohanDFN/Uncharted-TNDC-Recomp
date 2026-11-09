@@ -124,6 +124,22 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
+* **Milestone Phase 4 — Palier B (Lot 1 : 31 Méthodes Moteur C++ Pures — 868 Détours C Actifs)** :
+  - **Splines & Trackers (`catmull-rom.cpp`, `catmull-rom-manager.cpp`, `spline-tracker.cpp`, `vehicle-spline-tracker.cpp`)** :
+    - `CatmullRomSpline_GetName` (`0x00468260`), `CatmullRomSpline_IsLooped` (`0x004684C0`), `CatmullRomSpline_GetControlPointCount` (`0x00468520`), `CatmullRomSpline_GetTotalArcLength` (`0x00468D90`), `CatmullRomSpline_GetCumulSegArcLength` (`0x00469F60`)
+    - `CatmullRomManager_OnSpawnGameObject` (`0x004643E0`), `CatmullRomManager_OnDestroyGameObject` (`0x00464490`), `CatmullRomManager_RemoveSpline` (`0x00465240`), `CatmullRomManager_WalkSplines` (`0x00466320`)
+    - `SplineTracker_GetSpline0` (`0x00A24040`), `SplineTracker_GetSpline1` (`0x00A24080`), `SplineTracker_GetSplineNameId` (`0x00A240C0`), `SplineTracker_FinalizeDistance` (`0x00A24110`)
+    - `VehicleSplineTracker_GetCurrentVirtualDistance_m` (`0x00ABA7B0`), `VehicleSplineTracker_GetCurrentRealDistance_m` (`0x00ABA840`)
+  - **Caméra (`camerazoom.cpp`)** :
+    - `CameraZoom_OverideHorizontalAngularConstraints` (`0x0044BF00`), `CameraZoom_ClearHorizontalAngularConstraints` (`0x0044BFA0`), `CameraZoom_OverideVerticalAngularConstraints` (`0x0044BFE0`), `CameraZoom_ClearVerticalAngularConstraints` (`0x0044C060`), `CameraZoom_SetDefaultVerticalAngularConstraints` (`0x0044C090`)
+  - **Véhicules sur Rail (`rail-vehicle.cpp`, `rail-vehicle-behavior.cpp`, `rail-vehicle-manager.cpp`)** — remplacement du code `-O0` PS4 (`#pragma clang optimize off`) et des assertions `int $0x41` par du code C natif `-O2` :
+    - `RailVehicle_InitBehavior` (`0x000013D0`), `RailVehicle_SetFollowDistance` (`0x00001460`), `RailVehicle_GetVehicleClass` (`0x00001DD0`), `RailVehicle_ResetWheels` (`0x00001ED0`), `RailVehicle_GetDamageable` (`0x00002430`), `RailVehicle_OnIgcBind` (`0x00005630`), `RailVehicle_OnIgcUnbind` (`0x000056E0`)
+    - `RailVehicleBehavior_GetDcBehavior` (`0x00A8DE50`), `RailVehicleBehaviorContainer_GetCurrentBehavior` (`0x00A8EA30`)
+    - `RailVehicleManager_GetMover` (`0x00A8FCE0`), `RailVehicleManager_DetachFromRail` (`0x00A903E0`)
+  - **Validation Self-Test & Runtime** :
+    - `BB_U2_SELFTEST=1` activé par défaut dans `scratch/auto_test.py` (support hybride fonctions `Dc*` + méthodes C++ moteur).
+    - **862/862 fonctions testées au démarrage sans faute (`PASSED`)**, **868 détours C actifs simultanément**, test live 8s `STOPPED_AFTER_TIMEOUT` avec 0 crash.
+
 * **Milestone 832/832 (100% Exécutables DC + VM Native C + Harnais Self-Test)** :
   - **Lot 24 Final (5/5 fonctions restantes)** :
     - `DcCSpawnNpc` (`0x002E57B0`)

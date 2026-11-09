@@ -1074,12 +1074,19 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
                     strcmp(mod_detours[i].name, "DcEndScript") == 0) {
                     continue;
                 }
-                /* Edge case 1: 0 args, NULL argv, garbage unaligned rdx */
-                fn(0, NULL, bad_status);
-                /* Edge case 2: 0 args, valid zeroed argv, valid status */
-                fn(0, zero_args, &valid_status);
-                /* Edge case 3: 4 args, valid zeroed argv, garbage unaligned rdx */
-                fn(4, zero_args, bad_status);
+                if (strncmp(mod_detours[i].name, "Dc", 2) == 0) {
+                    /* Edge case 1: 0 args, NULL argv, garbage unaligned rdx */
+                    fn(0, NULL, bad_status);
+                    /* Edge case 2: 0 args, valid zeroed argv, valid status */
+                    fn(0, zero_args, &valid_status);
+                    /* Edge case 3: 4 args, valid zeroed argv, garbage unaligned rdx */
+                    fn(4, zero_args, bad_status);
+                } else {
+                    /* Pure C++ Engine Subsystem method: test null-safety / pre-boot safety */
+                    typedef uint64_t (ABI *U2CppTestFn)(void *, void *, void *, void *, float, float);
+                    U2CppTestFn cpp_fn = (U2CppTestFn)mod_detours[i].host_fn;
+                    cpp_fn(NULL, NULL, NULL, NULL, 0.0f, 0.0f);
+                }
                 ++tested;
             }
         }
