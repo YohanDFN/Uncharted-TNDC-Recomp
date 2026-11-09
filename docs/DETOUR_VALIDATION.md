@@ -124,6 +124,21 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
+* **Milestone Phase 4 — Palier B (Lot 2 : 24 Méthodes Moteur C++23 Boot, Process, Settings, TaskGraph, PlayGo, SaveBuffer & HUD — 55 Méthodes C++23 / 889 Détours Actifs)** :
+  - **Arbre de Processus & Ordonnancement (`process.cpp`, `process-mgr.cpp`, `processlist.cpp` -> `src/u2_engine/process_system.cpp`)** :
+    - `ProcessMgr_LookupProcessByPid` (`0x009BBCF0`), `Process_LookupProcessByPid` (`0x009BEF30`), `Process_ValidateInternalPointer` (`0x009BE660`), `ProcessMgr_AddProcessForScriptUpdate` (`0x009B8CD0`), `ProcessList_Alloc` (`0x009B0D70`)
+    - Accesseurs d'état et propriétés `Process` (`0x001FE420` `Process_DMenuStateProp`, `0x001FE7E0` `Process_DMenuFloatProp_354`, `0x001FE8C0` `Process_DMenuBoolProp_43A`, `0x001FE980` `Process_DMenuBoolProp_43F`, `0x001FECA0` `Process_DMenuBoolProp_439`, `0x001FED70` `Process_DMenuBoolProp_438`, `0x001FEE40` `Process_DMenuBoolProp_43B`)
+  - **Sauvegardes, Paramètres, Graphe de Tâches, PlayGo & HUD (`savebuffer.cpp`, `settings.cpp`, `task.cpp`, `game-loading.cpp`, `hud.cpp` -> `src/u2_engine/save_hud.cpp`)** :
+    - `SaveBuffer_InitExternal` (`0x00CD0E10`), `SaveBuffer_DebugSetBuffer` (`0x00CD0E80`), `SaveBuffer_CopyFrom` (`0x00CD0EE0`), `SaveBuffer_WriteBytes` (`0x00CD16A0`), `SaveBuffer_WriteU64Count0` (`0x00CD1730`), `SaveBuffer_WriteU64Count1` (`0x00CD17C0`)
+    - `Hud_FreeGrenadeIndicator` (`0x00554F70`), `Hud_ShowGrenadeIndicator` (`0x00554FD0`)
+    - `GameTask_cbCollectTaskNode` (`0x00A5F970`), `Settings_FreeSetting` (`0x00A1D600`)
+    - `GameLoading_IsChunkSetEntirelyWithin` (`0x00B77AA0`), `GameLoading_GetPlayGoSpeed` (`0x00B770D0`)
+  - **Correctifs Critiques Boot / Splash Screen & Menu (`36daaf2`, `80bffda`)** :
+    - Protection ABI dans `u2_set_status` (`src/runtime_u2_common.h`) empêchant toute écriture de `0` dans `%rdx` lorsqu'un détour `Dc*` (`DcKillAllAttachables` `0x009F2BF0`) est invoqué directement depuis le C++ avec un pointeur `Process *` dans `%rdx`.
+    - Correction de la signature à 5 registres et du chaînage free-list `+0x00` dans `detour_ScriptManager_Run` (`0x00A14F20`), et arguments optionnels dans `DcAddLoadModule` / `DcAddImportModule`.
+  - **Validation Unitaire & Runtime (20s)** :
+    - **831/831 détours `Dc*` validés en Full-Body Sandbox** via trampolines ELF + **65/65 assertions fonctionnelles C++23** (`[U2 EngineTest] PASSED`), **889 détours actifs simultanément**, test live 20s complet (splash screen -> montage `SAVEDATA02P`/`SAVEDATA0CC` -> résolution 1920x1080 -> `STOPPED_AFTER_TIMEOUT` avec 0 crash).
+
 * **Milestone Phase 4 — Palier B (Lot 1 : 31 Méthodes Moteur C++ Pures — 868 Détours C Actifs)** :
   - **Splines & Trackers (`catmull-rom.cpp`, `catmull-rom-manager.cpp`, `spline-tracker.cpp`, `vehicle-spline-tracker.cpp`)** :
     - `CatmullRomSpline_GetName` (`0x00468260`), `CatmullRomSpline_IsLooped` (`0x004684C0`), `CatmullRomSpline_GetControlPointCount` (`0x00468520`), `CatmullRomSpline_GetTotalArcLength` (`0x00468D90`), `CatmullRomSpline_GetCumulSegArcLength` (`0x00469F60`)

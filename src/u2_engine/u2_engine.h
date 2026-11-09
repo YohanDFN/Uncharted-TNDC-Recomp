@@ -68,4 +68,32 @@ void *       ABI u2_cpp_RailVehicleBehaviorContainer_GetCurrentBehavior(void *se
 void *       ABI u2_cpp_RailVehicleManager_GetMover(void *self, uint32_t idx);
 void         ABI u2_cpp_RailVehicleManager_DetachFromRail(void *self, void *vehicle, int32_t rail_idx);
 
+/* process_system.cpp (process.cpp, process-mgr.cpp, processlist.cpp) */
+void *       ABI u2_cpp_ProcessMgr_LookupProcessByPid(void *mgr, uint32_t pid);
+void *       ABI u2_cpp_Process_LookupProcessByPid(void *root, uint32_t pid);
+void         ABI u2_cpp_Process_ValidateInternalPointer(void *self);
+void         ABI u2_cpp_ProcessMgr_AddProcessForScriptUpdate(void *mgr, void *proc);
+void *       ABI u2_cpp_ProcessList_Alloc(void *proc);
+uint8_t      ABI u2_cpp_Process_DMenuStateProp(void *self, int32_t cmd);
+float        ABI u2_cpp_Process_DMenuFloatProp_354(void *self, int32_t cmd, float val);
+uint8_t      ABI u2_cpp_Process_DMenuBoolProp_43A(void *self, int32_t cmd);
+uint8_t      ABI u2_cpp_Process_DMenuBoolProp_43F(void *self, int32_t cmd);
+uint8_t      ABI u2_cpp_Process_DMenuBoolProp_439(void *self, int32_t cmd);
+uint8_t      ABI u2_cpp_Process_DMenuBoolProp_438(void *self, int32_t cmd);
+uint8_t      ABI u2_cpp_Process_DMenuBoolProp_43B(void *self, int32_t cmd);
+
+/* save_hud.cpp (savebuffer.cpp, hud.cpp, task.cpp, settings.cpp, game-loading.cpp) */
+void         ABI u2_cpp_SaveBuffer_InitExternal(void *self, uint32_t magic, uint32_t size, void *buf);
+void         ABI u2_cpp_SaveBuffer_DebugSetBuffer(void *self, void *buf);
+void         ABI u2_cpp_SaveBuffer_CopyFrom(void *self, const void *src);
+void         ABI u2_cpp_SaveBuffer_WriteBytes(void *self, const void *data, uint32_t size);
+void         ABI u2_cpp_SaveBuffer_WriteU64Count0(void *self, const uint64_t *val);
+void         ABI u2_cpp_SaveBuffer_WriteU64Count1(void *self, const uint64_t *val);
+void         ABI u2_cpp_Hud_FreeGrenadeIndicator(void *self, uint32_t idx);
+void         ABI u2_cpp_Hud_ShowGrenadeIndicator(void *self, uint32_t idx, uint8_t show);
+int32_t      ABI u2_cpp_GameTask_cbCollectTaskNode(void *task, uint32_t key, void *collection);
+void         ABI u2_cpp_Settings_FreeSetting(void *setting);
+uint8_t      ABI u2_cpp_GameLoading_IsChunkSetEntirelyWithin(const char *chunk_set_name, const uint64_t *target_mask);
+uint32_t     ABI u2_cpp_GameLoading_GetPlayGoSpeed(void);
+
 } // extern "C"

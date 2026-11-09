@@ -41,6 +41,34 @@ static const U2NativeDetour s_engine_detours[] = {
     { "RailVehicleBehaviorContainer_GetCurrentBehavior", 0x00A8EA30, reinterpret_cast<uintptr_t>(&u2_cpp_RailVehicleBehaviorContainer_GetCurrentBehavior) },
     { "RailVehicleManager_GetMover",                     0x00A8FCE0, reinterpret_cast<uintptr_t>(&u2_cpp_RailVehicleManager_GetMover) },
     { "RailVehicleManager_DetachFromRail",               0x00A903E0, reinterpret_cast<uintptr_t>(&u2_cpp_RailVehicleManager_DetachFromRail) },
+
+    /* process_system.cpp (Boot & Process Tree) */
+    { "ProcessMgr_LookupProcessByPid",                   0x009BBCF0, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessMgr_LookupProcessByPid) },
+    { "Process_LookupProcessByPid",                      0x009BEF30, reinterpret_cast<uintptr_t>(&u2_cpp_Process_LookupProcessByPid) },
+    { "Process_ValidateInternalPointer",                 0x009BE660, reinterpret_cast<uintptr_t>(&u2_cpp_Process_ValidateInternalPointer) },
+    { "ProcessMgr_AddProcessForScriptUpdate",            0x009B8CD0, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessMgr_AddProcessForScriptUpdate) },
+    { "ProcessList_Alloc",                               0x009B0D70, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessList_Alloc) },
+    { "Process_DMenuStateProp",                          0x001FE420, reinterpret_cast<uintptr_t>(&u2_cpp_Process_DMenuStateProp) },
+    { "Process_DMenuFloatProp_354",                      0x001FE7E0, reinterpret_cast<uintptr_t>(&u2_cpp_Process_DMenuFloatProp_354) },
+    { "Process_DMenuBoolProp_43A",                       0x001FE8C0, reinterpret_cast<uintptr_t>(&u2_cpp_Process_DMenuBoolProp_43A) },
+    { "Process_DMenuBoolProp_43F",                       0x001FE980, reinterpret_cast<uintptr_t>(&u2_cpp_Process_DMenuBoolProp_43F) },
+    { "Process_DMenuBoolProp_439",                       0x001FECA0, reinterpret_cast<uintptr_t>(&u2_cpp_Process_DMenuBoolProp_439) },
+    { "Process_DMenuBoolProp_438",                       0x001FED70, reinterpret_cast<uintptr_t>(&u2_cpp_Process_DMenuBoolProp_438) },
+    { "Process_DMenuBoolProp_43B",                       0x001FEE40, reinterpret_cast<uintptr_t>(&u2_cpp_Process_DMenuBoolProp_43B) },
+
+    /* save_hud.cpp (SaveBuffer, Settings, TaskGraph, PlayGo & HUD) */
+    { "SaveBuffer_InitExternal",                         0x00CD0E10, reinterpret_cast<uintptr_t>(&u2_cpp_SaveBuffer_InitExternal) },
+    { "SaveBuffer_DebugSetBuffer",                       0x00CD0E80, reinterpret_cast<uintptr_t>(&u2_cpp_SaveBuffer_DebugSetBuffer) },
+    { "SaveBuffer_CopyFrom",                             0x00CD0EE0, reinterpret_cast<uintptr_t>(&u2_cpp_SaveBuffer_CopyFrom) },
+    { "SaveBuffer_WriteBytes",                           0x00CD16A0, reinterpret_cast<uintptr_t>(&u2_cpp_SaveBuffer_WriteBytes) },
+    { "SaveBuffer_WriteU64Count0",                       0x00CD1730, reinterpret_cast<uintptr_t>(&u2_cpp_SaveBuffer_WriteU64Count0) },
+    { "SaveBuffer_WriteU64Count1",                       0x00CD17C0, reinterpret_cast<uintptr_t>(&u2_cpp_SaveBuffer_WriteU64Count1) },
+    { "Hud_FreeGrenadeIndicator",                        0x00554F70, reinterpret_cast<uintptr_t>(&u2_cpp_Hud_FreeGrenadeIndicator) },
+    { "Hud_ShowGrenadeIndicator",                        0x00554FD0, reinterpret_cast<uintptr_t>(&u2_cpp_Hud_ShowGrenadeIndicator) },
+    { "GameTask_cbCollectTaskNode",                      0x00A5F970, reinterpret_cast<uintptr_t>(&u2_cpp_GameTask_cbCollectTaskNode) },
+    { "Settings_FreeSetting",                            0x00A1D600, reinterpret_cast<uintptr_t>(&u2_cpp_Settings_FreeSetting) },
+    { "GameLoading_IsChunkSetEntirelyWithin",            0x00B77AA0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_IsChunkSetEntirelyWithin) },
+    { "GameLoading_GetPlayGoSpeed",                      0x00B770D0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_GetPlayGoSpeed) },
 };
 
 extern "C" size_t u2_get_engine_detours(const U2NativeDetour **out) {

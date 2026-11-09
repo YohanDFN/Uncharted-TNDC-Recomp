@@ -124,6 +124,27 @@ static float ABI mock_GetTime(void *clock_ptr) {
     return 100.0f;
 }
 
+static void * ABI mock_ProcessTreeNext(void *cur, void *root) {
+    (void)root;
+    if (!cur) return nullptr;
+    return *reinterpret_cast<void **>(static_cast<uint8_t *>(cur) + 0x10);
+}
+
+static uint32_t s_mock_ctrl_state = 7u;
+static uint32_t ABI mock_Ctrl_GetState(void *ctrl) {
+    (void)ctrl;
+    return s_mock_ctrl_state;
+}
+static void ABI mock_Ctrl_SetState(void *ctrl, uint32_t st) {
+    (void)ctrl;
+    s_mock_ctrl_state = st;
+}
+static void *s_mock_ctrl_obj = nullptr;
+static void * ABI mock_Proc_GetCtrl(void *proc) {
+    (void)proc;
+    return s_mock_ctrl_obj;
+}
+
 } // namespace
 
 extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
@@ -502,6 +523,242 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        *reinterpret_cast<uint32_t *>(rail1 + 0x120) == 0 &&
                        std::fabs(*reinterpret_cast<float *>(rail1 + 0x128) - 42.5f) < 1e-5f,
                        "RailVehicleManager::DetachFromRail");
+    }
+
+    // 6. Test Process, ProcessMgr & ProcessList (process_system.cpp)
+    {
+        write_temp_jmp64(image + 0x009BCDF0, reinterpret_cast<uintptr_t>(&mock_ProcessTreeNext));
+
+        std::vector<uint8_t> proc1(0x500, 0);
+        std::vector<uint8_t> proc2(0x500, 0);
+        *reinterpret_cast<uint16_t *>(proc1.data() + 0x34) = 1u;
+        *reinterpret_cast<uint32_t *>(proc1.data() + 0x44) = 101u;
+        *reinterpret_cast<void **>(proc1.data() + 0x10) = proc2.data();
+
+        *reinterpret_cast<uint16_t *>(proc2.data() + 0x34) = 1u;
+        *reinterpret_cast<void **>(proc2.data() + 0x38) = reinterpret_cast<void *>(0xABCDEF00ull);
+        *reinterpret_cast<uint32_t *>(proc2.data() + 0x44) = 202u;
+
+        // Global ProcessMgr at 0x0115F1A0
+        *reinterpret_cast<void **>(image + 0x0115F1A0 + 0xC40) = proc1.data();
+
+        auto fn_mgr_lookup = reinterpret_cast<void *(ABI *)(void *, uint32_t)>(image + 0x009BBCF0);
+        auto fn_proc_lookup = reinterpret_cast<void *(ABI *)(void *, uint32_t)>(image + 0x009BEF30);
+        auto fn_validate_ptr = reinterpret_cast<void (ABI *)(void *)>(image + 0x009BE660);
+        auto fn_add_script_upd = reinterpret_cast<void (ABI *)(void *, void *)>(image + 0x009B8CD0);
+        auto fn_plist_alloc = reinterpret_cast<void *(ABI *)(void *)>(image + 0x009B0D70);
+
+        U2_TEST_ASSERT(fn_mgr_lookup(image + 0x0115F1A0, 202u) == proc2.data() &&
+                       fn_mgr_lookup(image + 0x0115F1A0, 999u) == nullptr,
+                       "ProcessMgr::LookupProcessByPid");
+        U2_TEST_ASSERT(fn_proc_lookup(proc1.data(), 202u) == proc2.data() &&
+                       fn_proc_lookup(proc1.data(), 999u) == nullptr,
+                       "Process::LookupProcessByPid");
+
+        uint8_t fake_state[0x40] = {};
+        *reinterpret_cast<void **>(proc2.data() + 0x50) = fake_state;
+        fn_validate_ptr(proc2.data());
+        U2_TEST_ASSERT(*reinterpret_cast<void **>(proc2.data() + 0x50) == fake_state,
+                       "Process::ValidateInternalPointer");
+
+        *reinterpret_cast<uint32_t *>(image + 0x0115F1A0 + 0xC10) = 0u;
+        fn_add_script_upd(image + 0x0115F1A0, proc2.data());
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(image + 0x0115F1A0 + 0xC10) == 1u &&
+                       *reinterpret_cast<void **>(image + 0x0115F1A0 + 0x10) == proc2.data(),
+                       "ProcessMgr::AddProcessForScriptUpdate");
+
+        uint8_t pool[0x40] = {};
+        uint8_t node1[0x30] = {};
+        uint8_t node2[0x30] = {};
+        *reinterpret_cast<void **>(node1 + 0x00) = node2;
+        *reinterpret_cast<void **>(node2 + 0x08) = node1;
+        *reinterpret_cast<void **>(pool + 0x20) = node1;
+        *reinterpret_cast<void **>(image + 0x0151FF70) = pool;
+
+        void *alloc_n = fn_plist_alloc(proc2.data());
+        U2_TEST_ASSERT(alloc_n == node1 &&
+                       *reinterpret_cast<void **>(pool + 0x20) == node2 &&
+                       *reinterpret_cast<void **>(node1 + 0x10) == reinterpret_cast<void *>(0xABCDEF00ull) &&
+                       *reinterpret_cast<uint32_t *>(node1 + 0x18) == 202u,
+                       "ProcessList::Alloc");
+
+        // DMenu Process property accessors (0x001FE420 .. 0x001FEE40)
+        uint8_t ctrl_vtbl[0x60] = {};
+        *reinterpret_cast<void **>(ctrl_vtbl + 0x38) = reinterpret_cast<void *>(&mock_Ctrl_SetState);
+        *reinterpret_cast<void **>(ctrl_vtbl + 0x48) = reinterpret_cast<void *>(&mock_Ctrl_GetState);
+        uint8_t ctrl_obj[0x20] = {};
+        *reinterpret_cast<void **>(ctrl_obj + 0x00) = ctrl_vtbl;
+        s_mock_ctrl_obj = ctrl_obj;
+
+        std::vector<uint8_t> proc_vtbl(0x200, 0);
+        *reinterpret_cast<void **>(proc_vtbl.data() + 0x188) = reinterpret_cast<void *>(&mock_Proc_GetCtrl);
+        *reinterpret_cast<void **>(proc2.data() + 0x00) = proc_vtbl.data();
+
+        uint8_t dmenu_item[0x90] = {};
+        *reinterpret_cast<uint32_t *>(dmenu_item + 0x30) = 12u;  // target state = 12
+        *reinterpret_cast<uint32_t *>(dmenu_item + 0x38) = 202u; // pid = 202
+
+        auto fn_state_prop = reinterpret_cast<uint8_t (ABI *)(void *, int32_t)>(image + 0x001FE420);
+        auto fn_float_354  = reinterpret_cast<float (ABI *)(void *, int32_t, float)>(image + 0x001FE7E0);
+        auto fn_bool_43A   = reinterpret_cast<uint8_t (ABI *)(void *, int32_t)>(image + 0x001FE8C0);
+        auto fn_bool_43F   = reinterpret_cast<uint8_t (ABI *)(void *, int32_t)>(image + 0x001FE980);
+        auto fn_bool_439   = reinterpret_cast<uint8_t (ABI *)(void *, int32_t)>(image + 0x001FECA0);
+        auto fn_bool_438   = reinterpret_cast<uint8_t (ABI *)(void *, int32_t)>(image + 0x001FED70);
+        auto fn_bool_43B   = reinterpret_cast<uint8_t (ABI *)(void *, int32_t)>(image + 0x001FEE40);
+
+        s_mock_ctrl_state = 7u;
+        U2_TEST_ASSERT(fn_state_prop(dmenu_item, 3) == 0u, "Process::DMenuStateProp(query!=target)");
+        fn_state_prop(dmenu_item, 4);
+        U2_TEST_ASSERT(s_mock_ctrl_state == 12u && fn_state_prop(dmenu_item, 3) == 1u,
+                       "Process::DMenuStateProp(set & query==target)");
+
+        fn_float_354(dmenu_item, 4, 3.75f);
+        U2_TEST_ASSERT(std::fabs(fn_float_354(dmenu_item, 0, 0.0f) - 3.75f) < 1e-5f,
+                       "Process::DMenuFloatProp_354");
+
+        U2_TEST_ASSERT(fn_bool_43A(dmenu_item, 4) == 1u && fn_bool_43A(dmenu_item, 0) == 1u,
+                       "Process::DMenuBoolProp_43A");
+        U2_TEST_ASSERT(fn_bool_43F(dmenu_item, 4) == 1u && fn_bool_43F(dmenu_item, 0) == 1u,
+                       "Process::DMenuBoolProp_43F");
+        U2_TEST_ASSERT(fn_bool_439(dmenu_item, 4) == 1u && fn_bool_439(dmenu_item, 0) == 1u,
+                       "Process::DMenuBoolProp_439");
+        U2_TEST_ASSERT(fn_bool_438(dmenu_item, 4) == 1u && fn_bool_438(dmenu_item, 0) == 1u,
+                       "Process::DMenuBoolProp_438");
+        U2_TEST_ASSERT(fn_bool_43B(dmenu_item, 4) == 1u && fn_bool_43B(dmenu_item, 0) == 1u,
+                       "Process::DMenuBoolProp_43B");
+    }
+
+    // 7. Test SaveBuffer, Hud, GameTask, Settings & GameLoading (save_hud.cpp)
+    {
+        auto fn_sb_init   = reinterpret_cast<void (ABI *)(void *, uint32_t, uint32_t, void *)>(image + 0x00CD0E10);
+        auto fn_sb_dbg    = reinterpret_cast<void (ABI *)(void *, void *)>(image + 0x00CD0E80);
+        auto fn_sb_copy   = reinterpret_cast<void (ABI *)(void *, const void *)>(image + 0x00CD0EE0);
+        auto fn_sb_wbytes = reinterpret_cast<void (ABI *)(void *, const void *, uint32_t)>(image + 0x00CD16A0);
+        auto fn_sb_wu64_0 = reinterpret_cast<void (ABI *)(void *, const uint64_t *)>(image + 0x00CD1730);
+        auto fn_sb_wu64_1 = reinterpret_cast<void (ABI *)(void *, const uint64_t *)>(image + 0x00CD17C0);
+
+        std::vector<uint8_t> raw_buf_a(0x800, 0);
+        std::vector<uint8_t> raw_buf_b(0x800, 0x5A);
+        uint8_t sb_a[0xB0] = {};
+        uint8_t sb_b[0xB0] = {};
+
+        fn_sb_init(sb_a, 0x53415645u, 0x800u, raw_buf_a.data());
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(sb_a + 0x00) == 0x53415645u &&
+                       *reinterpret_cast<uint32_t *>(sb_a + 0x04) == 0x800u &&
+                       *reinterpret_cast<void **>(sb_a + 0x08) == raw_buf_a.data(),
+                       "SaveBuffer::InitExternal");
+
+        fn_sb_dbg(sb_b, raw_buf_b.data());
+        *reinterpret_cast<uint32_t *>(sb_b + 0x00) = 0x11223344u;
+        U2_TEST_ASSERT(*reinterpret_cast<void **>(sb_b + 0x08) == raw_buf_b.data() &&
+                       *reinterpret_cast<void **>(sb_b + 0x10) == raw_buf_b.data(),
+                       "SaveBuffer::DebugSetBuffer");
+
+        fn_sb_copy(sb_a, sb_b);
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(sb_a + 0x00) == 0x11223344u &&
+                       *reinterpret_cast<uint8_t **>(sb_a + 0x98) == (raw_buf_a.data() + 0x414) &&
+                       raw_buf_a[0x100] == 0x5A,
+                       "SaveBuffer::CopyFrom");
+
+        const uint32_t payload = 0xDEADBEEFu;
+        fn_sb_wbytes(sb_a, &payload, 4u);
+        U2_TEST_ASSERT(*reinterpret_cast<const uint32_t *>(raw_buf_a.data() + 0x414) == 0xDEADBEEFu &&
+                       *reinterpret_cast<uint8_t **>(sb_a + 0x98) == (raw_buf_a.data() + 0x418),
+                       "SaveBuffer::WriteBytes");
+
+        *reinterpret_cast<uint32_t *>(raw_buf_a.data() + 0x0C) = 0u;
+        *reinterpret_cast<uint32_t *>(raw_buf_a.data() + 0x10) = 0u;
+        uint64_t val0 = 0x12345678ULL;
+        uint64_t val1 = 0xCAFEBABE11223344ULL;
+        fn_sb_wu64_0(sb_a, &val0);
+        fn_sb_wu64_1(sb_a, &val1);
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(raw_buf_a.data() + 0x0C) == 1u &&
+                       *reinterpret_cast<uint32_t *>(raw_buf_a.data() + 0x10) == 1u &&
+                       *reinterpret_cast<const uint64_t *>(raw_buf_a.data() + 0x418) == val0 &&
+                       *reinterpret_cast<const uint64_t *>(raw_buf_a.data() + 0x420) == val1,
+                       "SaveBuffer::WriteU64Count0 & WriteU64Count1");
+
+        // Hud grenade indicators
+        auto fn_hud_free = reinterpret_cast<void (ABI *)(void *, uint32_t)>(image + 0x00554F70);
+        auto fn_hud_show = reinterpret_cast<void (ABI *)(void *, uint32_t, uint8_t)>(image + 0x00554FD0);
+        uint8_t hud[0x60] = {};
+        uint8_t ind[0x50] = {};
+        ind[0x41] = 1u;
+        *reinterpret_cast<void **>(hud + 0x18 + 3 * 8) = ind;
+        fn_hud_show(hud, 3u, 1u);
+        fn_hud_free(hud, 3u);
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(ind + 0x0C) == 1u && ind[0x41] == 0u,
+                       "Hud::ShowGrenadeIndicator & FreeGrenadeIndicator");
+
+        // GameTask::cbCollectTaskNode (0x00A5F970)
+        auto fn_collect_node = reinterpret_cast<int32_t (ABI *)(void *, uint32_t, void *)>(image + 0x00A5F970);
+        uint8_t entries[3 * 16] = {};
+        void *expected_subnode = reinterpret_cast<void *>(0x77778888ull);
+        *reinterpret_cast<uint32_t *>(entries + 0 * 16 + 0x00) = 10u;
+        *reinterpret_cast<uint32_t *>(entries + 1 * 16 + 0x00) = 25u;
+        *reinterpret_cast<void **>(entries + 1 * 16 + 0x08)    = expected_subnode;
+        *reinterpret_cast<uint32_t *>(entries + 2 * 16 + 0x00) = 40u;
+
+        uint8_t table_hdr[0x10] = {};
+        *reinterpret_cast<int32_t *>(table_hdr + 0x00) = 3;
+        *reinterpret_cast<void **>(table_hdr + 0x08)   = entries;
+
+        uint8_t task[0x40] = {};
+        *reinterpret_cast<void **>(task + 0x30) = table_hdr;
+        uint8_t col[0x20] = {};
+        fn_collect_node(task, 25u, col);
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(col + 0x00) == 1u &&
+                       *reinterpret_cast<void **>(col + 0x08) == expected_subnode,
+                       "GameTask::cbCollectTaskNode");
+
+        // Settings::FreeSetting (0x00A1D600)
+        auto fn_free_setting = reinterpret_cast<void (ABI *)(void *)>(image + 0x00A1D600);
+        std::vector<uint8_t> settings_arr(4 * 0x70, 0);
+        *reinterpret_cast<void **>(image + 0x015350E0) = settings_arr.data();
+        *reinterpret_cast<int32_t *>(image + 0x0153513C) = 4;
+        void *buckets[5] = {};
+        *reinterpret_cast<void **>(image + 0x01535100) = buckets;
+
+        uint8_t *slot2_setting = settings_arr.data() + 2 * 0x70;
+        slot2_setting[0x61] = 1u;
+        *reinterpret_cast<uint32_t *>(slot2_setting + 0x68) = 42u;
+        *reinterpret_cast<uint64_t *>(image + 0x01534CE0) = (1ULL << 2);
+
+        fn_free_setting(slot2_setting);
+        U2_TEST_ASSERT((slot2_setting[0x61] & 1u) == 0u &&
+                       *reinterpret_cast<uint32_t *>(slot2_setting + 0x68) == 0u &&
+                       (*reinterpret_cast<uint64_t *>(image + 0x01534CE0) & (1ULL << 2)) == 0ULL,
+                       "Settings::FreeSetting");
+
+        // GameLoading::IsChunkSetEntirelyWithin (0x00B77AA0) & GetPlayGoSpeed (0x00B770D0)
+        auto fn_chunk_within = reinterpret_cast<uint8_t (ABI *)(const char *, const uint64_t *)>(image + 0x00B77AA0);
+        auto fn_playgo_speed = reinterpret_cast<uint32_t (ABI *)(void)>(image + 0x00B770D0);
+
+        const char *cs_name = "menu";
+        uint32_t hash = 0x811C9DC5u;
+        for (const char *p = cs_name; *p; ++p) {
+            hash = (hash ^ static_cast<uint8_t>(*p)) * 0x01000193u;
+        }
+        void *pg_buckets[5] = {};
+        uint8_t pg_node[0x30] = {};
+        *reinterpret_cast<const char **>(pg_node + 0x10) = cs_name;
+        *reinterpret_cast<uint64_t *>(pg_node + 0x18) = 0x0FULL;
+        *reinterpret_cast<uint64_t *>(pg_node + 0x20) = 0x01ULL;
+        pg_buckets[hash % 4u] = pg_node;
+        *reinterpret_cast<int32_t *>(image + 0x015AFA3C) = 4;
+        *reinterpret_cast<void **>(image + 0x015AFA00) = pg_buckets;
+
+        uint64_t mask_full[2] = { 0xFFULL, 0x03ULL };
+        uint64_t mask_part[2] = { 0x03ULL, 0x01ULL };
+        U2_TEST_ASSERT(fn_chunk_within(cs_name, mask_full) == 1u &&
+                       fn_chunk_within(cs_name, mask_part) == 0u,
+                       "GameLoading::IsChunkSetEntirelyWithin");
+
+        *reinterpret_cast<uint32_t *>(image + 0x01050A30) = 500u;
+        *reinterpret_cast<int32_t *>(image + 0x015AF7C0) = 0;
+        U2_TEST_ASSERT(fn_playgo_speed() == 500u, "GameLoading::GetPlayGoSpeed(active)");
+        *reinterpret_cast<int32_t *>(image + 0x015AF7C0) = 1;
+        U2_TEST_ASSERT(fn_playgo_speed() == 0u, "GameLoading::GetPlayGoSpeed(suspended)");
     }
 
     g_u2_image_base = saved_base;
