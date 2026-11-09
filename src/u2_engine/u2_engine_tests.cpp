@@ -197,10 +197,19 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                 auto tramp_fn = reinterpret_cast<U2DcNativeFn>(image + off);
 
                 // Pass A: g_u2_image_base != NULL, argc=0, NULL argv
+                // Regression check: if %rdx points to a C++ object on the heap (vtable = 0x0B954321u)
+                // when a helper like DcKillAllAttachables is called from C++, u2_set_status(status, 0)
+                // must NEVER zero out the vtable at (%rdx).
+                valid_status = 0x0B954321u;
                 tramp_fn(0, nullptr, &valid_status);
+                if (valid_status == 0) {
+                    U2_TEST_ASSERT(valid_status != 0, "Dc* must never overwrite (rdx) with 0");
+                }
                 // Pass B: g_u2_image_base != NULL, argc=4, zeroed argv
+                valid_status = 0;
                 tramp_fn(4, zero_args, &valid_status);
                 // Pass C: g_u2_image_base != NULL, argc=4, valid pointer/non-zero ID argv
+                valid_status = 0;
                 tramp_fn(4, ptr_args, &valid_status);
 
                 // Restore stub & reset dummy buffer

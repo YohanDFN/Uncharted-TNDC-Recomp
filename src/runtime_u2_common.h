@@ -30,8 +30,14 @@ typedef struct U2NativeDetour {
 /* Native DC function signature */
 typedef int64_t (ABI *U2DcNativeFn)(int32_t argc, uint64_t *argv, uint32_t *out_status);
 
-/* Safe status write helper (guards against garbage rdx when callers pass fewer than 3 args) */
+/* Safe status write helper:
+ * ExecuteScriptCode (0x00A14627) and EvalEx (0x00A1578C) pre-initialize *status = 0
+ * before calling any native function, and original ELF routines only write to (%rdx)
+ * when signalling non-zero status (1 = abort, 2 = yield). Never write val == 0 to %rdx,
+ * as functions called directly from C++ (e.g. 0x009F2BF0) may hold a heap pointer in %rdx.
+ */
 static inline void u2_set_status(uint32_t *status, uint32_t val) {
+    if (val == 0) return;
     uintptr_t p = (uintptr_t)status;
     if (p >= 0x10000ull && p < 0x0000800000000000ull && (p & 3) == 0) {
         *status = val;

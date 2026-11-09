@@ -1,5 +1,6 @@
 param(
-    [int]$Duration = 8
+    [int]$Duration = 8,
+    [string]$Modules = ""
 )
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -10,4 +11,4 @@ if (-not (Test-Path $python)) {
     $python = "python"
 }
 
-& $python "$rootDir\scratch\auto_test.py" $Duration
+& $python "$rootDir\scratch\auto_test.py" $Duration $Modules

@@ -24,6 +24,7 @@ from uncharted_launcher import game_environment, CONFIG_FILE, load_json, APP_DEF
 
 def main():
     duration = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+    modules_override = sys.argv[2] if len(sys.argv) > 2 else ""
     try:
         subprocess.run(["taskkill", "/F", "/IM", "bb-probe.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
     except Exception:
@@ -41,6 +42,8 @@ def main():
     # Force windowed mode for headless/test runs if desired, or keep launcher settings
     env = game_environment(settings)
     env.setdefault("BB_U2_SELFTEST", "1")
+    if modules_override:
+        env["BB_U2_MODULES"] = modules_override
     for k, v in os.environ.items():
         if k.startswith("BB_U2_"):
             env[k] = v
