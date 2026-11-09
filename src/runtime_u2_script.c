@@ -1094,6 +1094,13 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         g_u2_image_base = image;
         printf("[U2 SelfTest] PASSED: %zu native C functions survived edge-case fuzzing without fault!\n", tested);
         fflush(stdout);
+        if (!disable_all_modules) {
+            int engine_failures = u2_run_engine_unit_tests(image);
+            if (engine_failures != 0) {
+                fprintf(stderr, "[U2 EngineTest] FATAL: %d engine unit test assertions failed!\n", engine_failures);
+                abort();
+            }
+        }
     }
 
     const char *native_vm_env = getenv("BB_U2_NATIVE_VM");

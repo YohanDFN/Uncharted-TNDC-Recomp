@@ -84,6 +84,7 @@ size_t u2_get_audio_detours(const U2NativeDetour **out);
 size_t u2_get_event_detours(const U2NativeDetour **out);
 size_t u2_get_scene_detours(const U2NativeDetour **out);
 size_t u2_get_engine_detours(const U2NativeDetour **out);
+int    u2_run_engine_unit_tests(uint8_t *image);
 
 #ifdef __cplusplus
 }

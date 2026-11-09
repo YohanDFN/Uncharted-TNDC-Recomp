@@ -78,7 +78,7 @@ def main():
 
     lines = log_file.read_text(encoding='utf-8', errors='replace').splitlines()
     for decoded in lines:
-        if any(k in decoded for k in ("State Transition", "[U2 Loop]", "[U2 Recomp]", "[U2 SelfTest]", "HeapArena", "ASSERTION", "Fault:", "Error", "HALT:")):
+        if any(k in decoded for k in ("State Transition", "[U2 Loop]", "[U2 Recomp]", "[U2 SelfTest]", "[U2 EngineTest]", "HeapArena", "ASSERTION", "Fault:", "Error", "HALT:")):
             print(f"  {decoded}")
 
     print("\n" + "=" * 60)
