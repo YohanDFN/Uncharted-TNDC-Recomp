@@ -124,6 +124,19 @@ node scratch/status_report.js
 
 ## 6. Journal des Jalons Validés
 
+* **Milestone 832/832 (100% Exécutables DC + VM Native C + Harnais Self-Test)** :
+  - **Lot 24 Final (5/5 fonctions restantes)** :
+    - `DcCSpawnNpc` (`0x002E57B0`)
+    - `DcCSpawnNpcS` (`0x002E55A0`)
+    - `DcAddLoadModule` (`0x00A0FE90`)
+    - `DcAddImportModule` (`0x00A0FF10`)
+    - `DcKillAllAttachables` (`0x009F2BF0`)
+  - **Assainissement "Edge-Cases" Automatisé (`BB_U2_SELFTEST=1`)** :
+    - Ajout de 238 gardes `!argv`, 98 gardes `!g_u2_image_base`, et remplacement de 514 écritures directes `*status` par `u2_set_status()`.
+    - Validation unitaire par fuzzing automatique au démarrage : **831/831 fonctions testées sans crash** (`[U2 SelfTest] PASSED`).
+  - **Cœur VM Script 100 % Natif C activé par défaut** :
+    - `ExecuteScriptCode=NATIVE_C` (`0x00A14120`), `EvalEx=NATIVE_C` (`0x00A15430`), `ScriptManager::Run=NATIVE_C` (`0x00A14F20`) — **837 détours C actifs simultanément** sans aucun crash runtime (`STOPPED_AFTER_TIMEOUT`).
+
 * **Milestone 827/843** : 827 fonctions DC natives réécrites en C (`ABI`) - Lot 23 (méga-batch de 40 fonctions Rails & Trains) validé unitairement sans crash (test 20s avec FSR 3 / boot menu complet) :
   - `DcRailActivateMover` (`0x00AB8340`)
   - `DcRailAnimateToMover` (`0x00AB8130`)

@@ -2,8 +2,9 @@
 #include "runtime_u2_common.h"
 
 static int64_t ABI detour_DcEventArgBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2A40: (event-arg-boolean [arg-idx]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -18,8 +19,9 @@ static int64_t ABI detour_DcEventArgBoolean(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcEventArgInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2BE0: (event-arg-int32 [arg-idx]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -34,8 +36,9 @@ static int64_t ABI detour_DcEventArgInt32(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcEventArgFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2BF0: (event-arg-float [arg-idx]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -51,8 +54,9 @@ static int64_t ABI detour_DcEventArgFloat(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcEventArgSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2DA0: (event-arg-symbol [arg-idx]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -67,8 +71,9 @@ static int64_t ABI detour_DcEventArgSymbol(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcEventArgString(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2EC0: (event-arg-string [arg-idx]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -83,8 +88,9 @@ static int64_t ABI detour_DcEventArgString(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcEventArgBoundFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C28F0: (event-arg-bound-frame [arg-idx]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -100,7 +106,7 @@ static int64_t ABI detour_DcEventArgBoundFrame(int32_t argc, uint64_t *argv, uin
 
 static int64_t ABI detour_DcEventReturnBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x004C1FF0: (event-return-boolean val) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -115,8 +121,9 @@ static int64_t ABI detour_DcEventReturnBoolean(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcEventReturnInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2390: (event-return-int32 val) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -131,8 +138,9 @@ static int64_t ABI detour_DcEventReturnInt32(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcEventReturnUint32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C21D0: (event-return-uint32 val) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -147,8 +155,9 @@ static int64_t ABI detour_DcEventReturnUint32(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcEventReturnFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2550: (event-return-float val) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -163,8 +172,9 @@ static int64_t ABI detour_DcEventReturnFloat(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcEventReturnSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C2720: (event-return-symbol val) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -181,7 +191,7 @@ static int64_t ABI detour_DcEventReturnSymbol(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcEventSender(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x004C1DF0: (event-sender) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -201,7 +211,7 @@ static int64_t ABI detour_DcEventSender(int32_t argc, uint64_t *argv, uint32_t *
 static int64_t ABI detour_DcPrintEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x004C1800: (print-event) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -237,8 +247,10 @@ static void *u2_get_script_instance(void) {
 }
 
 static int64_t ABI detour_DcTagBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A43700: (tag-boolean tag-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     void *inst = u2_get_script_instance();
     if (!inst) return 0;
     uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
@@ -258,8 +270,10 @@ static int64_t ABI detour_DcTagBoolean(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcTagInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A43880: (tag-int32 tag-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     void *inst = u2_get_script_instance();
     if (!inst) return 0;
     uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
@@ -273,8 +287,10 @@ static int64_t ABI detour_DcTagInt32(int32_t argc, uint64_t *argv, uint32_t *sta
 }
 
 static int64_t ABI detour_DcTagFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A439D0: (tag-float tag-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     void *inst = u2_get_script_instance();
     if (!inst) return 0;
     uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
@@ -288,8 +304,10 @@ static int64_t ABI detour_DcTagFloat(int32_t argc, uint64_t *argv, uint32_t *sta
 }
 
 static int64_t ABI detour_DcTagSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A43C90: (tag-symbol tag-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     void *inst = u2_get_script_instance();
     if (!inst) return 0;
     uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
@@ -303,8 +321,10 @@ static int64_t ABI detour_DcTagSymbol(int32_t argc, uint64_t *argv, uint32_t *st
 }
 
 static int64_t ABI detour_DcTagSpecifiedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A43DE0: (tag-specified? tag-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     void *inst = u2_get_script_instance();
     if (!inst) return 0;
     uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
@@ -316,28 +336,28 @@ static int64_t ABI detour_DcTagSpecifiedP(int32_t argc, uint64_t *argv, uint32_t
 static int64_t ABI detour_DcNetIsGameTypeP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00667E60: (net-is-game-type? [type]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcBroadcastEventToNpcs(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x004C3A00: (broadcast-event-to-npcs [event-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcSignalRaisedP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A40220: (signal-raised? sig [target]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetNpcConfirmCoopPlayersContact(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006690C0: (net-npc-confirm-coop-players-contact [npc]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
@@ -345,42 +365,42 @@ static int64_t ABI detour_DcNetNpcConfirmCoopPlayersContact(int32_t argc, uint64
 static int64_t ABI detour_DcEventAttackSourceP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C3730: (event-attack-source? [source]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcEventAttackTypeP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C38A0: (event-attack-type? [type]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcEventGetAttackInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C3D50: (event-get-attack-info) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcEventLevelP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C34C0: (event-level? level-name) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcEventMyLevelP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C32D0: (event-my-level? [event]) -> bool */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcEventObjectDamage(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C3610: (event-object-damage) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -394,21 +414,21 @@ static int64_t ABI detour_DcEventObjectDamage(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcNetAllPlayersInRegionP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00669500: (net-all-players-in-region? [region-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcNetCaptureFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00669960: (net-capture-flag ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetCurrentNetTask(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00669780: (net-current-net-task) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *net = g_u2_image_base + 0x0113B760ull;
     return (int64_t)*(const uint32_t *)(net + 0x1cf8);
@@ -417,13 +437,14 @@ static int64_t ABI detour_DcNetCurrentNetTask(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcNetDrawObjectiveIcon(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00669250: (net-draw-objective-icon ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcTagString(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A43B40: (tag-string [tag-list] [tag-symbol] [default]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc >= 3 && argv) return (int64_t)argv[2];
     return 0;
 }
@@ -431,34 +452,35 @@ static int64_t ABI detour_DcTagString(int32_t argc, uint64_t *argv, uint32_t *st
 static int64_t ABI detour_DcNetHudSetGrappleIndicator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00668980: (net-hud-set-grapple-indicator ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetKillEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x006696A0: (net-kill-entity [ent-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetRevivePlayer(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00667D40: (net-revive-player [player-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcNetSendEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C3B60: (net-send-event ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcNetShowWaveScreen(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00668890: (net-show-wave-screen wave) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t wave = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     uint8_t *net = g_u2_image_base + 0x0113B760ull;
@@ -469,28 +491,28 @@ static int64_t ABI detour_DcNetShowWaveScreen(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcNetHeliMoveOnSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A7FCC0: (net-heli-move-on-spline) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcSendEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C18F0: (send-event [event-obj]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSendSimpleEvent(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x004C1CF0: (send-simple-event [event-name]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcUpdateFightRef(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00667F80: (update-fight-ref) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 

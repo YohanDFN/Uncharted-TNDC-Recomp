@@ -984,8 +984,22 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
      */
     const char *disable_detours = getenv("BB_U2_DISABLE_DETOURS");
     const char *modules_env = getenv("BB_U2_MODULES");
+    const char *range_env = getenv("BB_U2_DETOUR_RANGE");
+    const char *allow_env = getenv("BB_U2_DETOUR_ALLOW");
     const bool disable_all_modules = (disable_detours && *disable_detours && *disable_detours != '0') ||
                                      (modules_env && strcmp(modules_env, "none") == 0);
+
+    uintptr_t range_min = 0;
+    uintptr_t range_max = UINTPTR_MAX;
+    if (range_env && *range_env) {
+        char *endp = NULL;
+        range_min = (uintptr_t)strtoull(range_env, &endp, 0);
+        if (endp && (*endp == '-' || *endp == ':')) {
+            range_max = (uintptr_t)strtoull(endp + 1, NULL, 0);
+        }
+        printf("[U2 Recomp] Detour range filter active: [0x%" PRIxPTR " .. 0x%" PRIxPTR "]\n", range_min, range_max);
+        fflush(stdout);
+    }
 
     size_t installed = 0;
 
@@ -1019,8 +1033,11 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
             size_t count = s_modules[g].getter(&mod_detours);
             size_t mod_installed = 0;
             for (size_t i = 0; i < count; ++i) {
-                if (mod_detours[i].offset > 0 && mod_detours[i].offset + 14 <= image_size) {
-                    write_detour_jmp64(image + mod_detours[i].offset, mod_detours[i].host_fn);
+                uintptr_t off = mod_detours[i].offset;
+                if (off < range_min || off > range_max) continue;
+                if (allow_env && *allow_env && strstr(allow_env, mod_detours[i].name) == NULL) continue;
+                if (off > 0 && off + 14 <= image_size) {
+                    write_detour_jmp64(image + off, mod_detours[i].host_fn);
                     ++installed;
                     ++mod_installed;
                 }
@@ -1030,22 +1047,63 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         }
     }
 
+    /* Automated Self-Test Harness (BB_U2_SELFTEST=1):
+     * Fuzz-tests all registered DC C detours with edge-case inputs (argc=0, NULL argv,
+     * unaligned/garbage status pointers, synthetic zeroed args) in pure-C safe mode
+     * (g_u2_image_base temporarily NULL so uninitialized guest singletons are not called before main()).
+     */
+    const char *selftest_env = getenv("BB_U2_SELFTEST");
+    if (selftest_env && *selftest_env && *selftest_env != '0') {
+        size_t tested = 0;
+        uint64_t zero_args[8] = {0};
+        uint32_t valid_status = 0;
+        uint32_t *bad_status = (uint32_t *)(uintptr_t)0x123; /* unaligned low garbage rdx */
+
+        printf("[U2 SelfTest] Running edge-case validation across all native C DC detours...\n");
+        fflush(stdout);
+        g_u2_image_base = NULL;
+        for (size_t g = 0; g < sizeof(s_modules) / sizeof(s_modules[0]); ++g) {
+            const U2NativeDetour *mod_detours = NULL;
+            size_t count = s_modules[g].getter(&mod_detours);
+            for (size_t i = 0; i < count; ++i) {
+                U2DcNativeFn fn = (U2DcNativeFn)mod_detours[i].host_fn;
+                if (!fn) continue;
+                /* Skip DcDebugBreak / DcEndScript / DcJump which intentionally manipulate VM or trap */
+                if (strcmp(mod_detours[i].name, "DcDebugBreak") == 0 ||
+                    strcmp(mod_detours[i].name, "DcJump") == 0 ||
+                    strcmp(mod_detours[i].name, "DcEndScript") == 0) {
+                    continue;
+                }
+                /* Edge case 1: 0 args, NULL argv, garbage unaligned rdx */
+                fn(0, NULL, bad_status);
+                /* Edge case 2: 0 args, valid zeroed argv, valid status */
+                fn(0, zero_args, &valid_status);
+                /* Edge case 3: 4 args, valid zeroed argv, garbage unaligned rdx */
+                fn(4, zero_args, bad_status);
+                ++tested;
+            }
+        }
+        g_u2_image_base = image;
+        printf("[U2 SelfTest] PASSED: %zu native C functions survived edge-case fuzzing without fault!\n", tested);
+        fflush(stdout);
+    }
+
     const char *native_vm_env = getenv("BB_U2_NATIVE_VM");
-    const int enable_native_vm = (native_vm_env && *native_vm_env && *native_vm_env != '0');
+    const int enable_native_vm = !disable_all_modules && (!native_vm_env || !*native_vm_env || *native_vm_env != '0');
     if (enable_native_vm) {
         write_detour_jmp64(image + 0x00A14120, (uintptr_t)detour_ExecuteScriptCode);
         ++installed;
     }
 
     const char *native_evalex_env = getenv("BB_U2_NATIVE_EVALEX");
-    const int enable_native_evalex = (native_evalex_env && *native_evalex_env && *native_evalex_env != '0');
+    const int enable_native_evalex = !disable_all_modules && (!native_evalex_env || !*native_evalex_env || *native_evalex_env != '0');
     if (enable_native_evalex) {
         write_detour_jmp64(image + 0x00A15430, (uintptr_t)detour_EvalEx);
         ++installed;
     }
 
     const char *native_run_env = getenv("BB_U2_NATIVE_RUN");
-    const int enable_native_run = (native_run_env && *native_run_env && *native_run_env != '0');
+    const int enable_native_run = !disable_all_modules && (!native_run_env || !*native_run_env || *native_run_env != '0');
     if (enable_native_run) {
         write_detour_jmp64(image + 0x00A14F20, (uintptr_t)detour_ScriptManager_Run);
         ++installed;

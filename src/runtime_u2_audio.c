@@ -2,6 +2,7 @@
 #include "runtime_u2_common.h"
 
 static int64_t ABI detour_DcSyncAudioMetaData(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FD560: (sync-audio-meta-data) */
     (void)argc; (void)argv; (void)status;
     uint8_t *audio = g_u2_image_base + 0x01111750ull;
@@ -15,7 +16,7 @@ static int64_t ABI detour_DcSyncAudioMetaData(int32_t argc, uint64_t *argv, uint
 
 static int64_t ABI detour_DcUseAudioRainLevel(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A009F0: (use-audio-rain-level level) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
     uint32_t level = (uint32_t)argv[0];
     uint8_t *audio_mgr = g_u2_image_base + 0x01111750ull;
@@ -25,7 +26,7 @@ static int64_t ABI detour_DcUseAudioRainLevel(int32_t argc, uint64_t *argv, uint
 
 static int64_t ABI detour_DcSuppressIdleSpeech(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01360: (suppress-idle-speech duration-sec) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
     float dur = u2_reg_to_f32(argv[0]);
     float scale = *(const float *)(g_u2_image_base + 0x00E672F4ull);
@@ -38,7 +39,7 @@ static int64_t ABI detour_DcSuppressIdleSpeech(int32_t argc, uint64_t *argv, uin
 
 static int64_t ABI detour_DcSay(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01A80: (say speaker line-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef int64_t (ABI *SayFn)(int32_t argc, uint64_t *argv, int32_t channel);
     SayFn fn = (SayFn)(uintptr_t)(g_u2_image_base + 0x009F3220ull);
@@ -47,7 +48,7 @@ static int64_t ABI detour_DcSay(int32_t argc, uint64_t *argv, uint32_t *status) 
 
 static int64_t ABI detour_DcCacheSoundBank(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD540: (cache-sound-bank bank-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
     const void *bank_name = (const void *)(uintptr_t)argv[0];
     if (!bank_name) return 0;
@@ -60,7 +61,7 @@ static int64_t ABI detour_DcCacheSoundBank(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcCacheSoundStream(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD510: (cache-sound-stream stream-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
     const void *stream_name = (const void *)(uintptr_t)argv[0];
     if (!stream_name) return 0;
@@ -73,7 +74,7 @@ static int64_t ABI detour_DcCacheSoundStream(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcCacheSpeechStream(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD4E0: (cache-speech-stream speech-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
     const void *speech_name = (const void *)(uintptr_t)argv[0];
     if (!speech_name) return 0;
@@ -85,8 +86,9 @@ static int64_t ABI detour_DcCacheSpeechStream(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcSetMixerOverride(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FD3B0: (set-mixer-override id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc > 0 && argv) {
         uint32_t id = (uint32_t)argv[0];
@@ -103,7 +105,7 @@ static int64_t ABI detour_DcSetMixerOverride(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcCacheMusicPlaylist(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD460: (cache-music-playlist playlist-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
     if (sym == 0) return 0;
@@ -129,8 +131,9 @@ static int64_t ABI detour_DcCacheMusicPlaylist(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcStartMovieAudio(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FE0D0: (start-movie-audio movie-sound-id [start-time]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     void **movie_mgr_slot = (void **)(g_u2_image_base + 0x010608E0ull);
     if (!movie_mgr_slot || !*movie_mgr_slot) return 0;
@@ -145,7 +148,7 @@ static int64_t ABI detour_DcStartMovieAudio(int32_t argc, uint64_t *argv, uint32
 
 static int64_t ABI detour_DcPlayMusicStinger(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD3F0: (play-music-stinger stinger-sym) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
     uint8_t *music_mgr = g_u2_image_base + 0x01113C58ull;
@@ -165,21 +168,21 @@ static int64_t ABI detour_DcPlayMusicStinger(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcStopSound(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01160: (stop-sound sound-handle) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcRailOverrideSpeedForAudio(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00AB9120: (rail-override-speed-for-audio [rail-entity] [speed]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 /* Table of detours provided by this module */
 static int64_t ABI detour_DcPlaySound(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A010C0: (play-sound sound-name [vol] [pitch]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sound_id = 0;
     if (argc > 0 && argv && argv[0]) {
@@ -199,7 +202,7 @@ static int64_t ABI detour_DcPlaySound(int32_t argc, uint64_t *argv, uint32_t *st
 
 static int64_t ABI detour_DcPlaySoundAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A00DA0: (play-sound-at-joint sound-name entity joint-id [vol] [pitch]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv) return 0;
     uint32_t sound_id = (uint32_t)argv[0];
     uint32_t ent_id = (uint32_t)argv[1];
@@ -216,7 +219,7 @@ static int64_t ABI detour_DcPlaySoundAtJoint(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcPlaySoundAtPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A00A30: (play-sound-at-position sound-name pos-ptr [vol] [pitch]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv || !argv[0] || !argv[1]) return 0;
     uint32_t sound_id = (uint32_t)argv[0];
     const float *pos = (const float *)(uintptr_t)argv[1];
@@ -230,7 +233,7 @@ static int64_t ABI detour_DcPlaySoundAtPosition(int32_t argc, uint64_t *argv, ui
 
 static int64_t ABI detour_DcPlaySoundAttached(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A00F30: (play-sound-attached sound-name entity [vol] [pitch]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv) return 0;
     uint32_t sound_id = (uint32_t)argv[0];
     uint32_t ent_id = (uint32_t)argv[1];

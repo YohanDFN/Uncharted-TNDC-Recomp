@@ -2,9 +2,10 @@
 #include "runtime_u2_common.h"
 
 static int64_t ABI detour_DcObjectSpawnedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A12780: (object-spawned? [name-id]) */
     (void)status;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t id = 0;
     if (argc > 0 && argv) {
@@ -30,8 +31,9 @@ static int64_t ABI detour_DcEntityName(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcEntityAutoSpawnOnce(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A12830: (entity-auto-spawn-once) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     typedef uint32_t (ABI *MakeSymbolFn)(uint32_t, const char *, int32_t);
@@ -66,8 +68,9 @@ static int64_t ABI detour_DcEntityAutoSpawnOnce(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcPartModuleLoadedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A00970: (part-module-loaded? [symbol-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     if (argc > 0 && argv) {
@@ -95,8 +98,9 @@ static int64_t ABI detour_DcPartModuleLoadedP(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcDisableFrameForward(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A038A0: (disable-frame-forward [obj-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -133,8 +137,9 @@ static int64_t ABI detour_DcDisableFrameForward(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcUnparent(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A03940: (unparent [obj-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -163,8 +168,9 @@ static int64_t ABI detour_DcUnparent(int32_t argc, uint64_t *argv, uint32_t *sta
 }
 
 static int64_t ABI detour_DcEnableGadgetry(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A039C0: (enable-gadgetry [obj-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -202,8 +208,9 @@ static int64_t ABI detour_DcEnableGadgetry(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcDisableGadgetry(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A03A70: (disable-gadgetry [obj-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -241,6 +248,7 @@ static int64_t ABI detour_DcDisableGadgetry(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcSymbolEqualP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00397620: (symbol-equal? a b) */
     (void)argc; (void)status;
     return ((uint32_t)argv[0] == (uint32_t)argv[1]) ? 1 : 0;
@@ -261,6 +269,7 @@ static int64_t ABI detour_DcCameraAimOverrideDirection(int32_t argc, uint64_t *a
 }
 
 static int64_t ABI detour_DcCameraCancelAimOverride(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A0DE30: (camera-cancel-aim-override) */
     (void)argc; (void)argv; (void)status;
     *(uint32_t *)(g_u2_image_base + 0x0147F0BCull) = 0u;
@@ -268,6 +277,7 @@ static int64_t ABI detour_DcCameraCancelAimOverride(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcCameraRestoreLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A0E9B0: (camera-restore-locator) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x0147F0B0ull) = 1u;
@@ -275,8 +285,9 @@ static int64_t ABI detour_DcCameraRestoreLocator(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcCameraAbandon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0E5E0: (camera-abandon [name-or-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -318,8 +329,9 @@ static int64_t ABI detour_DcCameraAbandon(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcCameraDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0E500: (camera-disable [name-or-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -384,7 +396,7 @@ static int64_t ABI detour_DcCameraDisable(int32_t argc, uint64_t *argv, uint32_t
 
 static int64_t ABI detour_DcSetFocusableGrappled(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0F2C0: (set-focusable-grappled [ent] [flag]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -428,8 +440,9 @@ static int64_t ABI detour_DcSetFocusableGrappled(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcSplineTransferPendingP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A25A20: (spline-transfer-pending? [ent]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -453,6 +466,7 @@ static int64_t ABI detour_DcSplineTransferPendingP(int32_t argc, uint64_t *argv,
 }
 
 static int64_t ABI detour_DcDebugPause(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A102A0: (debug-pause) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x010595E4ull) = 1u;
@@ -460,6 +474,8 @@ static int64_t ABI detour_DcDebugPause(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcDiscP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FD910: (disc? n) */
     (void)argc; (void)status;
     uint32_t cur_disc = *(const uint32_t *)(g_u2_image_base + 0x0105CFE8ull);
@@ -467,6 +483,7 @@ static int64_t ABI detour_DcDiscP(int32_t argc, uint64_t *argv, uint32_t *status
 }
 
 static int64_t ABI detour_DcResetAimFov(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x0090D780: (reset-aim-fov) */
     (void)argc; (void)argv; (void)status;
     *(uint32_t *)(g_u2_image_base + 0x0104F8E0ull) = 0xBF800000u; /* -1.0f */
@@ -474,6 +491,8 @@ static int64_t ABI detour_DcResetAimFov(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcOverrideAimFov(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0090D7A0: (override-aim-fov fov) */
     (void)argc; (void)status;
     *(uint32_t *)(g_u2_image_base + 0x0104F8E0ull) = (uint32_t)argv[0];
@@ -481,12 +500,15 @@ static int64_t ABI detour_DcOverrideAimFov(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcGetHarvestingPriority(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A01AB0: (get-harvesting-priority) */
     (void)argc; (void)argv; (void)status;
     return *(const uint8_t *)(g_u2_image_base + 0x0110DCB0ull);
 }
 
 static int64_t ABI detour_DcSetHarvestingPriority(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A01AC0: (set-harvesting-priority prio) */
     (void)status;
     if (argc > 0) {
@@ -498,6 +520,7 @@ static int64_t ABI detour_DcSetHarvestingPriority(int32_t argc, uint64_t *argv, 
 }
 
 static int64_t ABI detour_DcResetHarvestingPriority(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A01AE0: (reset-harvesting-priority) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x0110DCB0ull) = 0x0Au;
@@ -505,12 +528,15 @@ static int64_t ABI detour_DcResetHarvestingPriority(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcHarvestingEnabledP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A01AF0: (harvesting-enabled?) */
     (void)argc; (void)argv; (void)status;
     return *(const uint8_t *)(g_u2_image_base + 0x0110DCA0ull);
 }
 
 static int64_t ABI detour_DcSetHarvestingEnabled(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A01B00: (set-harvesting-enabled flag) */
     (void)status;
     if (argc > 0) {
@@ -522,11 +548,12 @@ static int64_t ABI detour_DcSetHarvestingEnabled(int32_t argc, uint64_t *argv, u
 static int64_t ABI detour_DcGroundPrintsType(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01F00: (ground-prints-type ...) */
     (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return (argc > 0) ? 1 : 0;
 }
 
 static int64_t ABI detour_DcHideHud(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A0CD00: (hide-hud) */
     (void)argc; (void)argv; (void)status;
     uint8_t *hud = *(uint8_t **)(g_u2_image_base + 0x01130068ull);
@@ -535,6 +562,7 @@ static int64_t ABI detour_DcHideHud(int32_t argc, uint64_t *argv, uint32_t *stat
 }
 
 static int64_t ABI detour_DcIsFma(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A0FE80: (is-fma) */
     (void)argc; (void)argv; (void)status;
     return *(const uint8_t *)(g_u2_image_base + 0x0105DECDull);
@@ -543,7 +571,7 @@ static int64_t ABI detour_DcIsFma(int32_t argc, uint64_t *argv, uint32_t *status
 static int64_t ABI detour_DcGetDda(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD010: (get-dda) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef float (ABI *GetDdaFn)(void);
     GetDdaFn get_dda = (GetDdaFn)(uintptr_t)(g_u2_image_base + 0x004ABA00ull);
@@ -552,6 +580,7 @@ static int64_t ABI detour_DcGetDda(int32_t argc, uint64_t *argv, uint32_t *statu
 }
 
 static int64_t ABI detour_DcJournalClearPage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FD090: (journal-clear-page) */
     (void)argc; (void)argv; (void)status;
     *(int32_t *)(g_u2_image_base + 0x0105DFC0ull) = -1;
@@ -559,12 +588,14 @@ static int64_t ABI detour_DcJournalClearPage(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcJournalGetPage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FD110: (journal-get-page) */
     (void)argc; (void)argv; (void)status;
     return (int64_t)(*(const int32_t *)(g_u2_image_base + 0x0105DFC0ull) + 1);
 }
 
 static int64_t ABI detour_DcKillAllParticles(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A0FE60: (kill-all-particles) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x013C2DC4ull) = 1u;
@@ -572,9 +603,10 @@ static int64_t ABI detour_DcKillAllParticles(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcDespawnMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x005DC8C0: (despawn-message id) */
     (void)status;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc > 0 && argv) {
         void *mgr = (void *)(g_u2_image_base + 0x01139EA0ull);
@@ -590,7 +622,7 @@ static int64_t ABI detour_DcDespawnMessage(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcPauseCoopCombo(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00667F60: (pause-coop-combo) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     void *mgr = (void *)(g_u2_image_base + 0x01139FE0ull);
     typedef void (ABI *PauseCoopComboFn)(void *mgr);
@@ -604,14 +636,14 @@ static int64_t ABI detour_DcPauseCoopCombo(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcGetCaptureZone(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006687D0: (get-capture-zone) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetEndWave(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006687E0: (net-end-wave) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef void (ABI *NetEndWaveFn)(void);
     NetEndWaveFn end_wave = (NetEndWaveFn)(uintptr_t)(g_u2_image_base + 0x00617D50ull);
@@ -624,7 +656,7 @@ static int64_t ABI detour_DcNetEndWave(int32_t argc, uint64_t *argv, uint32_t *s
 static int64_t ABI detour_DcNetGetGrappleTime(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006687F0: (net-get-grapple-time) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef uint64_t* (ABI *LookupSymbolValueFn)(uint32_t hash);
     LookupSymbolValueFn lookup_fn = (LookupSymbolValueFn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
@@ -638,9 +670,10 @@ static int64_t ABI detour_DcNetGetGrappleTime(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcNetGetBoosterEnabled(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00668810: (net-get-booster-enabled booster-id) */
     (void)status;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t booster_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0u;
     typedef uint8_t (ABI *NetIsBoosterEnabledFn)(uint64_t dummy, uint32_t id);
@@ -649,9 +682,10 @@ static int64_t ABI detour_DcNetGetBoosterEnabled(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcNetGetBoosterAmount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00668820: (net-get-booster-amount booster-id) */
     (void)status;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t booster_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0u;
     void *mgr = (void *)(g_u2_image_base + 0x0113A788ull);
@@ -664,7 +698,7 @@ static int64_t ABI detour_DcNetGetBoosterAmount(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcNetCoopTask(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006697E0: (net-coop-task) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef uint64_t* (ABI *LookupSymbolValueFn)(uint32_t hash);
     LookupSymbolValueFn lookup_fn = (LookupSymbolValueFn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
@@ -677,13 +711,13 @@ static int64_t ABI detour_DcNetCoopTask(int32_t argc, uint64_t *argv, uint32_t *
 static int64_t ABI detour_DcNetPlyaerCoopId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669240: (net-plyaer-coop-id) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcSetForceTension(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00667EE0: (set-force-tension flag) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
     if (mode > 1) {
@@ -696,7 +730,7 @@ static int64_t ABI detour_DcSetForceTension(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcNetKillTerritory(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669800: (net-kill-territory) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     int32_t game_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
@@ -721,7 +755,7 @@ static int64_t ABI detour_DcNetKillTerritory(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcNetSpawnTerritory(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669840: (net-spawn-territory) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     void *net_mgr = (void *)(g_u2_image_base + 0x0113B760ull);
@@ -752,7 +786,7 @@ static int64_t ABI detour_DcNetSpawnTerritory(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcNetSpawnFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006698C0: (net-spawn-flag ...) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     void *mgr = (void *)(g_u2_image_base + 0x0113B760ull);
     typedef void (ABI *NetSpawnFlagFn)(void *mgr, uint64_t *argv, uint32_t flag);
@@ -764,8 +798,9 @@ static int64_t ABI detour_DcNetSpawnFlag(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 static int64_t ABI detour_DcNetRespawnFlag(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x006698E0: (net-respawn-flag [flag-name]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -793,6 +828,7 @@ static int64_t ABI detour_DcNetRespawnFlag(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcNetCoopTeamFailedP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00669C20: (net-coop-team-failed?) */
     (void)argc; (void)argv; (void)status;
     return *(const uint8_t *)(g_u2_image_base + 0x0113D910ull);
@@ -801,21 +837,21 @@ static int64_t ABI detour_DcNetCoopTeamFailedP(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcNetCoopScriptId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669C30: (net-coop-script-id) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetCoopHostScriptId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669C40: (net-coop-host-script-id) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetIsCinema(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669C50: (net-is-cinema) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t net_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
     if (net_mode < 2) return 0;
@@ -825,7 +861,7 @@ static int64_t ABI detour_DcNetIsCinema(int32_t argc, uint64_t *argv, uint32_t *
 static int64_t ABI detour_DcNetIsHost(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00669C80: (net-is-host) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t net_mode = *(const int32_t *)(g_u2_image_base + 0x014CE97Cull);
     if (net_mode < 2) return 0;
@@ -838,6 +874,7 @@ static int64_t ABI detour_DcNetIsHost(int32_t argc, uint64_t *argv, uint32_t *st
 }
 
 static int64_t ABI detour_DcPsnDemoShowUpsell(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FD590: (psn-demo-show-upsell) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x0113769Dull) = 1u;
@@ -847,14 +884,14 @@ static int64_t ABI detour_DcPsnDemoShowUpsell(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcDebugDrawCross(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FE070: (debug-draw-cross ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcAutoSaveGame(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FE820: (auto-save-game) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t enabled = *(const uint8_t *)(g_u2_image_base + 0x0105053Dull);
     if (!enabled) return 0;
@@ -873,7 +910,7 @@ static int64_t ABI detour_DcAutoSaveGame(int32_t argc, uint64_t *argv, uint32_t 
 static int64_t ABI detour_DcUpdateTaskMenu(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FE8C0: (update-task-menu) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     void **task_menu_ptr = (void **)(g_u2_image_base + 0x0153BD78ull);
     if (task_menu_ptr && *task_menu_ptr) {
@@ -897,9 +934,10 @@ static int64_t ABI detour_DcUpdateTaskMenu(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcGameTaskGraphLogin(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FE8F0: (game-task-graph-login task) */
     (void)status;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc > 0 && argv) {
         typedef void (ABI *GameTaskGraphLoginFn)(uint64_t task);
@@ -912,9 +950,10 @@ static int64_t ABI detour_DcGameTaskGraphLogin(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcRemoveDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FEDF0: (remove-dynamic-light id) */
     (void)status;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc > 0 && argv) {
         uint32_t id = (uint32_t)argv[0];
@@ -931,7 +970,7 @@ static int64_t ABI detour_DcRemoveDynamicLight(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcRestoreBlur(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FFF20: (restore-blur) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *ctx = g_u2_image_base + 0x0115BD20ull;
     void **p_target = *(void ***)ctx;
@@ -949,7 +988,7 @@ static int64_t ABI detour_DcRestoreBlur(int32_t argc, uint64_t *argv, uint32_t *
 static int64_t ABI detour_DcDeactivateBlur(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FFF50: (deactivate-blur) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *ctx = g_u2_image_base + 0x0115BD20ull;
     void **p_target = *(void ***)ctx;
@@ -965,6 +1004,8 @@ static int64_t ABI detour_DcDeactivateBlur(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcRailSetIgcFadeOutTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB93F0: (rail-set-igc-fade-out-time t) */
     (void)status;
     *(uint32_t *)(g_u2_image_base + 0x0153FCB4ull) = (argc > 0) ? (uint32_t)argv[0] : 0u;
@@ -980,7 +1021,7 @@ static int64_t ABI detour_DcTrainGetDefaultAcceleration(int32_t argc, uint64_t *
 static int64_t ABI detour_DcKillAllDroppedWeapons(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0F1B0: (kill-all-dropped-weapons) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *entity_mgr = g_u2_image_base + 0x0115F1A0ull;
     const void *head = *(const void * const *)(entity_mgr + 0xC90);
@@ -1021,7 +1062,7 @@ static int64_t ABI detour_DcKillAllDroppedWeapons(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcKillAllBreakables(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0F260: (kill-all-breakables) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *entity_mgr = g_u2_image_base + 0x0115F1A0ull;
     const void *head = *(const void * const *)(entity_mgr + 0xC58);
@@ -1042,12 +1083,14 @@ static int64_t ABI detour_DcKillAllBreakables(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcTutorialHintsOnP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A0F490: (tutorial-hints-on?) */
     (void)argc; (void)argv; (void)status;
     return (int64_t)(*(const int32_t *)(g_u2_image_base + 0x0105DEF0ull));
 }
 
 static int64_t ABI detour_DcUseWaterUnitForReflectionIfVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A02C50: (use-water-unit-for-reflection-if-visible) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x011649DDull) = 1u;
@@ -1055,6 +1098,7 @@ static int64_t ABI detour_DcUseWaterUnitForReflectionIfVisible(int32_t argc, uin
 }
 
 static int64_t ABI detour_DcAngleMod(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00397630: (angle-mod rad) -> wraps angle into [-pi, pi] */
     (void)argc; (void)status;
     const float two_pi = 6.28318530717958647692f;
@@ -1069,6 +1113,7 @@ static int64_t ABI detour_DcAngleMod(int32_t argc, uint64_t *argv, uint32_t *sta
 }
 
 static int64_t ABI detour_DcAnimate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00397C50: (animate ...) */
     (void)status;
     typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, const char *);
@@ -1077,6 +1122,7 @@ static int64_t ABI detour_DcAnimate(int32_t argc, uint64_t *argv, uint32_t *stat
 }
 
 static int64_t ABI detour_DcActionPackEnabledP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A09FF0: (action-pack-enabled? ...) */
     (void)status;
     typedef uint8_t *(ABI *fn_t)(int32_t *, int32_t, uint64_t *, const char *);
@@ -1088,6 +1134,8 @@ static int64_t ABI detour_DcActionPackEnabledP(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcHudSetCounter(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A10470: (hud-set-counter cur max) */
     (void)argc; (void)status;
     uint32_t v0 = (uint32_t)argv[0];
@@ -1107,6 +1155,7 @@ static int64_t ABI detour_DcHudSetCounter(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcHudSetTimer(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A104B0: (hud-set-timer time-seconds) */
     (void)argc; (void)status;
     if (!g_u2_image_base) return 0;
@@ -1132,6 +1181,8 @@ static int64_t ABI detour_DcHudSetTimer(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcIncrementStat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0097BDF0: (increment-stat stat amount) */
     (void)status;
     if (argc == 2) {
@@ -1143,6 +1194,8 @@ static int64_t ABI detour_DcIncrementStat(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcIncrementTaskStat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0097BE20: (increment-task-stat stat sub amount) */
     (void)status;
     if (argc == 3) {
@@ -1154,6 +1207,7 @@ static int64_t ABI detour_DcIncrementTaskStat(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcIsDifficultyVeryEasy(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FCFC0: (is-difficulty-very-easy) */
     (void)argc; (void)argv; (void)status;
     uint32_t diff = *(const uint32_t *)(g_u2_image_base + 0x01059640ull + 0x48A4ull);
@@ -1187,6 +1241,8 @@ static int64_t ABI detour_DcJournalOpenP(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 static int64_t ABI detour_DcJournalSetAmbientScale(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FD060: (journal-set-ambient-scale [scale]) */
     (void)status;
     uint32_t bits = (argc > 0) ? (uint32_t)argv[0] : 0x3F800000u; /* 1.0f */
@@ -1195,6 +1251,8 @@ static int64_t ABI detour_DcJournalSetAmbientScale(int32_t argc, uint64_t *argv,
 }
 
 static int64_t ABI detour_DcKillMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x005DC630: (kill-message id) */
     (void)argc; (void)status;
     typedef void (ABI *fn_t)(void *, uint32_t);
@@ -1204,6 +1262,7 @@ static int64_t ABI detour_DcKillMessage(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcPowFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDB60: (pow-float base exp) */
     (void)argc; (void)status;
     float b = u2_reg_to_f32(argv[0]);
@@ -1212,6 +1271,7 @@ static int64_t ABI detour_DcPowFloat(int32_t argc, uint64_t *argv, uint32_t *sta
 }
 
 static int64_t ABI detour_DcLerpScale(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDB90: (lerp-scale min-in max-in min-out max-out val) */
     (void)status;
     if (argc < 5) return 0;
@@ -1229,6 +1289,8 @@ static int64_t ABI detour_DcLerpScale(int32_t argc, uint64_t *argv, uint32_t *st
 }
 
 static int64_t ABI detour_DcRailActivate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB98D0: (rail-activate ...) */
     (void)status;
     if (argc > 0 && argv[0] != 0) {
@@ -1241,6 +1303,8 @@ static int64_t ABI detour_DcRailActivate(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 static int64_t ABI detour_DcRailDeactivateMover(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB8290: (rail-deactivate-mover [idx]) */
     (void)status;
     uint32_t idx = (argc > 0) ? (uint32_t)argv[0] : 0u;
@@ -1258,6 +1322,7 @@ static int64_t ABI detour_DcRailDeactivateMover(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcRailKillAllPhysicsObjects(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00AB8F60: (rail-kill-all-physics-objects) */
     (void)argc; (void)argv; (void)status;
     typedef void (ABI *fn_t)(void);
@@ -1267,6 +1332,8 @@ static int64_t ABI detour_DcRailKillAllPhysicsObjects(int32_t argc, uint64_t *ar
 }
 
 static int64_t ABI detour_DcRailMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB8610: (rail-mode mode) */
     (void)status;
     if (argc > 0) {
@@ -1276,6 +1343,8 @@ static int64_t ABI detour_DcRailMode(int32_t argc, uint64_t *argv, uint32_t *sta
 }
 
 static int64_t ABI detour_DcSetSwimDragMultiplier(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0090D650: (set-swim-drag-multiplier mult) */
     (void)status;
     if (argc == 1) {
@@ -1286,6 +1355,8 @@ static int64_t ABI detour_DcSetSwimDragMultiplier(int32_t argc, uint64_t *argv, 
 }
 
 static int64_t ABI detour_DcStateCharacterAccumulatesSnowFromGround(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A01FE0: (state-character-accumulates-snow-from-ground flag) */
     (void)status;
     if (argc <= 0) return 0;
@@ -1294,6 +1365,8 @@ static int64_t ABI detour_DcStateCharacterAccumulatesSnowFromGround(int32_t argc
 }
 
 static int64_t ABI detour_DcStateCharacterAccumulatesSnowFromSky(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A01F70: (state-character-accumulates-snow-from-sky flag rate) */
     (void)status;
     if (argc < 2) return 0;
@@ -1310,6 +1383,8 @@ static int64_t ABI detour_DcStateCharacterAccumulatesSnowFromSky(int32_t argc, u
 }
 
 static int64_t ABI detour_DcStateCharacterAccumulatesWetnessFromWater(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A01F30: (state-character-accumulates-wetness-from-water flag) */
     (void)status;
     if (argc <= 0) return 0;
@@ -1404,6 +1479,7 @@ static int64_t ABI detour_DcSetRainRipplesState(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcStopScriptRumbles(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A105B0: (stop-script-rumbles) */
     (void)argc; (void)argv; (void)status;
     uint8_t *base = g_u2_image_base + 0x0152FBD0ull;
@@ -1416,6 +1492,8 @@ static int64_t ABI detour_DcStopScriptRumbles(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcStringFromStringId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDE30: (string-from-string-id sid) */
     (void)status;
     if (argc > 0) {
@@ -1427,6 +1505,8 @@ static int64_t ABI detour_DcStringFromStringId(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcStringIdFromString(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDE00: (string-id-from-string str) */
     (void)status;
     if (argc > 0) {
@@ -1438,6 +1518,7 @@ static int64_t ABI detour_DcStringIdFromString(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcSwimDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x0090D760: (swim-disable) */
     typedef void (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
     fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00924040ull);
@@ -1446,6 +1527,7 @@ static int64_t ABI detour_DcSwimDisable(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcSwimDisallowStandOnBottom(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x0090D680: (swim-disallow-stand-on-bottom) */
     (void)argc; (void)argv; (void)status;
     typedef void (ABI *fn_t)(uint64_t, void *, uint64_t);
@@ -1456,6 +1538,7 @@ static int64_t ABI detour_DcSwimDisallowStandOnBottom(int32_t argc, uint64_t *ar
 }
 
 static int64_t ABI detour_DcSwimEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x0090D770: (swim-enable) */
     typedef void (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
     fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x00924140ull);
@@ -1464,6 +1547,7 @@ static int64_t ABI detour_DcSwimEnable(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcSyncVoxMetaData(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FD1F0: (sync-vox-meta-data) */
     (void)argc; (void)argv; (void)status;
     typedef void (ABI *fn_t)(uint64_t);
@@ -1473,6 +1557,7 @@ static int64_t ABI detour_DcSyncVoxMetaData(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcSyncVoxMpMetaData(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FD1E0: (sync-vox-mp-meta-data) */
     typedef void (ABI *fn_t)(int32_t, uint64_t *, uint32_t *);
     fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x003E3320ull);
@@ -1481,6 +1566,8 @@ static int64_t ABI detour_DcSyncVoxMpMetaData(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcTaskSubnodeActiveP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FEC80: (task-subnode-active? subnode) */
     (void)argc; (void)status;
     typedef uint8_t (ABI *fn_t)(uint64_t);
@@ -1489,6 +1576,7 @@ static int64_t ABI detour_DcTaskSubnodeActiveP(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcElapsedTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0ED60: (elapsed-time [clock-id]) */
     (void)status;
     if (!g_u2_image_base) return 0;
@@ -1503,6 +1591,7 @@ static int64_t ABI detour_DcElapsedTime(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcCurrentTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0EDB0: (current-time [clock-id]) */
     (void)status;
     if (!g_u2_image_base) return 0;
@@ -1524,6 +1613,7 @@ static int64_t ABI detour_DcNoOp0(int32_t argc, uint64_t *argv, uint32_t *status
 }
 
 static int64_t ABI detour_DcRandomFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FDA20: (random-float) */
     (void)argc; (void)argv; (void)status;
     uint32_t *p_seed1 = (uint32_t *)(g_u2_image_base + 0x01542F38ull);
@@ -1557,6 +1647,7 @@ static int64_t ABI detour_DcRandomInteger(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcEntityAliveP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A127E0: (entity-alive? handle) */
     (void)status;
     if (argc <= 0 || !argv || !argv[0]) return 0;
@@ -1569,6 +1660,7 @@ static int64_t ABI detour_DcEntityAliveP(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 static int64_t ABI detour_DcCameraDisableAll(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A0E330: (camera-disable-all) */
     (void)argc; (void)argv; (void)status;
     uint8_t *head = *(uint8_t **)(g_u2_image_base + 0x0147F050ull);
@@ -1582,7 +1674,7 @@ static int64_t ABI detour_DcCameraDisableAll(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcUnitsPerFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0ECF0: (units-per-frame units [clock-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     float units = u2_reg_to_f32(argv[0]);
     int32_t clock_id = (argc >= 2) ? (int32_t)argv[1] : 1;
@@ -1597,7 +1689,7 @@ static int64_t ABI detour_DcUnitsPerFrame(int32_t argc, uint64_t *argv, uint32_t
 
 static int64_t ABI detour_DcUnitsPerSecond(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0EC70: (units-per-second units [clock-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     float units = u2_reg_to_f32(argv[0]);
     int32_t clock_id = (argc >= 2) ? (int32_t)argv[1] : 1;
@@ -1617,7 +1709,7 @@ static int64_t ABI detour_DcUnitsPerSecond(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcIsJapanP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD8B0: (is-japan?) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *settings = g_u2_image_base + 0x01059640ull;
     if (*(const int32_t *)(settings + 0x3994) == 0) return 1;
@@ -1635,7 +1727,7 @@ static int64_t ABI detour_DcIsJapanP(int32_t argc, uint64_t *argv, uint32_t *sta
 static int64_t ABI detour_DcCameraStoreLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0E9C0: (camera-store-locator) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *tracker_slot = *(const uint8_t **)(g_u2_image_base + 0x01114208ull);
     const uint32_t tracker_tag = *(const uint32_t *)(g_u2_image_base + 0x01114208ull + 8);
@@ -1656,13 +1748,13 @@ static int64_t ABI detour_DcCameraStoreLocator(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcDebugBreak(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FDF30: (debug-break) - safe no-op replacing int $0x41 crash */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcRenderSettingsApplyDefaults(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A10760: (render-settings-apply-defaults [id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t id = (uint32_t)argv[0];
     *(uint32_t *)(g_u2_image_base + 0x0104FAECull) = id;
@@ -1681,8 +1773,9 @@ static int64_t ABI detour_DcRenderSettingsApplyDefaults(int32_t argc, uint64_t *
 }
 
 static int64_t ABI detour_DcSetObjectHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A04A20: (set-object-health [ent] [f_health]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -1722,8 +1815,9 @@ static int64_t ABI detour_DcSetObjectHealth(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcGetObjectHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A04B10: (get-object-health [ent]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return (int64_t)u2_f32_to_reg(0.0f);
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -1763,6 +1857,7 @@ static int64_t ABI detour_DcGetObjectHealth(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcSpawnParticlesAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A00950: (spawn-particles-at-joint ...) */
     typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
     fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x009F2E80ull);
@@ -1770,6 +1865,7 @@ static int64_t ABI detour_DcSpawnParticlesAtJoint(int32_t argc, uint64_t *argv, 
 }
 
 static int64_t ABI detour_DcSpawnParticlesAttached(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A00960: (spawn-particles-attached ...) */
     typedef int64_t (ABI *fn_t)(int32_t, uint64_t *, int32_t, uint32_t *);
     fn_t fn = (fn_t)(uintptr_t)(g_u2_image_base + 0x009F2E80ull);
@@ -1779,7 +1875,7 @@ static int64_t ABI detour_DcSpawnParticlesAttached(int32_t argc, uint64_t *argv,
 static int64_t ABI detour_DcNetHideWaveScreen(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00668850: (net-hide-wave-screen) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (*(const int32_t *)(g_u2_image_base + 0x014CE97Cull) > 1) {
         *(uint8_t *)(g_u2_image_base + 0x0104F544ull + 0x1C) = 0;
@@ -1789,8 +1885,9 @@ static int64_t ABI detour_DcNetHideWaveScreen(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcStringFromFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDE60: (string-from-float f) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     double val = 0.0;
     if (argc > 0 && argv) {
@@ -1804,13 +1901,14 @@ static int64_t ABI detour_DcStringFromFloat(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcDebugDrawLine(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FE090: (debug-draw-line ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayMovie(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FE100: (play-movie movie-name) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *mgr = *(uint8_t **)(g_u2_image_base + 0x010608E0ull);
     if (mgr) {
@@ -1830,8 +1928,9 @@ static int64_t ABI detour_DcPlayMovie(int32_t argc, uint64_t *argv, uint32_t *st
 }
 
 static int64_t ABI detour_DcStartRumble(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x009FF3D0: (start-rumble [symbol]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc > 0 && argv && g_u2_image_base) {
         uint32_t sym = (uint32_t)argv[0];
         typedef void (ABI *RumbleFn)(uint32_t, int32_t, float, float);
@@ -1844,14 +1943,14 @@ static int64_t ABI detour_DcStartRumble(int32_t argc, uint64_t *argv, uint32_t *
 static int64_t ABI detour_DcStopRumble(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FF370: (stop-rumble [symbol]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcNetAllPlayersDeadP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x006694B0: (net-all-players-dead?) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t out_val = 0;
     typedef uint8_t (ABI *fn_t)(void *, uint32_t *);
@@ -1862,13 +1961,13 @@ static int64_t ABI detour_DcNetAllPlayersDeadP(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcDebugDrawString(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FDFB0: (debug-draw-string ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcSetCharacterWetMaskState(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A02690: (set-character-wet-mask-state idx state) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     uint32_t idx = (uint32_t)argv[0];
     if (idx <= 5) {
@@ -1880,7 +1979,7 @@ static int64_t ABI detour_DcSetCharacterWetMaskState(int32_t argc, uint64_t *arg
 
 static int64_t ABI detour_DcUseWaterUnitForReflection(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A02C70: (use-water-unit-for-reflection unit flag) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc < 2 || !argv || !g_u2_image_base) return 0;
     if (argv[1] != 0) {
         uint32_t unit = (uint32_t)argv[0];
@@ -1894,7 +1993,7 @@ static int64_t ABI detour_DcUseWaterUnitForReflection(int32_t argc, uint64_t *ar
 
 static int64_t ABI detour_DcLerpReflectionPlaneOfWaterUnits(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A02B10: (lerp-reflection-plane-of-water-units u1 u2 t) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc < 2 || !argv || !g_u2_image_base) return 0;
     if (argv[0] != 0) {
         uint8_t *slot = g_u2_image_base + 0x01164980ull;
@@ -1909,7 +2008,7 @@ static int64_t ABI detour_DcLerpReflectionPlaneOfWaterUnits(int32_t argc, uint64
 
 static int64_t ABI detour_DcRemoveCoverActionPacksFromObject(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04DC0: (remove-cover-action-packs-from-object obj-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     typedef void *(ABI *get_ent_fn)(uint32_t);
     get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
@@ -1924,7 +2023,7 @@ static int64_t ABI detour_DcRemoveCoverActionPacksFromObject(int32_t argc, uint6
 
 static int64_t ABI detour_DcRegenerateCoverActionPacksFromObject(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04E20: (regenerate-cover-action-packs-from-object obj-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     typedef void *(ABI *get_ent_fn)(uint32_t);
     get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
@@ -1939,7 +2038,7 @@ static int64_t ABI detour_DcRegenerateCoverActionPacksFromObject(int32_t argc, u
 
 static int64_t ABI detour_DcEnableNavBlockerObject(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04F60: (enable-nav-blocker-object obj-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     typedef void *(ABI *get_ent_fn)(uint32_t);
     get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
@@ -1952,7 +2051,7 @@ static int64_t ABI detour_DcEnableNavBlockerObject(int32_t argc, uint64_t *argv,
 
 static int64_t ABI detour_DcBlockNavPolyUnderObject(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A05030: (block-nav-poly-under-object obj-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     typedef void *(ABI *get_ent_fn)(uint32_t);
     get_ent_fn get_ent = (get_ent_fn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
@@ -1966,8 +2065,9 @@ static int64_t ABI detour_DcBlockNavPolyUnderObject(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcKillEntity(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A09D60: (kill-entity [ent-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = 0;
     if (argc > 0 && argv) {
@@ -1985,28 +2085,28 @@ static int64_t ABI detour_DcKillEntity(int32_t argc, uint64_t *argv, uint32_t *s
 static int64_t ABI detour_DcPrintNoOp(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* Shipping build 16-byte no-op prints (0x009FDEE0..0x009FDF20) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcForceDockJetski(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01B90: (force-dock-jetski) - shipping stub returning 0 */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcForceBoardJetski(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01BA0: (force-board-jetski) - shipping stub returning 0 */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcEventSender(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x004C1DF0: (event-sender) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -2022,8 +2122,9 @@ static int64_t ABI detour_DcEventSender(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcEventSenderP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C1ED0: (event-sender? [sender-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -2048,8 +2149,9 @@ static int64_t ABI detour_DcEventSenderP(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 static int64_t ABI detour_DcEventTrainP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C31A0: (event-train? [train-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -2074,8 +2176,9 @@ static int64_t ABI detour_DcEventTrainP(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcEventTrainCarP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x004C3020: (event-train-car? [car-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *event_mgr = g_u2_image_base + 0x01050320ull;
     int32_t depth = *(const int32_t *)(event_mgr + 0x200);
@@ -2100,8 +2203,9 @@ static int64_t ABI detour_DcEventTrainCarP(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcCameraMovedBackwardsP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0DC40: (camera-moved-backwards? [threshold]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float threshold = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : *(const float *)(g_u2_image_base + 0x00E673B4ull);
     const uint8_t *cam_ptr = *(const uint8_t **)(g_u2_image_base + 0x0147F020ull);
@@ -2118,7 +2222,7 @@ static int64_t ABI detour_DcCameraMovedBackwardsP(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcWeaponSetReset(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090AD00: (weapon-set-reset) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef void * (ABI *EvalSymFn)(uint32_t);
     EvalSymFn eval_sym = (EvalSymFn)(uintptr_t)(g_u2_image_base + 0x00A15E70ull);
@@ -2134,22 +2238,23 @@ static int64_t ABI detour_DcWeaponSetReset(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcInvalidStringId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FDE50: (invalid-string-id) -> 0 */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcHideHint(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0CC10: (hide-hint) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     *(uint8_t *)(g_u2_image_base + 0x0104F1B8ull) = 0;
     return 0;
 }
 
 static int64_t ABI detour_DcGetObjectId(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0BEE0: (get-object-id [obj]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t sym = 0;
     if (argc > 0 && argv) {
@@ -2173,7 +2278,7 @@ static int64_t ABI detour_DcGetObjectId(int32_t argc, uint64_t *argv, uint32_t *
 static int64_t ABI detour_DcGetSelfId(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04A00: (get-self-id) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef void * (ABI *GetSelfFn)(uint32_t);
     GetSelfFn get_self = (GetSelfFn)(uintptr_t)(g_u2_image_base + 0x009BBE40ull);
@@ -2185,7 +2290,7 @@ static int64_t ABI detour_DcGetSelfId(int32_t argc, uint64_t *argv, uint32_t *st
 static int64_t ABI detour_DcClearHarvestedBodies(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01A90: (clear-harvested-bodies) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef void (ABI *ClearFn)(void *);
     ClearFn fn = (ClearFn)(uintptr_t)(g_u2_image_base + 0x00212680ull);
@@ -2197,7 +2302,7 @@ static int64_t ABI detour_DcClearHarvestedBodies(int32_t argc, uint64_t *argv, u
 static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD690: (reset-actors) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     typedef void (ABI *VoidFn)(void);
     VoidFn f1 = (VoidFn)(uintptr_t)(g_u2_image_base + 0x009691D0ull);
@@ -2208,8 +2313,9 @@ static int64_t ABI detour_DcResetActors(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcSetWhiteFade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A106A0: (set-white-fade [fade-amount]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float fade = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
     float *p_fade = (float *)(uintptr_t)(g_u2_image_base + 0x01150498ull);
@@ -2218,8 +2324,9 @@ static int64_t ABI detour_DcSetWhiteFade(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 static int64_t ABI detour_DcSetBlackFade(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A10700: (set-black-fade [fade-amount]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float fade = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
     float *p_fade = (float *)(uintptr_t)(g_u2_image_base + 0x01150494ull);
@@ -2230,13 +2337,13 @@ static int64_t ABI detour_DcSetBlackFade(int32_t argc, uint64_t *argv, uint32_t 
 static int64_t ABI detour_DcMakeInert(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD850: (make-inert entity) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcDisablePlatformControlOnObject(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04E80: (disable-platform-control-on-object [obj-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t obj_id = (uint32_t)argv[0];
     typedef void * (ABI *LookupFn)(uint32_t, int32_t);
@@ -2256,7 +2363,7 @@ static int64_t ABI detour_DcDisablePlatformControlOnObject(int32_t argc, uint64_
 
 static int64_t ABI detour_DcDisableNavBlockerObject(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04EF0: (disable-nav-blocker-object [obj-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t obj_id = (uint32_t)argv[0];
     typedef void * (ABI *LookupFn)(uint32_t, int32_t);
@@ -2274,7 +2381,7 @@ static int64_t ABI detour_DcDisableNavBlockerObject(int32_t argc, uint64_t *argv
 
 static int64_t ABI detour_DcUnblockNavPolyUnderObject(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04FC0: (unblock-nav-poly-under-object [entity]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t obj_id = (uint32_t)argv[0];
     typedef void * (ABI *LookupFn)(uint32_t, int32_t);
@@ -2293,13 +2400,13 @@ static int64_t ABI detour_DcUnblockNavPolyUnderObject(int32_t argc, uint64_t *ar
 static int64_t ABI detour_DcDumpLevelsInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04900: (dump-levels-info) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcLerpReflectionPlanes(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A02AA0: (lerp-reflection-planes p1 p2 t) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc >= 3 && argv && argv[0] && argv[1]) {
         uint8_t *slot = g_u2_image_base + 0x01164980ull;
@@ -2316,13 +2423,14 @@ static int64_t ABI detour_DcLerpReflectionPlanes(int32_t argc, uint64_t *argv, u
 static int64_t ABI detour_DcSlowMoEffect(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0EE10: (slow-mo-effect [speed] [duration]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcRailSetNpcArchetype(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB9660: (rail-set-npc-archetype [rail] [archetype]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t rail_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     uint32_t arch = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
@@ -2340,97 +2448,98 @@ static int64_t ABI detour_DcRailSetNpcArchetype(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcDebugDrawLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FE000: (debug-draw-locator loc [color]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcAddDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FF2C0: (add-dynamic-light ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcAddDynamicLightJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FF010: (add-dynamic-light-joint light entity joint) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcApplyExplosionImpulse(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A03B20: (apply-explosion-impulse pos force radius) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcAttachFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0A4C0: (attach-flashlight [entity]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcCameraAnimationDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A033B0: (camera-animation-disable track-id [blend-time]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcCameraAnimationEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A03480: (camera-animation-enable track-id [blend-time]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcCameraShake(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0E040: (camera-shake type intensity [duration]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcConstrainRopeAtJoint(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04430: (constrain-rope-at-joint rope joint) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcCreateWeaponDrawables(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0C410: (create-weapon-drawables [entity]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcDetachRope(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04530: (detach-rope rope) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcDropRope(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A045E0: (drop-rope rope) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcDoRumblePtr(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A105F0: (do-rumble-ptr [motor] [intensity] [duration]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcJournalSetPage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FD130: (journal-set-page page) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc > 0 && argv) {
         int32_t page = (int32_t)argv[0];
@@ -2443,56 +2552,57 @@ static int64_t ABI detour_DcJournalSetPage(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcLetterboxOff(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FFD60: (letterbox-off [time]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcLetterboxOn(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FFE00: (letterbox-on [time]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcRopeEnableCharacterCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04270: (rope-enable-character-collision rope) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcRopeDisableCharacterCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A04340: (rope-disable-character-collision rope) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcUseRainIntensityValues(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A031C0: (use-rain-intensity-values ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcUseWindIntensityValues(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A03290: (use-wind-intensity-values ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcKillFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0A130: (kill-flashlight [entity]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 /* Table of detours provided by this module */
 static int64_t ABI detour_DcCameraFadeOut(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A0E380: (camera-fade-out [cam-symbol] [duration]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t cam_id = 0;
     float duration = 1.0f;
@@ -2523,7 +2633,7 @@ static int64_t ABI detour_DcCameraFadeOut(int32_t argc, uint64_t *argv, uint32_t
 static int64_t ABI detour_DcCameraShakeInZoomCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0DCA0: (camera-shake-in-zoom-camera) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 1;
@@ -2546,34 +2656,34 @@ static int64_t ABI detour_DcCameraShakeInZoomCamera(int32_t argc, uint64_t *argv
 static int64_t ABI detour_DcDisplayButtonHud(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0CD20: (display-button-hud [btn-id] [action-str]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFadeToBlack(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FFBA0: (fade-to-black [time] [hold]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFadeToBlackPers(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FFA40: (fade-to-black-pers [time]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFadeToWhite(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FFAC0: (fade-to-white [time] [hold]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcGetWaterOffset(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A02F20: (get-water-offset [out-vec]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc < 1 || !argv || !argv[0]) return 0;
     float *out = (float *)(uintptr_t)argv[0];
     out[0] = 0.0f; out[1] = 0.0f; out[2] = 0.0f; out[3] = 1.0f;
@@ -2583,41 +2693,41 @@ static int64_t ABI detour_DcGetWaterOffset(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcGetWaterState(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A02D90: (get-water-state) -> int */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcGivePlayerFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0ADC0: (give-player-flashlight [enable] [slot]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcGiveSullivanFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0ABC0: (give-sullivan-flashlight [enable] [slot]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcKillPlayerFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0A920: (kill-player-flashlight) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcKillSullivanFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0A750: (kill-sullivan-flashlight) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcHeliEnableWind(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7EB60: (heli-enable-wind [enabled-bool]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     (void)argc;
     (void)argv;
     return 1;
@@ -2625,7 +2735,7 @@ static int64_t ABI detour_DcHeliEnableWind(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcKillParticles(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A00140: (kill-particles handle [immediate-p]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t handle = (uint32_t)argv[0];
     uint32_t idx = handle & 0x3FF;
@@ -2650,34 +2760,35 @@ static int64_t ABI detour_DcKillParticles(int32_t argc, uint64_t *argv, uint32_t
 static int64_t ABI detour_DcScanParticleDirectories(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A19360: (scan-particle-directories) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetDeformationOfWaterUnit(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A02CC0: (set-deformation-of-water-unit [unit] [deform]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetDynamicLightColor(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FEE20: (set-dynamic-light-color [light-id] [color-vec]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetLightFov(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FFC80: (set-light-fov [light-id] [fov-deg]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetMeshVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A0BA20: (set-mesh-visible [entity] [mesh-idx] [visible-p]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     uint32_t mesh = (argc >= 2 && argv) ? (uint32_t)argv[1] : 0;
@@ -2696,27 +2807,27 @@ static int64_t ABI detour_DcSetMeshVisible(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcSetRainState(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A02830: (set-rain-state [state]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetWaterOffset(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A02FF0: (set-water-offset [offset-vec]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetWaterState(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A02E20: (set-water-state [state]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSpawnSnowDisturb(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A01BB0: (spawn-snow-disturb locator-or-pos [radius]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
     uint8_t *loc = (uint8_t *)argv[0];
     float radius = 1.0f;
@@ -2733,41 +2844,42 @@ static int64_t ABI detour_DcSpawnSnowDisturb(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcSullivanFlashlightToHand(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0A6A0: (sullivan-flashlight-to-hand) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSullivanFlashlightToWaist(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0A5F0: (sullivan-flashlight-to-waist) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcTurnOnFlashlight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0A250: (turn-on-flashlight [entity] [enable]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcUpdateDynamicLight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FEEE0: (update-dynamic-light light) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcUseMaterialFromWaterUnit(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A02020: (use-material-from-water-unit unit mat) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetVisible(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A0BD30: (set-visible [entity] [visible-p]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t entity_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     int32_t vis = (argc >= 2 && argv) ? (int32_t)argv[1] : 1;
@@ -2785,14 +2897,14 @@ static int64_t ABI detour_DcSetVisible(int32_t argc, uint64_t *argv, uint32_t *s
 static int64_t ABI detour_DcDifficultyInterp(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FDAD0: (difficulty-interp easy med hard crushing) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcPadGetButtonPressInterval(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0D060: (pad-get-button-press-interval [btn-id]) -> float */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     float dt = 0.0f;
     uint32_t bits;
     memcpy(&bits, &dt, sizeof(bits));
@@ -2802,7 +2914,7 @@ static int64_t ABI detour_DcPadGetButtonPressInterval(int32_t argc, uint64_t *ar
 static int64_t ABI detour_DcAllowCameraCutCompensate(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0DD40: (allow-camera-cut-compensate) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 0;
@@ -2825,7 +2937,7 @@ static int64_t ABI detour_DcAllowCameraCutCompensate(int32_t argc, uint64_t *arg
 static int64_t ABI detour_DcDisableCoverCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0E290: (disable-cover-camera) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 0;
@@ -2846,8 +2958,9 @@ static int64_t ABI detour_DcDisableCoverCamera(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcDisableMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x005DC990: (disable-message [msg-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void (ABI *msg_fn)(uint32_t, int32_t);
@@ -2859,20 +2972,21 @@ static int64_t ABI detour_DcDisableMessage(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcDisplayMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009FE140: (display-message msg [time] [pos]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcDumpEntityInfo(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A04970: (dump-entity-info entity) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcEnableActionPack(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A0A060: (enable-action-pack [ap-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ap_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void (ABI *ap_fn)(uint32_t);
@@ -2882,8 +2996,9 @@ static int64_t ABI detour_DcEnableActionPack(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcEnableMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x005DC8E0: (enable-message [msg-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t msg_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void (ABI *msg_fn)(uint32_t, int32_t);
@@ -2895,34 +3010,34 @@ static int64_t ABI detour_DcEnableMessage(int32_t argc, uint64_t *argv, uint32_t
 static int64_t ABI detour_DcEndScript(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A44190: (end-script script) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFacingPointP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0F6D0: (facing-point? [entity] [pt-vec]) -> bool */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFireWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0C930: (fire-weapon [entity] [target]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFireWeaponAtTarget(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0C4C0: (fire-weapon-at-target entity target) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFollowSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A25E50: (follow-spline [entity] spline-id [speed] [accel]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     int32_t arg_idx = (argc >= 2) ? 1 : 0;
     uint32_t handle = (argc >= 2) ? (uint32_t)argv[0] : 0;
@@ -2948,14 +3063,14 @@ static int64_t ABI detour_DcFollowSpline(int32_t argc, uint64_t *argv, uint32_t 
 static int64_t ABI detour_DcForGroup(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0054B830: (for-group [group-id] [lambda]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcCameraLocalSpace(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0EA20: (camera-local-space) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     int32_t val = 0x4CBEBC20;
@@ -2978,7 +3093,7 @@ static int64_t ABI detour_DcCameraLocalSpace(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcForceAimingCameraUltraTight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A03670: (force-aiming-camera-ultra-tight) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 1;
@@ -2994,7 +3109,7 @@ static int64_t ABI detour_DcForceAimingCameraUltraTight(int32_t argc, uint64_t *
 static int64_t ABI detour_DcForceNoShiftCameraZoomMode(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A035E0: (force-no-shift-camera-zoom-mode) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 1;
@@ -3010,7 +3125,7 @@ static int64_t ABI detour_DcForceNoShiftCameraZoomMode(int32_t argc, uint64_t *a
 static int64_t ABI detour_DcForceStealthOff(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0BC40: (force-stealth-off) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *stealth = (uint8_t *)(uintptr_t)(g_u2_image_base + 0x01161EE6ull);
     if (stealth) *stealth = 0;
@@ -3020,20 +3135,20 @@ static int64_t ABI detour_DcForceStealthOff(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcForgetSignal(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A3FF40: (forget-signal sig [target]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcFreezeBindingWhenNonPhysical(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A03700: (freeze-binding-when-non-physical [enable]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcGetActionPackLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A060C0: (get-action-pack-locator [ap] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
     float *out = (float *)(uintptr_t)argv[1];
     memset(out, 0, 16 * sizeof(float));
@@ -3043,7 +3158,7 @@ static int64_t ABI detour_DcGetActionPackLocator(int32_t argc, uint64_t *argv, u
 
 static int64_t ABI detour_DcGetAlignLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A066F0: (get-align-locator [entity] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
     float *out = (float *)(uintptr_t)argv[1];
     memset(out, 0, 16 * sizeof(float));
@@ -3053,7 +3168,7 @@ static int64_t ABI detour_DcGetAlignLocator(int32_t argc, uint64_t *argv, uint32
 
 static int64_t ABI detour_DcGetApReferenceEffectLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A07340: (get-ap-reference-effect-locator [ap-ref] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
     float *out = (float *)(uintptr_t)argv[1];
     memset(out, 0, 16 * sizeof(float));
@@ -3063,7 +3178,7 @@ static int64_t ABI detour_DcGetApReferenceEffectLocator(int32_t argc, uint64_t *
 
 static int64_t ABI detour_DcGetApReferenceLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A07990: (get-ap-reference-locator [ap-ref] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv || !argv[1]) return 0;
     float *out = (float *)(uintptr_t)argv[1];
     memset(out, 0, 16 * sizeof(float));
@@ -3073,7 +3188,7 @@ static int64_t ABI detour_DcGetApReferenceLocator(int32_t argc, uint64_t *argv, 
 
 static int64_t ABI detour_DcGetApReferenceLocatorRadial(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A06C20: (get-ap-reference-locator-radial [ap-ref] [radius] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 3 || !argv || !argv[2]) return 0;
     float *out = (float *)(uintptr_t)argv[2];
     memset(out, 0, 16 * sizeof(float));
@@ -3083,7 +3198,7 @@ static int64_t ABI detour_DcGetApReferenceLocatorRadial(int32_t argc, uint64_t *
 
 static int64_t ABI detour_DcGetBoolean(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A42BF0: (get-boolean [sym-id]) -> bool */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
     typedef int32_t (ABI *get_bool_fn)(uint32_t);
@@ -3094,7 +3209,7 @@ static int64_t ABI detour_DcGetBoolean(int32_t argc, uint64_t *argv, uint32_t *s
 static int64_t ABI detour_DcGetCurrentTime(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A44800: (get-current-time) -> float */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float t = *(const float *)(g_u2_image_base + 0x01161EE4ull);
     uint32_t bits;
@@ -3104,7 +3219,7 @@ static int64_t ABI detour_DcGetCurrentTime(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcGetFloat(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A43170: (get-float [sym-id]) -> float */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
     typedef float (ABI *get_flt_fn)(uint32_t);
@@ -3117,7 +3232,7 @@ static int64_t ABI detour_DcGetFloat(int32_t argc, uint64_t *argv, uint32_t *sta
 
 static int64_t ABI detour_DcGetInt32(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A42EB0: (get-int32 [sym-id]) -> int */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
     typedef int32_t (ABI *get_int_fn)(uint32_t);
@@ -3128,7 +3243,7 @@ static int64_t ABI detour_DcGetInt32(int32_t argc, uint64_t *argv, uint32_t *sta
 static int64_t ABI detour_DcGetJointAngleDiffFromBindpose(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A06180: (get-joint-angle-diff-from-bindpose [entity] [joint]) -> float */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     float diff = 0.0f;
     uint32_t bits;
     memcpy(&bits, &diff, sizeof(bits));
@@ -3137,7 +3252,7 @@ static int64_t ABI detour_DcGetJointAngleDiffFromBindpose(int32_t argc, uint64_t
 
 static int64_t ABI detour_DcGetJointLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A07E80: (get-joint-locator [entity] [joint] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3154,7 +3269,7 @@ static int64_t ABI detour_DcGetJointLocator(int32_t argc, uint64_t *argv, uint32
 
 static int64_t ABI detour_DcGetJointPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A120C0: (get-joint-position [entity] [joint-idx] [out-pos]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3171,7 +3286,7 @@ static int64_t ABI detour_DcGetJointPosition(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcGetLocatorDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0EF50: (get-locator-distance [loc1] [loc2]) -> float */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     float dist = 0.0f;
     if (argc >= 2 && argv && argv[0] && argv[1]) {
         const float *p1 = (const float *)(uintptr_t)argv[0];
@@ -3188,7 +3303,7 @@ static int64_t ABI detour_DcGetLocatorDistance(int32_t argc, uint64_t *argv, uin
 
 static int64_t ABI detour_DcGetObjectLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A08630: (get-object-locator [entity] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3205,7 +3320,7 @@ static int64_t ABI detour_DcGetObjectLocator(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcGetObjectLocatorRadial(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A081A0: (get-object-locator-radial [entity] [radius] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3222,7 +3337,7 @@ static int64_t ABI detour_DcGetObjectLocatorRadial(int32_t argc, uint64_t *argv,
 
 static int64_t ABI detour_DcGetObjectOffsetLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A121E0: (get-object-offset-locator [entity] [offset] [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3239,7 +3354,7 @@ static int64_t ABI detour_DcGetObjectOffsetLocator(int32_t argc, uint64_t *argv,
 
 static int64_t ABI detour_DcGetObjectOffsetPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A12390: (get-object-offset-position [entity] [offset-vec] [out-vec]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3260,7 +3375,7 @@ static int64_t ABI detour_DcGetObjectOffsetPosition(int32_t argc, uint64_t *argv
 
 static int64_t ABI detour_DcGetObjectPosition(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A12610: (get-object-position [entity] [out-vec]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3276,8 +3391,9 @@ static int64_t ABI detour_DcGetObjectPosition(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcGetObjectState(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A04C10: (get-object-state [entity]) -> state */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t ent_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef void * (ABI *lookup_fn)(uint32_t, int32_t);
@@ -3288,7 +3404,7 @@ static int64_t ABI detour_DcGetObjectState(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcGetOriginLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A05F60: (get-origin-locator [out-matrix]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc < 1 || !argv || !argv[0]) return 0;
     float *out = (float *)(uintptr_t)argv[0];
     memset(out, 0, 16 * sizeof(float));
@@ -3299,7 +3415,7 @@ static int64_t ABI detour_DcGetOriginLocator(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcGetPlayerAimTime(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x005DCBA0: (get-player-aim-time) -> float */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *player = (uint8_t *)u2_get_active_player();
     if (!player) return 0;
@@ -3311,7 +3427,7 @@ static int64_t ABI detour_DcGetPlayerAimTime(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcGetQuaternionPitch(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009F37C0: (get-quaternion-pitch [quat]) -> float */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     float pitch = 0.0f;
     if (argc > 0 && argv && argv[0]) {
         const float *q = (const float *)(uintptr_t)argv[0];
@@ -3325,14 +3441,15 @@ static int64_t ABI detour_DcGetQuaternionPitch(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcGetScriptState(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A44290: (get-script-state) -> int */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     return (int64_t)(*(const uint32_t *)(g_u2_image_base + 0x01161EE8ull));
 }
 
 static int64_t ABI detour_DcGetStatValue(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0097BD10: (get-stat-value [stat-id]) -> float */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t stat_id = (argc > 0 && argv) ? (uint32_t)argv[0] : 0;
     typedef float (ABI *stat_fn)(uint32_t);
@@ -3346,7 +3463,7 @@ static int64_t ABI detour_DcGetStatValue(int32_t argc, uint64_t *argv, uint32_t 
 static int64_t ABI detour_DcGetStateTime(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A44960: (get-state-time) -> float */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float t = *(const float *)(g_u2_image_base + 0x01161EE0ull);
     uint32_t bits;
@@ -3356,7 +3473,7 @@ static int64_t ABI detour_DcGetStateTime(int32_t argc, uint64_t *argv, uint32_t 
 
 static int64_t ABI detour_DcGetSymbol(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A43440: (get-symbol [sym-id]) -> val */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
     typedef uint32_t (ABI *get_sym_fn)(uint32_t);
@@ -3367,55 +3484,55 @@ static int64_t ABI detour_DcGetSymbol(int32_t argc, uint64_t *argv, uint32_t *st
 static int64_t ABI detour_DcGrabRope(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A04740: (grab-rope [entity] [rope-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcGrenadeDirectorChangeSettings(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0069B910: (grenade-director-change-settings ...) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcGroupAnd(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0054AFD0: (group-and group-a group-b) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcGroupAt(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0054A6B0: (group-at group-id index) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcGroupCount(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00549810: (group-count group-id) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcGroupIsMemberSymbolP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0054A250: (group-is-member-symbol? group symbol) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcGroupOr(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0054A760: (group-or group-a group-b) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcHeliAnimateGun(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7ECD0: (heli-animate-gun [heli-id] [anim-bool]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     bool anim = (argc < 2 || (argv && argv[1] != 0));
@@ -3437,7 +3554,7 @@ static int64_t ABI detour_DcHeliAnimateGun(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcHeliFireMissile(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7F140: (heli-fire-missile [heli-id] [target-matrix] [homing-bool]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     if (!handle) {
@@ -3459,7 +3576,7 @@ static int64_t ABI detour_DcHeliFireMissile(int32_t argc, uint64_t *argv, uint32
 
 static int64_t ABI detour_DcHeliSetBasePitch(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7EC00: (heli-set-base-pitch [heli-id] [pitch-angle]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     float pitch = 0.0f;
@@ -3485,7 +3602,7 @@ static int64_t ABI detour_DcHeliSetBasePitch(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcHeliSetFiringState(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7F5C0: (heli-set-firing-state [heli-id] [firing-bool] [param]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     bool firing = (argc < 2 || (argv && argv[1] != 0));
@@ -3507,7 +3624,7 @@ static int64_t ABI detour_DcHeliSetFiringState(int32_t argc, uint64_t *argv, uin
 
 static int64_t ABI detour_DcHeliSetHover(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7ED80: (heli-set-hover [heli-id] [hover-bool]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     bool hover = (argc < 2 || (argv && argv[1] != 0));
@@ -3529,7 +3646,7 @@ static int64_t ABI detour_DcHeliSetHover(int32_t argc, uint64_t *argv, uint32_t 
 
 static int64_t ABI detour_DcHeliSetMgStats(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7F6B0: (heli-set-mg-stats [heli-id] [burst-len] [fire-rate] [cooldown]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     if (!handle) {
@@ -3558,7 +3675,7 @@ static int64_t ABI detour_DcHeliSetMgStats(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcHeliSetTargetLocator(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7F2E0: (heli-set-target-locator [heli-id] [locator-matrix] [speed]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     if (!handle) {
@@ -3581,7 +3698,7 @@ static int64_t ABI detour_DcHeliSetTargetLocator(int32_t argc, uint64_t *argv, u
 
 static int64_t ABI detour_DcHeliSetTargetObject(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A7F4A0: (heli-set-target-object [heli-id] [target-obj-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t handle = (argc > 0 && argv && argv[0]) ? (uint32_t)argv[0] : 0;
     uint32_t target_id = (argc >= 2 && argv && argv[1]) ? (uint32_t)argv[1] : 0;
@@ -3605,7 +3722,7 @@ static int64_t ABI detour_DcHeliSetTargetObject(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcHideMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x005DCA40: (hide-message [msg-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
@@ -3627,13 +3744,13 @@ static int64_t ABI detour_DcUnhideMessageDeprecated(int32_t argc, uint64_t *argv
 static int64_t ABI detour_DcHideMessageDeprecated(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x005DC650: (hide-message-deprecated [msg-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcInFrontOfTankP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00AA3E10: (in-front-of-tank? tank-id target-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv) return 0;
     uint32_t tank_id = (uint32_t)argv[0];
     uint32_t target_id = (uint32_t)argv[1];
@@ -3679,6 +3796,7 @@ static int64_t ABI detour_DcIsOnScreen(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcIsSpeaking(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A013F0: (is-speaking [speaker]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -3905,6 +4023,7 @@ static int64_t ABI detour_DcSetCharacterWetMaskValue(int32_t argc, uint64_t *arg
 }
 
 static int64_t ABI detour_DcSetClockMultiplier(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A0EE60: (set-clock-multiplier [speed]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -3927,6 +4046,7 @@ static int64_t ABI detour_DcSetFloat(int32_t argc, uint64_t *argv, uint32_t *sta
 }
 
 static int64_t ABI detour_DcSetFocusableIgnore(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A0F3C0: (set-focusable-ignore [obj-id] [flag]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4083,6 +4203,7 @@ static int64_t ABI detour_DcShowBinoculars(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcShutUp(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00A011E0: (shut-up [speaker] [fade-time]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4143,6 +4264,7 @@ static int64_t ABI detour_DcCameraAimOverridePoint(int32_t argc, uint64_t *argv,
 }
 
 static int64_t ABI detour_DcCameraEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0E680: (camera-enable cam-sym [target] [fade_time] [priority] ...) */
     u2_set_status(status, 0);
     if (argc < 1 || !g_u2_image_base) return 0;
@@ -4300,6 +4422,7 @@ static inline uint8_t *u2_resolve_heli(int32_t argc, uint64_t *argv) {
 }
 
 static int64_t ABI detour_DcHeliMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A7FEE0: (heli-move-to [heli] target-locator [speed]) */
     u2_set_status(status, 0);
     uint8_t *heli = u2_resolve_heli(argc, argv);
@@ -4318,6 +4441,8 @@ static int64_t ABI detour_DcHeliMoveTo(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcHeliMoveToSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A7FDD0: (heli-move-to-spline [heli] spline-id [speed]) */
     u2_set_status(status, 0);
     uint8_t *heli = u2_resolve_heli(argc, argv);
@@ -4353,6 +4478,7 @@ static int64_t ABI detour_DcLevelsFullySpawnedP(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcMakeVector(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDCF0: (make-vector [x] [y] [z] [w]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4374,6 +4500,7 @@ static int64_t ABI detour_DcMakeVector(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcMakeVector3(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDC20: (make-vector-3 [x] [y] [z]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4417,6 +4544,7 @@ static int64_t ABI detour_DcSelectBestSchemaSpawner(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcSetCollisionLayer(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A03CD0: (set-collision-layer [entity] [layer]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4441,6 +4569,7 @@ static int64_t ABI detour_DcSetCurrentBySpawner(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcSetDefaultFollowCameraSettings(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0EBF0: (set-default-follow-camera-settings [setting-ptr]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4463,6 +4592,7 @@ static int64_t ABI detour_DcSetDefaultFollowCameraSettings(int32_t argc, uint64_
 }
 
 static int64_t ABI detour_DcSetObjectFaction(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FCF40: (set-object-faction [entity] [faction-id]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4480,6 +4610,7 @@ static int64_t ABI detour_DcSetObjectFaction(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcSetOffBalanceBySpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x008E9160: (set-off-balance-by-spawner [spawner-id]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4530,6 +4661,7 @@ static int64_t ABI detour_DcSpawnFloatingBarrelAtPhase(int32_t argc, uint64_t *a
 }
 
 static int64_t ABI detour_DcSpawnMessage(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x005DC7B0: (spawn-message [msg-id]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4718,6 +4850,7 @@ static int64_t ABI detour_DcStickySpawner(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcStopSpeaking(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A01570: (stop-speaking [speaker]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -4821,6 +4954,7 @@ static int64_t ABI detour_DcTankFindBestTargetMP(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcTankFire(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AA2930: (tank-fire [tank]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5130,6 +5264,8 @@ static int64_t ABI detour_DcWaitHeliFireMissile(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcWaitHeliMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A7FA70: (wait-heli-move-to [heli] [target] [speed]) */
     uint8_t *heli = u2_resolve_heli(argc, argv);
     if (!heli) {
@@ -5159,6 +5295,8 @@ static int64_t ABI detour_DcWaitHeliMoveTo(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcWaitHeliMoveToSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A7F800: (wait-heli-move-to-spline [heli] spline-id [speed]) */
     uint8_t *heli = u2_resolve_heli(argc, argv);
     if (!heli) {
@@ -5213,6 +5351,7 @@ static int64_t ABI detour_DcWaitPlayerMoveTo(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcWaitPlayerTurnTo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A0AFC0: (wait-player-turn-to [target-or-dir]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5389,6 +5528,7 @@ static int64_t ABI detour_DcWaitUntilNetTime(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcRailActivateMover(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB8340: (rail-activate-mover [mover-idx] [active-p]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5419,6 +5559,7 @@ static int64_t ABI detour_DcRailAnimateToMover(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcRailDeactivate(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB97D0: (rail-deactivate [rail]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5501,6 +5642,7 @@ static int64_t ABI detour_DcRailEnableGroundHug(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcRailEnableTributary(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB96B0: (rail-enable-tributary [rail] [tributary-id]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5518,6 +5660,7 @@ static int64_t ABI detour_DcRailEnableTributary(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcRailEnableTruckJump(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB9BB0: (rail-enable-truck-jump [flag]) */
     (void)argc;
     u2_set_status(status, 0);
@@ -5720,6 +5863,7 @@ static int64_t ABI detour_DcRailScrub(int32_t argc, uint64_t *argv, uint32_t *st
 }
 
 static int64_t ABI detour_DcRailSetAcceleration(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB9590: (rail-set-acceleration [rail] [accel]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5738,6 +5882,7 @@ static int64_t ABI detour_DcRailSetAcceleration(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcRailSetAllVehiclesToMoverSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB7BF0: (rail-set-all-vehicles-to-mover-speed [speed]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5748,6 +5893,7 @@ static int64_t ABI detour_DcRailSetAllVehiclesToMoverSpeed(int32_t argc, uint64_
 }
 
 static int64_t ABI detour_DcRailSetFollowDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB8560: (rail-set-follow-distance [rail] [min-dist] [max-dist]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5766,6 +5912,7 @@ static int64_t ABI detour_DcRailSetFollowDistance(int32_t argc, uint64_t *argv, 
 }
 
 static int64_t ABI detour_DcRailSetMoverFollowDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB7FD0: (rail-set-mover-follow-distance [distance]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5776,6 +5923,7 @@ static int64_t ABI detour_DcRailSetMoverFollowDistance(int32_t argc, uint64_t *a
 }
 
 static int64_t ABI detour_DcRailSetMoverIntialDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB7E80: (rail-set-mover-initial-distance [distance]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5879,6 +6027,7 @@ static int64_t ABI detour_DcRailShutdown(int32_t argc, uint64_t *argv, uint32_t 
 }
 
 static int64_t ABI detour_DcRailSpawn(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00AB9920: (rail-spawn [rail] [spawner-id]) */
     u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
@@ -5919,6 +6068,8 @@ static int64_t ABI detour_DcRailUseFixedAprefInIgc(int32_t argc, uint64_t *argv,
 }
 
 static int64_t ABI detour_DcTrainAllowUnphysicalize(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A68430: (train-allow-unphysicalize [train] [allow-p]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -5947,6 +6098,8 @@ static int64_t ABI detour_DcTrainAllowUnphysicalize(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcTrainDecouple(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A67E40: (train-decouple [train] [car-idx] [front-or-back] [flag]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -5969,6 +6122,7 @@ static int64_t ABI detour_DcTrainGetAcceleration(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcTrainGetDistance(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A67B90: (train-get-distance [train]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -5980,6 +6134,7 @@ static int64_t ABI detour_DcTrainGetDistance(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcTrainGetHeadCar(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A67C40: (train-get-head-car [train]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -5994,6 +6149,7 @@ static int64_t ABI detour_DcTrainGetHeadCar(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcTrainGetSpline(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A67AE0: (train-get-spline [train]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -6010,6 +6166,8 @@ static int64_t ABI detour_DcTrainGetSpline(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcTrainKillAllRiders(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A68530: (train-kill-all-riders [train] [kill-type]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -6022,6 +6180,8 @@ static int64_t ABI detour_DcTrainKillAllRiders(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcTrainSetAcceleration(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A68140: (train-set-acceleration [train] accel) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -6038,6 +6198,8 @@ static int64_t ABI detour_DcTrainSetAcceleration(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcTrainSetSpeedMph(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A67F60: (train-set-speed-mph [train] speed-mph [trans-time]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -6113,6 +6275,8 @@ static int64_t ABI detour_DcTrainSpawnOnTrack(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcTrainTeleport(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A67CD0: (train-teleport [train] spline-id [dist]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -6140,6 +6304,8 @@ static int64_t ABI detour_DcTrainTeleport(int32_t argc, uint64_t *argv, uint32_t
 }
 
 static int64_t ABI detour_DcTrainTrackPlayer(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00A68300: (train-track-player [train] [enable-p]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -6160,6 +6326,7 @@ static int64_t ABI detour_DcTrainTrackPlayer(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcTrainTransferPendingP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A685E0: (train-transfer-pending? [train]) */
     u2_set_status(status, 0);
     uint8_t *train = u2_resolve_train(argc, argv);
@@ -6171,6 +6338,82 @@ static int64_t ABI detour_DcTrainTransferPendingP(int32_t argc, uint64_t *argv, 
     if (fn) {
         fn(result, 0xC14382CEu, train, dummy, dummy + 32, dummy + 64);
         return (result[0] != 0) ? 1 : 0;
+    }
+    return 0;
+}
+
+static int64_t ABI detour_DcAddLoadModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FE90: (add-load-module mod-sym [heap-type]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    uint32_t kind = (uint32_t)argv[1];
+    uint32_t heap_tag = 0;
+
+    if (kind == 0xA4DDDED4u) {
+        if (*(const uint8_t *)(g_u2_image_base + 0x015690A0ull) != 0) return 0;
+        if (*(const uint32_t *)(g_u2_image_base + 0x011A65C0ull) == 0) return 0;
+        heap_tag = 0x08u;
+    } else if (kind == 0x1AA8A79Bu) {
+        heap_tag = 0x45u;
+    } else {
+        heap_tag = 0x12u;
+    }
+
+    typedef uint8_t (ABI *AddLoadModFn)(uint32_t, const uint32_t *);
+    AddLoadModFn fn = (AddLoadModFn)(uintptr_t)(g_u2_image_base + 0x00A16250ull);
+    return fn ? (int64_t)fn(sym, &heap_tag) : 0;
+}
+
+static int64_t ABI detour_DcAddImportModule(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x00A0FF10: (add-import-module mod-sym [heap-type]) */
+    u2_set_status(status, 0);
+    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    uint32_t sym = (uint32_t)argv[0];
+    uint32_t kind = (uint32_t)argv[1];
+    uint32_t heap_tag = 0;
+
+    if (kind == 0xA4DDDED4u) {
+        if (*(const uint8_t *)(g_u2_image_base + 0x015690A0ull) != 0) return 0;
+        if (*(const uint32_t *)(g_u2_image_base + 0x011A65C0ull) == 0) return 0;
+        heap_tag = 0x08u;
+    } else if (kind == 0x1AA8A79Bu) {
+        heap_tag = 0x45u;
+    } else {
+        heap_tag = 0x12u;
+    }
+
+    typedef uint8_t (ABI *AddImportModFn)(uint32_t, const uint32_t *);
+    AddImportModFn fn = (AddImportModFn)(uintptr_t)(g_u2_image_base + 0x00A16BB0ull);
+    return fn ? (int64_t)fn(sym, &heap_tag) : 0;
+}
+
+static int64_t ABI detour_DcKillAllAttachables(int32_t argc, uint64_t *argv, uint32_t *status) {
+    /* 0x009F2BF0: (kill-all-attachables) */
+    (void)argc; (void)argv;
+    u2_set_status(status, 0);
+    if (!g_u2_image_base) return 0;
+
+    typedef uint8_t * (ABI *NextEntityFn)(void *, uint32_t);
+    NextEntityFn next_fn = (NextEntityFn)(uintptr_t)(g_u2_image_base + 0x009BCDF0ull);
+    typedef void (ABI *SendEventFn)(void *, uint32_t, void *, void *, void *, void *, void *);
+    SendEventFn send_event = (SendEventFn)(uintptr_t)(g_u2_image_base + 0x004C4090ull);
+
+    if (!next_fn || !send_event) return 0;
+
+    uint8_t *mgr = g_u2_image_base + 0x0115F1A0ull;
+    uint8_t *cur = next_fn(*(void **)(mgr + 0xC90), 0);
+
+    while (cur) {
+        if ((*(const uint16_t *)(cur + 0x34) & 1u) != 0) {
+            uint8_t evt_res[32] = {0};
+            uint8_t p1[24] = {0};
+            uint8_t p2[24] = {0};
+            uint8_t p3[24] = {0};
+            uint8_t p4[24] = {0};
+            send_event(evt_res, 0x9CD64D13u, cur, p1, p2, p3, p4);
+        }
+        cur = next_fn(cur, 0);
     }
     return 0;
 }
@@ -6664,6 +6907,9 @@ static const U2NativeDetour s_scene_detours[] = {
     { "DcTrainTeleport", 0x00A67CD0, (uintptr_t)detour_DcTrainTeleport },
     { "DcTrainTrackPlayer", 0x00A68300, (uintptr_t)detour_DcTrainTrackPlayer },
     { "DcTrainTransferPendingP", 0x00A685E0, (uintptr_t)detour_DcTrainTransferPendingP },
+    { "DcAddLoadModule", 0x00A0FE90, (uintptr_t)detour_DcAddLoadModule },
+    { "DcAddImportModule", 0x00A0FF10, (uintptr_t)detour_DcAddImportModule },
+    { "DcKillAllAttachables", 0x009F2BF0, (uintptr_t)detour_DcKillAllAttachables },
 };
 
 size_t u2_get_scene_detours(const U2NativeDetour **out) {

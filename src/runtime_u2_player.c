@@ -2,12 +2,14 @@
 #include "runtime_u2_common.h"
 
 static int64_t ABI detour_DcFromUps(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x003976A0: (from-ups val dt) */
     (void)argc; (void)status;
     return (int64_t)u2_f32_to_reg(u2_reg_to_f32(argv[0]) * u2_reg_to_f32(argv[1]));
 }
 
 static int64_t ABI detour_DcMinmax(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009FDBF0: (minmax val min_val max_val) */
     (void)argc; (void)status;
     float v   = u2_reg_to_f32(argv[0]);
@@ -19,6 +21,8 @@ static int64_t ABI detour_DcMinmax(int32_t argc, uint64_t *argv, uint32_t *statu
 }
 
 static int64_t ABI detour_DcForcePlayerSwim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0090D740: (force-player-swim flag) */
     (void)argc; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x0104F8ECull) = ((uint32_t)argv[0] == 1u) ? 1u : 0u;
@@ -26,6 +30,7 @@ static int64_t ABI detour_DcForcePlayerSwim(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcPlayerInitiateMelee(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00909420: (player-initiate-melee) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x011579E1ull) = 1u;
@@ -33,18 +38,21 @@ static int64_t ABI detour_DcPlayerInitiateMelee(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcGetPlayerTeachComboTriangle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x005DCDE0: (get-player-teach-combo-triangle) */
     (void)argc; (void)argv; (void)status;
     return *(const uint8_t *)(g_u2_image_base + 0x011579BEull);
 }
 
 static int64_t ABI detour_DcGetPlayerTeachComboSquare(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x005DCDF0: (get-player-teach-combo-square) */
     (void)argc; (void)argv; (void)status;
     return *(const uint8_t *)(g_u2_image_base + 0x011579BFull);
 }
 
 static int64_t ABI detour_DcGroundPrintsDisable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A01EB0: (ground-prints-disable) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x01117FF8ull) = 0u;
@@ -52,6 +60,7 @@ static int64_t ABI detour_DcGroundPrintsDisable(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcGroundPrintsEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00A01ED0: (ground-prints-enable) */
     (void)argc; (void)argv; (void)status;
     *(uint8_t *)(g_u2_image_base + 0x01117FF8ull) = 1u;
@@ -59,6 +68,7 @@ static int64_t ABI detour_DcGroundPrintsEnable(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcActivePlayerCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00667F40: (active-player-count) */
     (void)argc; (void)argv; (void)status;
     typedef int32_t (ABI *fn_t)(void *);
@@ -67,6 +77,7 @@ static int64_t ABI detour_DcActivePlayerCount(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcAlivePlayerCount(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x00667F20: (alive-player-count) */
     (void)argc; (void)argv; (void)status;
     typedef int32_t (ABI *fn_t)(void *);
@@ -75,6 +86,7 @@ static int64_t ABI detour_DcAlivePlayerCount(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcPlayerClimbingUpP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x0090C3D0: (player-climbing-up?) */
     (void)argc; (void)argv; (void)status;
     uint8_t *player = u2_get_active_player();
@@ -114,6 +126,7 @@ static int64_t ABI detour_DcPlayerUnparent(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcPlayerTeachCombo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!g_u2_image_base) { u2_set_status(status, 0); return 0; }
     /* 0x005DCDB0: (player-teach-combo) */
     (void)argc; (void)argv; (void)status;
     if (*(const uint32_t *)(g_u2_image_base + 0x01059640ull + 0x48B0ull) != 0u) {
@@ -158,6 +171,7 @@ static int64_t ABI detour_DcGetPlayerTimeSinceCover(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcSetPlayerHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009100F0: (set-player-health hp) */
     (void)argc; (void)status;
     uint8_t *player = u2_get_active_player();
@@ -175,7 +189,7 @@ static int64_t ABI detour_DcSetPlayerHealth(int32_t argc, uint64_t *argv, uint32
 
 static int64_t ABI detour_DcFromUpsNoDt(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x009FD6B0: (from-ups-no-dt speed) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc <= 0 || !argv || !g_u2_image_base) return 0;
     float x = u2_reg_to_f32(argv[0]);
     const uint8_t *clk_mgr_slot = *(const uint8_t **)(g_u2_image_base + 0x01161EE8ull);
@@ -190,8 +204,9 @@ static int64_t ABI detour_DcFromUpsNoDt(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcPlayerHasWeaponP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00906A50: (player-has-weapon? weapon-type) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -218,7 +233,7 @@ static int64_t ABI detour_DcPlayerHasWeaponP(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcPlayerIsAimingP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090BC00: (player-is-aiming?) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -250,7 +265,7 @@ static int64_t ABI detour_DcPlayerIsAimingP(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcPlayerInCoverP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090BBB0: (player-in-cover?) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -271,7 +286,7 @@ static int64_t ABI detour_DcPlayerInCoverP(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcPlayerHideThisFrame(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090E330: (player-hide-this-frame) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -283,8 +298,9 @@ static int64_t ABI detour_DcPlayerHideThisFrame(int32_t argc, uint64_t *argv, ui
 }
 
 static int64_t ABI detour_DcPlayerHasWeaponAndAmmoP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00907290: (player-has-weapon-and-ammo? weapon-type) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -311,8 +327,9 @@ static int64_t ABI detour_DcPlayerHasWeaponAndAmmoP(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcPlayerHasWeaponAndNoAmmoP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x009071B0: (player-has-weapon-and-no-ammo? weapon-type) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -341,14 +358,14 @@ static int64_t ABI detour_DcPlayerHasWeaponAndNoAmmoP(int32_t argc, uint64_t *ar
 static int64_t ABI detour_DcPlayerOnJetskiP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A01B80: (player-on-jetski?) - shipping stub returning 0 */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerUnderTrainP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090A660: (player-under-train?) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -371,7 +388,7 @@ static int64_t ABI detour_DcPlayerUnderTrainP(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcGetPlayerHealth(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00910140: (get-player-health) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 100;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -391,7 +408,7 @@ static int64_t ABI detour_DcGetPlayerHealth(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcGetPlayerSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00910020: (get-player-speed) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return (int64_t)u2_f32_to_reg(0.0f);
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -408,7 +425,7 @@ static int64_t ABI detour_DcGetPlayerSpeed(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcPlayerInCombatP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090DC20: (player-in-combat?) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (*(const uint8_t *)(g_u2_image_base + 0x011640B1ull) != 0) return 1;
     if (*(const int32_t *)(g_u2_image_base + 0x014CE97Cull) < 2) {
@@ -422,7 +439,7 @@ static int64_t ABI detour_DcPlayerInCombatP(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcPlayerHangingOnBarP(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090AB80: (player-hanging-on-bar?) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -442,7 +459,7 @@ static int64_t ABI detour_DcPlayerHangingOnBarP(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcGetPlayerClipPercentFull(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x005DCE00: (get-player-clip-percent-full) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return (int64_t)u2_f32_to_reg(0.0f);
     const uint8_t *drake_slot = *(const uint8_t **)(g_u2_image_base + 0x0115BD20ull);
     const uint32_t expected_tag = *(const uint32_t *)(g_u2_image_base + 0x0115BD20ull + 8);
@@ -467,8 +484,9 @@ static int64_t ABI detour_DcGetPlayerClipPercentFull(int32_t argc, uint64_t *arg
 }
 
 static int64_t ABI detour_DcRemovePlayerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x00906E10: (remove-player-weapon [weapon-type]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint32_t target_weapon_type = 0;
     if (argc > 0 && argv) {
@@ -513,7 +531,7 @@ typedef struct {
 
 static int64_t ABI detour_DcPlayerInstantDrawWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090DDE0: (player-instant-draw-weapon [draw-slot]) ; 0 = sidearm, != 0 = long gun */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc <= 0 || !argv) return 0;
 
@@ -553,8 +571,9 @@ static int64_t ABI detour_DcPlayerInstantDrawWeapon(int32_t argc, uint64_t *argv
 }
 
 static int64_t ABI detour_DcSetPlayerInfiniteAmmo(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0090BA80: (set-player-infinite-ammo [bool]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t enabled = 0;
@@ -583,7 +602,7 @@ static int64_t ABI detour_DcSetPlayerInfiniteAmmo(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcWeaponSetReset(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090AD00: (weapon-set-reset) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     typedef void * (ABI *GetWeaponSetFn)(uint32_t hash);
@@ -597,8 +616,9 @@ static int64_t ABI detour_DcWeaponSetReset(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcHolsterPlayerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0090D7C0: (holster-player-weapon [mode]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     int32_t holster_mode = 1;
@@ -649,7 +669,7 @@ static int64_t ABI detour_DcHolsterPlayerWeapon(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcPlayerHideWeapons(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090E4A0: (player-hide-weapons) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 1;
@@ -671,7 +691,7 @@ static int64_t ABI detour_DcPlayerHideWeapons(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcPlayerNoReload(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090EC40: (player-no-reload) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     const uint8_t *drake = (const uint8_t *)u2_get_active_player();
@@ -726,7 +746,7 @@ static int64_t ABI detour_DcPlayerNoReload(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcGivePlayerWeapon(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00906B20: (give-player-weapon [weapon-type] [ammo]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     if (argc <= 0 || !argv) return 0;
 
@@ -777,7 +797,7 @@ static int64_t ABI detour_DcGivePlayerWeapon(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcPlayerCheckForGotHit(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0EF20: (player-check-for-got-hit) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     const uint8_t *ctx = g_u2_image_base + 0x0115BD20ull;
     void **p_target = *(void ***)ctx;
@@ -794,7 +814,7 @@ static int64_t ABI detour_DcPlayerCheckForGotHit(int32_t argc, uint64_t *argv, u
 
 static int64_t ABI detour_DcCalcNewPhaseFromSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0FBF0: (calc-new-phase-from-speed) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || !argv || argc < 4) return (int64_t)u2_f32_to_reg(0.0f);
 
     float arg0 = u2_reg_to_f32(argv[0]);
@@ -830,7 +850,7 @@ static int64_t ABI detour_DcCalcNewPhaseFromSpeed(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcDrawReticle(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090E6E0: (draw-reticle) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     void *hud_mgr = (void *)(g_u2_image_base + 0x011579F0ull);
     typedef void (ABI *DrawReticleInternalFn)(void *hud_mgr, float x, float y, float z);
@@ -841,7 +861,7 @@ static int64_t ABI detour_DcDrawReticle(int32_t argc, uint64_t *argv, uint32_t *
 
 static int64_t ABI detour_DcCalcStartPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0FB70: (calc-start-phase ent) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return (int64_t)u2_f32_to_reg(0.0f);
     typedef float (ABI *CalcPhaseFn)(uint32_t ent_id, int32_t max_frames, float min_phase, float max_phase);
     CalcPhaseFn fn = (CalcPhaseFn)(uintptr_t)(g_u2_image_base + 0x0067E600ull);
@@ -853,7 +873,7 @@ static int64_t ABI detour_DcCalcStartPhase(int32_t argc, uint64_t *argv, uint32_
 
 static int64_t ABI detour_DcCalcStartPhaseMaxFrames(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0FAF0: (calc-start-phase-max-frames ent max-frames) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 2 || !argv) return (int64_t)u2_f32_to_reg(0.0f);
     typedef float (ABI *CalcPhaseFn)(uint32_t ent_id, int32_t max_frames, float min_phase, float max_phase);
     CalcPhaseFn fn = (CalcPhaseFn)(uintptr_t)(g_u2_image_base + 0x0067E600ull);
@@ -865,7 +885,7 @@ static int64_t ABI detour_DcCalcStartPhaseMaxFrames(int32_t argc, uint64_t *argv
 
 static int64_t ABI detour_DcCalcStartPhaseRange(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0FA70: (calc-start-phase-range ent min-phase max-phase) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 3 || !argv) return (int64_t)u2_f32_to_reg(0.0f);
     typedef float (ABI *CalcPhaseFn)(uint32_t ent_id, int32_t max_frames, float min_phase, float max_phase);
     CalcPhaseFn fn = (CalcPhaseFn)(uintptr_t)(g_u2_image_base + 0x0067E600ull);
@@ -879,21 +899,21 @@ static int64_t ABI detour_DcCalcStartPhaseRange(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcSetWalkMode(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090D4B0: (set-walk-mode ...) - deprecated stub ("This is no longer supported") */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerRunSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090B180: (player-run-speed [min] [max]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcGuarantee1Bullet(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090C8F0: (guarantee-1-bullet) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     uint8_t *drake = (uint8_t *)u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
 
@@ -921,13 +941,14 @@ static int64_t ABI detour_DcGuarantee1Bullet(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcForceHairAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00906840: (force-hair-anim [anim-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerSetCornerClimbDistScale(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
     /* 0x0090DE90: (player-set-corner-climb-dist-scale scale) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float scale = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 1.0f;
     uint8_t **str_base = (uint8_t **)(g_u2_image_base + 0x0104AD78ull);
@@ -950,21 +971,21 @@ static int64_t ABI detour_DcPlayerSetCornerClimbDistScale(int32_t argc, uint64_t
 static int64_t ABI detour_DcChooseStumbleAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00907370: (choose-stumble-anim [hit-dir]) -> anim-id */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcCreateBeltAttachment(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090AD30: (create-belt-attachment [item-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcDemoResetDefaults(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090DD50: (demo-reset-defaults) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     *(float *)(g_u2_image_base + 0x0104F5A4ull) = 0.08f;
     uint8_t *cfg = g_u2_image_base + 0x01059640ull;
@@ -986,35 +1007,36 @@ static int64_t ABI detour_DcDemoResetDefaults(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcPlayerPushForwardSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00908750: (player-push-forward-speed [speed]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerDisableMelee(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090E9C0: (player-disable-melee) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcEnableDynoJumpFailLooks(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090CA00: (enable-dyno-jump-fail-looks) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcDisableDynoJumpFailLooks(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x0090CA90: (disable-dyno-jump-fail-looks) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 /* Table of detours provided by this module */
 static int64_t ABI detour_DcDisableFallToDeath(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090CBC0: (disable-fall-to-death [time]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
 
@@ -1038,8 +1060,9 @@ static int64_t ABI detour_DcDisableFallToDeath(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcFallToDeath(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090C410: (fall-to-death [b1] [mode]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
 
@@ -1068,7 +1091,7 @@ static int64_t ABI detour_DcFallToDeath(int32_t argc, uint64_t *argv, uint32_t *
 
 static int64_t ABI detour_DcGetMeleeTeachDest(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00908D10: (get-melee-teach-dest [out-pos]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *player = (uint8_t *)u2_get_active_player();
     if (!player || argc <= 0 || !argv || !argv[0]) return 0;
@@ -1081,14 +1104,14 @@ static int64_t ABI detour_DcGetMeleeTeachDest(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcJump(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A43ED0: (jump label) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcPlayerAllowPushOffLedgeStealthKill(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090DF10: (player-allow-push-off-ledge-stealth-kill [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x191);
@@ -1114,7 +1137,7 @@ static int64_t ABI detour_DcPlayerAllowPushOffLedgeStealthKill(int32_t argc, uin
 static int64_t ABI detour_DcPlayerBlindFireOnlyRight(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0B720: (player-blind-fire-only-right [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     *(uint8_t *)(g_u2_image_base + 0x011579DBull) = flag;
@@ -1124,7 +1147,7 @@ static int64_t ABI detour_DcPlayerBlindFireOnlyRight(int32_t argc, uint64_t *arg
 static int64_t ABI detour_DcPlayerBlindfireTargeting(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090F930: (player-blindfire-targeting) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x165);
@@ -1144,7 +1167,7 @@ static int64_t ABI detour_DcPlayerBlindfireTargeting(int32_t argc, uint64_t *arg
 static int64_t ABI detour_DcPlayerCanMelee(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00908570: (player-can-melee) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     return *(const uint8_t *)(g_u2_image_base + 0x011579E0ull);
 }
@@ -1152,7 +1175,7 @@ static int64_t ABI detour_DcPlayerCanMelee(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcPlayerCanMeleeCombo(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00908310: (player-can-melee-combo) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     return *(const uint8_t *)(g_u2_image_base + 0x011579E1ull);
 }
@@ -1160,14 +1183,14 @@ static int64_t ABI detour_DcPlayerCanMeleeCombo(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcPlayerClimbUp(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090A8C0: (player-climb-up) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerDisableBrutalMelee(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E1F0: (player-disable-brutal-melee) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 1;
@@ -1190,7 +1213,7 @@ static int64_t ABI detour_DcPlayerDisableBrutalMelee(int32_t argc, uint64_t *arg
 static int64_t ABI detour_DcPlayerDisableCoverExitOver(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090F730: (player-disable-cover-exit-over) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0xAA);
@@ -1210,7 +1233,7 @@ static int64_t ABI detour_DcPlayerDisableCoverExitOver(int32_t argc, uint64_t *a
 static int64_t ABI detour_DcPlayerDisableCoverSwitch(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090FB30: (player-disable-cover-switch [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x18c);
@@ -1236,7 +1259,7 @@ static int64_t ABI detour_DcPlayerDisableCoverSwitch(int32_t argc, uint64_t *arg
 static int64_t ABI detour_DcPlayerDisableDynoDropToForeground(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090EBA0: (player-disable-dyno-drop-to-foreground) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x119);
@@ -1258,7 +1281,7 @@ static int64_t ABI detour_DcPlayerDisableDynoDropToForeground(int32_t argc, uint
 static int64_t ABI detour_DcPlayerDisableEdge180(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090EE30: (player-disable-edge-180) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x117);
@@ -1280,7 +1303,7 @@ static int64_t ABI detour_DcPlayerDisableEdge180(int32_t argc, uint64_t *argv, u
 static int64_t ABI detour_DcPlayerDisableFromEdgeJumps(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E290: (player-disable-from-edge-jumps) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x138);
@@ -1302,7 +1325,7 @@ static int64_t ABI detour_DcPlayerDisableFromEdgeJumps(int32_t argc, uint64_t *a
 static int64_t ABI detour_DcPlayerDisableJump(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090ED90: (player-disable-jump) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 1;
@@ -1325,7 +1348,7 @@ static int64_t ABI detour_DcPlayerDisableJump(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcPlayerDisableJumpAwayFromEdge(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00907030: (player-disable-jump-away-from-edge [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x115);
@@ -1351,7 +1374,7 @@ static int64_t ABI detour_DcPlayerDisableJumpAwayFromEdge(int32_t argc, uint64_t
 static int64_t ABI detour_DcPlayerEdgeCharacterRelativeControls(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090DFB0: (player-edge-character-relative-controls [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x190);
@@ -1377,7 +1400,7 @@ static int64_t ABI detour_DcPlayerEdgeCharacterRelativeControls(int32_t argc, ui
 static int64_t ABI detour_DcPlayerEnableClimbGear(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00908220: (player-enable-climb-gear [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     *(uint8_t *)(g_u2_image_base + 0x011579A3ull) = flag;
@@ -1387,21 +1410,21 @@ static int64_t ABI detour_DcPlayerEnableClimbGear(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcPlayerEnableMoveTracker(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00909430: (player-enable-move-tracker [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerFacingPositionP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090BEE0: (player-facing-position? pos [angle]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcPlayerFireAtReticle(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E710: (player-fire-at-reticle) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *drake = u2_get_active_player();
     if (!drake) return 0;
@@ -1417,7 +1440,7 @@ static int64_t ABI detour_DcPlayerFireAtReticle(int32_t argc, uint64_t *argv, ui
 
 static int64_t ABI detour_DcPlayerForceAiming(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090B2F0: (player-force-aiming [flag]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float time = (argc > 0 && argv && argv[0] != 0) ? 1000.0f : 0.0f;
     *(float *)(g_u2_image_base + 0x011579B0ull) = time;
@@ -1425,8 +1448,9 @@ static int64_t ABI detour_DcPlayerForceAiming(int32_t argc, uint64_t *argv, uint
 }
 
 static int64_t ABI detour_DcPlayerForceAimingTime(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090B1F0: (player-force-aiming-time [time]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float time = (argc > 0 && argv) ? u2_reg_to_f32(argv[0]) : 0.0f;
     *(float *)(g_u2_image_base + 0x011579B0ull) = time;
@@ -1436,7 +1460,7 @@ static int64_t ABI detour_DcPlayerForceAimingTime(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcPlayerForceComboLightTutorial(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00909150: (player-force-combo-light-tutorial [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     *(uint8_t *)(g_u2_image_base + 0x011579C1ull) = flag;
@@ -1446,7 +1470,7 @@ static int64_t ABI detour_DcPlayerForceComboLightTutorial(int32_t argc, uint64_t
 static int64_t ABI detour_DcPlayerForceComboMediumTutorial(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00909240: (player-force-combo-medium-tutorial [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     *(uint8_t *)(g_u2_image_base + 0x011579C0ull) = flag;
@@ -1456,7 +1480,7 @@ static int64_t ABI detour_DcPlayerForceComboMediumTutorial(int32_t argc, uint64_
 static int64_t ABI detour_DcPlayerForceDynoJumpUp(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009070D0: (player-force-dyno-jump-up [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x114);
@@ -1482,21 +1506,21 @@ static int64_t ABI detour_DcPlayerForceDynoJumpUp(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcPlayerForceEdgeFall(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090CCC0: (player-force-edge-fall) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerForceFightFinisher(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00908C00: (player-force-fight-finisher [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerForceHanging(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090EED0: (player-force-hanging) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x116);
@@ -1518,14 +1542,14 @@ static int64_t ABI detour_DcPlayerForceHanging(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcPlayerForceJumpAt(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090B3D0: (player-force-jump-at [pos]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerForceNearDynoJumps(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00908180: (player-force-near-dyno-jumps [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x111);
@@ -1551,7 +1575,7 @@ static int64_t ABI detour_DcPlayerForceNearDynoJumps(int32_t argc, uint64_t *arg
 static int64_t ABI detour_DcPlayerForceNoStealth(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090F830: (player-force-no-stealth) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0xA9);
@@ -1571,14 +1595,14 @@ static int64_t ABI detour_DcPlayerForceNoStealth(int32_t argc, uint64_t *argv, u
 static int64_t ABI detour_DcPlayerForceNumPunches(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00908AF0: (player-force-num-punches num) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerForceStealth(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090FA30: (player-force-stealth [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x0a8);
@@ -1604,7 +1628,7 @@ static int64_t ABI detour_DcPlayerForceStealth(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcPlayerForegroundEdgeSearch(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090EB00: (player-foreground-edge-search) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x11A);
@@ -1626,7 +1650,7 @@ static int64_t ABI detour_DcPlayerForegroundEdgeSearch(int32_t argc, uint64_t *a
 static int64_t ABI detour_DcPlayerGoRagdoll(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090C4F0: (player-go-ragdoll) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
 
@@ -1647,7 +1671,7 @@ static int64_t ABI detour_DcPlayerGoRagdoll(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcPlayerInFriendlyVillage(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090EA60: (player-in-friendly-village) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x16F);
@@ -1666,7 +1690,7 @@ static int64_t ABI detour_DcPlayerInFriendlyVillage(int32_t argc, uint64_t *argv
 
 static int64_t ABI detour_DcPlayerInNpcWayP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090F190: (player-in-npc-way? npc-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv || !argv[0]) return 0;
     uint32_t npc_id = (uint32_t)argv[0];
     typedef uint8_t * (ABI *GetEntityFn)(uint64_t, uint32_t);
@@ -1686,13 +1710,14 @@ static int64_t ABI detour_DcPlayerInNpcWayP(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcPlayerInRegionP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090BD70: (player-in-region? region-id) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcPlayerInStateP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090BC10: (player-in-state? state-id) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc < 1) return 0;
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
@@ -1721,21 +1746,21 @@ static int64_t ABI detour_DcPlayerInStateP(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcPlayerLerpAnimUpdateRate(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x003973F0: (player-lerp-anim-update-rate [rate] [duration]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerMoveTo(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0B680: (player-move-to [target]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerNoEdgeFall(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009080E0: (player-no-edge-fall [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x113);
@@ -1761,7 +1786,7 @@ static int64_t ABI detour_DcPlayerNoEdgeFall(int32_t argc, uint64_t *argv, uint3
 static int64_t ABI detour_DcPlayerOnNarrowEdge(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E360: (player-on-narrow-edge) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x167);
@@ -1781,8 +1806,9 @@ static int64_t ABI detour_DcPlayerOnNarrowEdge(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcPlayerPushingP(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090AC70: (player-pushing? entity) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (argc < 1) return 0;
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
@@ -1806,7 +1832,7 @@ static int64_t ABI detour_DcPlayerPushingP(int32_t argc, uint64_t *argv, uint32_
 static int64_t ABI detour_DcPlayerPushingSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090ABE0: (player-pushing-speed) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
 
@@ -1831,14 +1857,15 @@ static int64_t ABI detour_DcPlayerPushingSpeed(int32_t argc, uint64_t *argv, uin
 static int64_t ABI detour_DcPlayerSaveWeaponSet(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090B830: (player-save-weapon-set [set-id]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcDisableEdgeGrab(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090CE40: (player-disable-edge-grab [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1853,9 +1880,10 @@ static int64_t ABI detour_DcDisableEdgeGrab(int32_t argc, uint64_t *argv, uint32
 }
 
 static int64_t ABI detour_DcDisableFollowCameraCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090F4F0: (player-disable-follow-camera-collision [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1870,9 +1898,10 @@ static int64_t ABI detour_DcDisableFollowCameraCollision(int32_t argc, uint64_t 
 }
 
 static int64_t ABI detour_DcDisableForceLedgeDrop(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090CB20: (player-disable-force-ledge-drop [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1887,9 +1916,10 @@ static int64_t ABI detour_DcDisableForceLedgeDrop(int32_t argc, uint64_t *argv, 
 }
 
 static int64_t ABI detour_DcDisableLookAroundDof(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090FD30: (player-disable-look-around-dof [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1904,9 +1934,10 @@ static int64_t ABI detour_DcDisableLookAroundDof(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcDisableLowCoverExitAround(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090FC30: (player-disable-low-cover-exit-around [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1921,9 +1952,10 @@ static int64_t ABI detour_DcDisableLowCoverExitAround(int32_t argc, uint64_t *ar
 }
 
 static int64_t ABI detour_DcDisablePlayerCoverExit(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00906950: (player-disable-cover-exit [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1938,9 +1970,10 @@ static int64_t ABI detour_DcDisablePlayerCoverExit(int32_t argc, uint64_t *argv,
 }
 
 static int64_t ABI detour_DcForceCollisionForAimFocus(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00906F90: (force-collision-for-aim-focus [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1955,9 +1988,10 @@ static int64_t ABI detour_DcForceCollisionForAimFocus(int32_t argc, uint64_t *ar
 }
 
 static int64_t ABI detour_DcForceDeathCamera(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090EFF0: (force-death-camera [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1972,9 +2006,10 @@ static int64_t ABI detour_DcForceDeathCamera(int32_t argc, uint64_t *argv, uint3
 }
 
 static int64_t ABI detour_DcForceDistanceStopIncrease(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00906740: (force-distance-stop-increase [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -1989,9 +2024,10 @@ static int64_t ABI detour_DcForceDistanceStopIncrease(int32_t argc, uint64_t *ar
 }
 
 static int64_t ABI detour_DcForceHighLedgeDrop(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090F630: (force-high-ledge-drop [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2006,9 +2042,10 @@ static int64_t ABI detour_DcForceHighLedgeDrop(int32_t argc, uint64_t *argv, uin
 }
 
 static int64_t ABI detour_DcForceUboatCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090C960: (force-uboat-collision [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2025,7 +2062,7 @@ static int64_t ABI detour_DcForceUboatCollision(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcGetGrappleApRef(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009102C0: (get-grapple-ap-ref) -> int */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *player = (uint8_t *)u2_get_active_player();
     if (!player) return 0;
@@ -2035,7 +2072,7 @@ static int64_t ABI detour_DcGetGrappleApRef(int32_t argc, uint64_t *argv, uint32
 static int64_t ABI detour_DcGetPlayerCarriedObject(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009068C0: (get-player-carried-object) -> obj-id */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *player = (uint8_t *)u2_get_active_player();
     if (!player) return 0;
@@ -2045,7 +2082,7 @@ static int64_t ABI detour_DcGetPlayerCarriedObject(int32_t argc, uint64_t *argv,
 static int64_t ABI detour_DcGetPlayerEdgeBbject(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090DCA0: (get-player-edge-object) -> obj-id */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *player = (uint8_t *)u2_get_active_player();
     if (!player) return 0;
@@ -2055,7 +2092,7 @@ static int64_t ABI detour_DcGetPlayerEdgeBbject(int32_t argc, uint64_t *argv, ui
 static int64_t ABI detour_DcGetPlayerPlatform(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090CF40: (get-player-platform) -> platform-id */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t *player = (uint8_t *)u2_get_active_player();
     if (!player) return 0;
@@ -2065,7 +2102,7 @@ static int64_t ABI detour_DcGetPlayerPlatform(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcKillPlayer(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090C790: (kill-player) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
 
@@ -2083,8 +2120,9 @@ static int64_t ABI detour_DcKillPlayer(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcKillPlayerNoAnim(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090C5F0: (kill-player-no-anim [b1] [b2] [val]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     uint8_t *drake = u2_get_active_player();
     if (!drake || !g_u2_image_base) return 0;
 
@@ -2117,7 +2155,7 @@ static int64_t ABI detour_DcKillPlayerNoAnim(int32_t argc, uint64_t *argv, uint3
 
 static int64_t ABI detour_DcPlayerSetCarryNpcCamOffset(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E170: (player-set-carry-npc-cam-offset [offset-vector]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x180);
     void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D290ull);
@@ -2138,7 +2176,7 @@ static int64_t ABI detour_DcPlayerSetCarryNpcCamOffset(int32_t argc, uint64_t *a
 static int64_t ABI detour_DcPlayerSetCarryNpcSlowWalk(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090FF30: (player-set-carry-npc-slow-walk [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     *(uint8_t *)(g_u2_image_base + 0x011579D8ull) = flag;
@@ -2147,7 +2185,7 @@ static int64_t ABI detour_DcPlayerSetCarryNpcSlowWalk(int32_t argc, uint64_t *ar
 
 static int64_t ABI detour_DcPlayerSetDynoJumpAimAngle(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E0F0: (player-set-dyno-jump-aim-angle [angle]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     float angle = 0.0f;
     union { uint64_t u; float f; } c; c.u = argv[0]; angle = c.f;
@@ -2170,7 +2208,7 @@ static int64_t ABI detour_DcPlayerSetDynoJumpAimAngle(int32_t argc, uint64_t *ar
 static int64_t ABI detour_DcGetAnimationPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x003976C0: (get-animation-phase [anim]) -> float */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     float phase = 0.0f;
     uint32_t bits;
     memcpy(&bits, &phase, sizeof(bits));
@@ -2180,21 +2218,21 @@ static int64_t ABI detour_DcGetAnimationPhase(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcHasAnimP(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00397A20: (has-anim? [entity] [anim-id]) -> bool */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcPlayerSetProneMode(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009089D0: (player-set-prone-mode [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerSetTeachingComboMode(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00909330: (player-set-teaching-combo-mode [flag]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = (argc > 0 && argv && argv[0] != 0) ? 1 : 0;
     *(uint8_t *)(g_u2_image_base + 0x011579C2ull) = flag;
@@ -2204,14 +2242,14 @@ static int64_t ABI detour_DcPlayerSetTeachingComboMode(int32_t argc, uint64_t *a
 static int64_t ABI detour_DcPlayerTakeMeleeDamage(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x009101A0: (player-take-melee-damage [damage]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerTrainWreckDynoJumpHack(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E050: (player-train-wreck-dyno-jump-hack) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x18F);
@@ -2233,14 +2271,14 @@ static int64_t ABI detour_DcPlayerTrainWreckDynoJumpHack(int32_t argc, uint64_t 
 static int64_t ABI detour_DcPlayerTurnTo(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00A0B2D0: (player-turn-to [target]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 0;
 }
 
 static int64_t ABI detour_DcPlayerUseLargeNpcEdgeCollision(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E400: (player-use-large-npc-edge-collision) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x173);
@@ -2260,13 +2298,14 @@ static int64_t ABI detour_DcPlayerUseLargeNpcEdgeCollision(int32_t argc, uint64_
 static int64_t ABI detour_DcSetAnimationSpeed(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00397880: (set-animation-speed [anim] [speed]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetCoverPushBackDist(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090B060: (set-cover-push-back-dist [dist]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float dist = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2283,13 +2322,14 @@ static int64_t ABI detour_DcSetCoverPushBackDist(int32_t argc, uint64_t *argv, u
 static int64_t ABI detour_DcSetLookatStopPhase(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00397320: (set-lookat-stop-phase [val]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSetMinFallDist(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090E660: (set-min-fall-dist [dist]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float dist = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2304,8 +2344,9 @@ static int64_t ABI detour_DcSetMinFallDist(int32_t argc, uint64_t *argv, uint32_
 }
 
 static int64_t ABI detour_DcSetMoveMode(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090D4F0: (set-move-mode [mode]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t mode = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2320,8 +2361,9 @@ static int64_t ABI detour_DcSetMoveMode(int32_t argc, uint64_t *argv, uint32_t *
 }
 
 static int64_t ABI detour_DcSetPlayerCanOnlyDrawPistol(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090B9E0: (set-player-can-only-draw-pistol [flag]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2337,7 +2379,7 @@ static int64_t ABI detour_DcSetPlayerCanOnlyDrawPistol(int32_t argc, uint64_t *a
 
 static int64_t ABI detour_DcSetPlayerClimbSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E540: (set-player-climb-spawner [spawner-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x188);
     void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D270ull);
@@ -2356,9 +2398,10 @@ static int64_t ABI detour_DcSetPlayerClimbSpawner(int32_t argc, uint64_t *argv, 
 }
 
 static int64_t ABI detour_DcSetPlayerInCombat(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090DB40: (set-player-in-combat [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2375,7 +2418,7 @@ static int64_t ABI detour_DcSetPlayerInCombat(int32_t argc, uint64_t *argv, uint
 static int64_t ABI detour_DcSetPlayerInvincible(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090BB10: (set-player-invincible) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     uint8_t flag = 1;
@@ -2397,7 +2440,7 @@ static int64_t ABI detour_DcSetPlayerInvincible(int32_t argc, uint64_t *argv, ui
 
 static int64_t ABI detour_DcSetPlayerJumpSpawner(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090EF70: (set-player-jump-spawner [spawner-id]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base || argc <= 0 || !argv) return 0;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x184);
     void *t1 = (void *)(uintptr_t)(g_u2_image_base + 0x00A1D270ull);
@@ -2416,8 +2459,9 @@ static int64_t ABI detour_DcSetPlayerJumpSpawner(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcSetPlayerMaxFallHeight(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x00906EE0: (set-player-max-fall-height [height]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
 
     float height = (argc > 0) ? u2_reg_to_f32(argv[0]) : *(const float *)(g_u2_image_base + 0x00E6643Cull);
@@ -2440,7 +2484,7 @@ static int64_t ABI detour_DcSetPlayerMaxFallHeight(int32_t argc, uint64_t *argv,
 static int64_t ABI detour_DcSetPlayerNoIgcKillGrenade(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090E910: (set-player-no-igc-kill-grenade) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x16C);
@@ -2459,7 +2503,7 @@ static int64_t ABI detour_DcSetPlayerNoIgcKillGrenade(int32_t argc, uint64_t *ar
 static int64_t ABI detour_DcSetPlayerOnCollapsingBuilding(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x0090F0F0: (set-player-on-collapsing-building) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     uint8_t flag = 1;
     void *str_arg = (void *)(uintptr_t)(*(uint8_t **)(g_u2_image_base + 0x0104AD78ull) + 0x16A);
@@ -2479,8 +2523,9 @@ static int64_t ABI detour_DcSetPlayerOnCollapsingBuilding(int32_t argc, uint64_t
 }
 
 static int64_t ABI detour_DcSetReloadPistolIfEmpty(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090B940: (set-reload-pistol-if-empty [flag]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2495,8 +2540,9 @@ static int64_t ABI detour_DcSetReloadPistolIfEmpty(int32_t argc, uint64_t *argv,
 }
 
 static int64_t ABI detour_DcSetReverseJumpEnable(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090D140: (set-reverse-jump-enable [flag]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2511,8 +2557,9 @@ static int64_t ABI detour_DcSetReverseJumpEnable(int32_t argc, uint64_t *argv, u
 }
 
 static int64_t ABI detour_DcSetRunType(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090D1F0: (set-run-type [type]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t type = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2527,8 +2574,9 @@ static int64_t ABI detour_DcSetRunType(int32_t argc, uint64_t *argv, uint32_t *s
 }
 
 static int64_t ABI detour_DcSetTargetSpawnerAngle(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090FE30: (set-target-spawner-angle [angle]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     float angle = (argc > 0 && argv) ? *(const float *)&argv[0] : 0.0f;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2543,8 +2591,9 @@ static int64_t ABI detour_DcSetTargetSpawnerAngle(int32_t argc, uint64_t *argv, 
 }
 
 static int64_t ABI detour_DcSetWalkType(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090D350: (set-walk-type [type]) */
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t type = (argc > 0 && argv) ? (int32_t)argv[0] : 0;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2561,14 +2610,15 @@ static int64_t ABI detour_DcSetWalkType(int32_t argc, uint64_t *argv, uint32_t *
 static int64_t ABI detour_DcStopAnimating(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00397AB0: (stop-animating [anim]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcSwimAllowStandOnBottom(int32_t argc, uint64_t *argv, uint32_t *status) {
+    if (!argv) { u2_set_status(status, 0); return 0; }
 /* 0x0090D6B0: (swim-allow-stand-on-bottom [flag]) */
     (void)argc;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     if (!g_u2_image_base) return 0;
     int32_t flag = (argc > 0 && argv) ? (int32_t)argv[0] : 1;
     typedef void * (ABI *prop_helper_fn)(int32_t, const char *, float);
@@ -2585,14 +2635,14 @@ static int64_t ABI detour_DcSwimAllowStandOnBottom(int32_t argc, uint64_t *argv,
 static int64_t ABI detour_DcUpdateApRef(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x00397520: (update-ap-ref [ap-ref]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 
 static int64_t ABI detour_DcWaitAnimate(int32_t argc, uint64_t *argv, uint32_t *status) {
 /* 0x003969A0: (wait-animate [anim-track]) */
     (void)argc; (void)argv;
-    if (status) *status = 0;
+    u2_set_status(status, 0);
     return 1;
 }
 

@@ -28,6 +28,9 @@ def main():
     
     # Force windowed mode for headless/test runs if desired, or keep launcher settings
     env = game_environment(settings)
+    for k, v in os.environ.items():
+        if k.startswith("BB_U2_"):
+            env[k] = v
     
     # Ensure MSYS2 Clang64 is in PATH for DLLs
     clang64_bin = Path(r"C:\msys64\clang64\bin")
@@ -50,48 +53,32 @@ def main():
             cwd=str(ROOT),
             env=env,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
+            stdout=lf,
             stderr=subprocess.STDOUT
         )
         
         start_time = time.time()
         crashed = False
-        lines = []
         
-        # Read stream non-blocking or until timeout
         while True:
             elapsed = time.time() - start_time
             if proc.poll() is not None:
-                # Process exited on its own (crash or normal exit)
                 crashed = True
-                remaining = proc.stdout.read()
-                if remaining:
-                    lf.write(remaining)
-                    lines.extend(remaining.decode('utf-8', errors='replace').splitlines())
                 break
-                
-            line = proc.stdout.readline()
-            if line:
-                lf.write(line)
-                lf.flush()
-                decoded = line.decode('utf-8', errors='replace').rstrip()
-                lines.append(decoded)
-                if len(lines) > 200:
-                    lines.pop(0)
-                # Print key milestones to console in real-time
-                if any(k in decoded for k in ("State Transition", "[U2 Loop]", "HeapArena", "ASSERTION", "Fault:", "Error", "HALT:")):
-                    print(f"  {decoded}")
-            else:
-                time.sleep(0.01)
-                
             if elapsed >= duration:
                 print(f"[AutoTest] Reached timeout of {duration}s without crash. Terminating test run cleanly...")
-                proc.terminate()
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 try:
                     proc.wait(timeout=3)
                 except subprocess.TimeoutExpired:
                     proc.kill()
                 break
+            time.sleep(0.1)
+
+    lines = log_file.read_text(encoding='utf-8', errors='replace').splitlines()
+    for decoded in lines:
+        if any(k in decoded for k in ("State Transition", "[U2 Loop]", "[U2 Recomp]", "[U2 SelfTest]", "HeapArena", "ASSERTION", "Fault:", "Error", "HALT:")):
+            print(f"  {decoded}")
 
     print("\n" + "=" * 60)
     print(f"[AutoTest] Run completed. Exit code: {proc.returncode if crashed else 'STOPPED_AFTER_TIMEOUT'}")
