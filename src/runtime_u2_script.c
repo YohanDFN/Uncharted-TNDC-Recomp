@@ -1014,6 +1014,7 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         { "audio",  u2_get_audio_detours },
         { "event",  u2_get_event_detours },
         { "scene",  u2_get_scene_detours },
+        { "engine", u2_get_engine_detours },
     };
 
     if (disable_all_modules) {
@@ -1116,7 +1117,7 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
         ++installed;
     }
 
-    printf("[U2 Recomp] Installed %zu native C function detours across 5 modules (ExecuteScriptCode=%s, EvalEx=%s, Run=%s)\n",
+    printf("[U2 Recomp] Installed %zu native C/C++ function detours across 6 modules (ExecuteScriptCode=%s, EvalEx=%s, Run=%s)\n",
            installed,
            enable_native_vm ? "NATIVE_C" : "GUEST_ELF",
            enable_native_evalex ? "NATIVE_C" : "GUEST_ELF",
