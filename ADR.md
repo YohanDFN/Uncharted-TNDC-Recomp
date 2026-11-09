@@ -11,6 +11,7 @@
 * [ADR-003 : Conventions d'Appel SysV ABI (`ABI`), Toolchain MSYS2 Clang64 & Isolation Hôte/Guest](#adr-003--conventions-dappel-sysv-abi-abi-toolchain-msys2-clang64--isolation-hôteguest)
 * [ADR-004 : Séparation Stricte Runtime Script C vs Moteur C++23 (`src/u2_engine/`) & Harnais Full-Body Sandbox](#adr-004--séparation-stricte-runtime-script-c-vs-moteur-c23-srcu2_engine--harnais-full-body-sandbox)
 * [ADR-005 : Résolution de l'Écran Noir au Boot & Protection ABI `%rdx` dans `u2_set_status`](#adr-005--résolution-de-lécran-noir-au-boot--protection-abi-rdx-dans-u2_set_status)
+* [ADR-006 : Branche `dev-native` & Exécutable Autonome 100 % C++23 (`uncharted2-native.exe`)](#adr-006--branche-dev-native--exécutable-autonome-100--c23-uncharted2-nativeexe)
 
 ---
 
@@ -97,3 +98,15 @@ Lors des tests d'amorçage complets (affichage du splash screen, montage des sau
 ### Décision
 * **Règle ABI `u2_set_status` (`src/runtime_u2_common.h`)** : La VM de script pré-initialisant systématiquement `*status = 0` sur la pile avant chaque appel natif (`0x00A14627: movl $0x0, 0x1c(%rsp)` et `0x00A1578C: movl $0x0, 0x1c(%rsp)`), `u2_set_status(status, val)` ignore désormais toute écriture de `val == 0` et n'écrit dans `%rdx` que les codes non nuls (`1` = exit/abort, `2` = yield/wait).
 * Une assertion de non-régression dans `u2_run_engine_unit_tests()` vérifie à chaque démarrage qu'aucun des 831 détours `Dc*` n'écrase `(%rdx)` avec `0`.
+
+---
+
+## ADR-006 : Branche `dev-native` & Exécutable Autonome 100 % C++23 (`uncharted2-native.exe`)
+
+### Statut
+Accepté & Planifié sur `dev-native`.
+
+### Décision
+* Création de la branche dédiée `dev-native` clonée depuis `dev` (`3d5dded`) pour développer en parallèle un second exécutable autonome : **`uncharted2-native.exe`**.
+* **`uncharted2-native.exe`** contient uniquement le code C++23 réécrit (`src/u2_engine/*.cpp`, `src/u2_standalone/*.cpp`), les 832 bindings `Dc*` et les couches PC (`bbgpu` Vulkan/SDL3/WASAPI/ATRAC9), sans exécuter le moindre octet de code machine PS4 (`eboot.elf`).
+* Le plan d'architecture complet en 5 piliers et 3 étapes séquentielles (Boot -> Splash Screen -> Menu Principal) est documenté dans [`docs/UNCHARTED_NATIVE_PLAN.md`](docs/UNCHARTED_NATIVE_PLAN.md).
