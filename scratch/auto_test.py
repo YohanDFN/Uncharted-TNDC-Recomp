@@ -12,6 +12,7 @@ import os
 import sys
 import json
 import time
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -23,6 +24,17 @@ from uncharted_launcher import game_environment, CONFIG_FILE, load_json, APP_DEF
 
 def main():
     duration = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+    try:
+        subprocess.run(["taskkill", "/F", "/IM", "bb-probe.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+    except Exception:
+        pass
+    gpu_exe = ROOT / "out" / "gpu" / "bb-probe.exe"
+    out_exe = ROOT / "out" / "bb-probe.exe"
+    if gpu_exe.is_file():
+        try:
+            shutil.copy2(gpu_exe, out_exe)
+        except OSError as e:
+            print(f"[AutoTest] Warning: could not sync {gpu_exe} -> {out_exe}: {e}")
     print(f"[AutoTest] Loading launcher settings from {CONFIG_FILE} ...")
     settings = load_json(CONFIG_FILE, APP_DEFAULTS)
     

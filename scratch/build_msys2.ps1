@@ -24,7 +24,9 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Copy-Item out/gpu/bb-probe.exe out/bb-probe.exe -Force
+Get-Process -Name "bb-probe" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 200
+Copy-Item out/gpu/bb-probe.exe out/bb-probe.exe -Force -ErrorAction Stop
 if (Test-Path dist/uncharted-windows/bin) {
     Copy-Item out/gpu/bb-probe.exe dist/uncharted-windows/bin/bb-probe.exe -Force
 }

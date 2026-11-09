@@ -6349,9 +6349,9 @@ static int64_t ABI detour_DcTrainTransferPendingP(int32_t argc, uint64_t *argv, 
 static int64_t ABI detour_DcAddLoadModule(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0FE90: (add-load-module mod-sym [heap-type]) */
     u2_set_status(status, 0);
-    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
-    uint32_t kind = (uint32_t)argv[1];
+    uint32_t kind = (argc >= 2) ? (uint32_t)argv[1] : 0;
     uint32_t heap_tag = 0;
 
     if (kind == 0xA4DDDED4u) {
@@ -6372,9 +6372,9 @@ static int64_t ABI detour_DcAddLoadModule(int32_t argc, uint64_t *argv, uint32_t
 static int64_t ABI detour_DcAddImportModule(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x00A0FF10: (add-import-module mod-sym [heap-type]) */
     u2_set_status(status, 0);
-    if (!g_u2_image_base || argc < 2 || !argv) return 0;
+    if (!g_u2_image_base || argc < 1 || !argv) return 0;
     uint32_t sym = (uint32_t)argv[0];
-    uint32_t kind = (uint32_t)argv[1];
+    uint32_t kind = (argc >= 2) ? (uint32_t)argv[1] : 0;
     uint32_t heap_tag = 0;
 
     if (kind == 0xA4DDDED4u) {

@@ -265,7 +265,7 @@ int64_t runtime_u2_vm_execute(U2ScriptStackFrame *frame, uint64_t *out_result, u
             }
             if (status == 2) {
                 if (out_result) *out_result = 0;
-                return 0;
+                return (int64_t)(uintptr_t)frame;
             }
             if (status == 1) {
                 /* Unwind all active stack frames (0x00A14D54) */
@@ -854,16 +854,17 @@ int64_t ABI detour_EvalEx(const U2ScriptCode *code, int32_t argc, const uint64_t
 static int64_t ABI detour_ExecuteScriptCode(U2ScriptStackFrame *frame, uint64_t *out_result);
 
 /* SysV-ABI replacement for ScriptManager::Run (0x00A14F20)
- * SysV arguments: rdi = out_result, rsi = code, rdx = args, rcx = argc
+ * SysV arguments: rdi = out_frame, rsi = out_result, rdx = code, ecx = argc, r8 = args
  */
-static int64_t ABI detour_ScriptManager_Run(uint64_t *out_result, U2ScriptCode *code, const uint64_t *args, uint32_t argc) {
+static int64_t ABI detour_ScriptManager_Run(U2ScriptStackFrame **out_frame, uint64_t *out_result, U2ScriptCode *code, uint32_t argc, const uint64_t *args) {
+    if (out_frame) *out_frame = NULL;
     if (out_result) *out_result = 0;
     uint8_t *frame_pool = g_u2_image_base + 0x015341E8ull;
     U2ScriptStackFrame *frame = *(U2ScriptStackFrame **)frame_pool;
     if (!frame) {
         return 0;
     }
-    *(U2ScriptStackFrame **)frame_pool = frame->caller;
+    *(U2ScriptStackFrame **)frame_pool = *(U2ScriptStackFrame **)frame;
     frame->return_dst_reg = 0;
     (*(uint32_t *)(g_u2_image_base + 0x015341F0ull))++;
     frame->caller = NULL;
@@ -879,8 +880,9 @@ static int64_t ABI detour_ScriptManager_Run(uint64_t *out_result, U2ScriptCode *
     frame->argc = argc;
     frame->pc = 0;
 
-    int64_t res = detour_ExecuteScriptCode(frame, out_result);
-    return res != 0 ? 1 : 0;
+    int64_t suspended = detour_ExecuteScriptCode(frame, out_result);
+    if (out_frame) *out_frame = (U2ScriptStackFrame *)(uintptr_t)suspended;
+    return suspended != 0 ? 1 : 0;
 }
 void __attribute__((ms_abi)) runtime_u2_eval_ex(
     uint64_t rdi, uint64_t rsi, uint64_t image, uint64_t r14
@@ -1104,21 +1106,21 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
     }
 
     const char *native_vm_env = getenv("BB_U2_NATIVE_VM");
-    const int enable_native_vm = !disable_all_modules && (!native_vm_env || !*native_vm_env || *native_vm_env != '0');
+    const int enable_native_vm = !disable_all_modules && (native_vm_env && *native_vm_env && *native_vm_env != '0');
     if (enable_native_vm) {
         write_detour_jmp64(image + 0x00A14120, (uintptr_t)detour_ExecuteScriptCode);
         ++installed;
     }
 
     const char *native_evalex_env = getenv("BB_U2_NATIVE_EVALEX");
-    const int enable_native_evalex = !disable_all_modules && (!native_evalex_env || !*native_evalex_env || *native_evalex_env != '0');
+    const int enable_native_evalex = !disable_all_modules && (native_evalex_env && *native_evalex_env && *native_evalex_env != '0');
     if (enable_native_evalex) {
         write_detour_jmp64(image + 0x00A15430, (uintptr_t)detour_EvalEx);
         ++installed;
     }
 
     const char *native_run_env = getenv("BB_U2_NATIVE_RUN");
-    const int enable_native_run = !disable_all_modules && (!native_run_env || !*native_run_env || *native_run_env != '0');
+    const int enable_native_run = !disable_all_modules && (native_run_env && *native_run_env && *native_run_env != '0');
     if (enable_native_run) {
         write_detour_jmp64(image + 0x00A14F20, (uintptr_t)detour_ScriptManager_Run);
         ++installed;
