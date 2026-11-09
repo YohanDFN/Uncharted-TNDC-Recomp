@@ -135,6 +135,20 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
     if (!mock_img.base) return 0;
     uint8_t *image = mock_img.base;
 
+    // Initialize .text region [0 .. 0x00DA8000) with safe SysV ABI stub:
+    //   31 C0       xor %eax, %eax
+    //   0F 57 C0    xorps %xmm0, %xmm0
+    //   C3          ret
+    // padded with 0xC3 (ret) so any guest helper call returns 0 / nullptr / 0.0f safely.
+    for (size_t off = 0; off < 0x00DA8000; off += 16) {
+        uint8_t *slot = image + off;
+        slot[0] = 0x31; slot[1] = 0xC0;
+        slot[2] = 0x0F; slot[3] = 0x57; slot[4] = 0xC0;
+        for (size_t k = 5; k < 16; ++k) slot[k] = 0xC3;
+    }
+    // Copy .rodata constants/tables [0x00DA8000 .. 0x01040000) from real_image
+    std::memcpy(image + 0x00DA8000, real_image + 0x00DA8000, 0x01040000 - 0x00DA8000);
+
     // Copy the actual 12-byte trampolines installed in real_image for every engine detour
     const U2NativeDetour *engine_detours = nullptr;
     size_t engine_count = u2_get_engine_detours(&engine_detours);
@@ -145,6 +159,63 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
 
     uint8_t *saved_base = g_u2_image_base;
     g_u2_image_base = image;
+
+    // 0. Full-Body Sandbox Fuzzing across all 5 DC Script Modules via ELF trampolines
+    //    Unlike pre-boot NULL fuzzing, g_u2_image_base points to the executable mock image,
+    //    so 100% of the body of every Dc* function executes past `if (!g_u2_image_base)`.
+    {
+        using GetterFn = size_t (*)(const U2NativeDetour **);
+        const GetterFn dc_getters[] = {
+            u2_get_player_detours,
+            u2_get_npc_detours,
+            u2_get_audio_detours,
+            u2_get_event_detours,
+            u2_get_scene_detours,
+        };
+        std::vector<uint8_t> dummy_arg_buf(4096, 0);
+        uint64_t zero_args[8] = {0};
+        uint64_t ptr_args[8];
+        for (int k = 0; k < 8; ++k) {
+            ptr_args[k] = reinterpret_cast<uintptr_t>(dummy_arg_buf.data() + k * 256);
+        }
+        uint32_t valid_status = 0;
+        size_t full_body_tested = 0;
+
+        for (GetterFn getter : dc_getters) {
+            const U2NativeDetour *detours = nullptr;
+            size_t count = getter(&detours);
+            for (size_t i = 0; i < count; ++i) {
+                if (std::strcmp(detours[i].name, "DcDebugBreak") == 0 ||
+                    std::strcmp(detours[i].name, "DcJump") == 0 ||
+                    std::strcmp(detours[i].name, "DcEndScript") == 0) {
+                    continue;
+                }
+                uintptr_t off = detours[i].offset;
+                uint8_t saved_stub[16];
+                std::memcpy(saved_stub, image + off, 16);
+                std::memcpy(image + off, real_image + off, 12);
+                auto tramp_fn = reinterpret_cast<U2DcNativeFn>(image + off);
+
+                // Pass A: g_u2_image_base != NULL, argc=0, NULL argv
+                tramp_fn(0, nullptr, &valid_status);
+                // Pass B: g_u2_image_base != NULL, argc=4, zeroed argv
+                tramp_fn(4, zero_args, &valid_status);
+                // Pass C: g_u2_image_base != NULL, argc=4, valid pointer/non-zero ID argv
+                tramp_fn(4, ptr_args, &valid_status);
+
+                // Restore stub & reset dummy buffer
+                std::memcpy(image + off, saved_stub, 16);
+                std::memset(dummy_arg_buf.data(), 0, dummy_arg_buf.size());
+                ++full_body_tested;
+            }
+        }
+        // Clear .data/.bss of mock image after DC full-body fuzzing
+        std::memset(image + 0x01040000, 0, kMockImageSize - 0x01040000);
+        std::printf("[U2 EngineTest] PASSED: %zu DC detours survived full-body sandbox execution via ELF trampolines!\n",
+                    full_body_tested);
+        std::fflush(stdout);
+        U2_TEST_ASSERT(full_body_tested >= 830, "Full-body sandbox execution of all DC script detours");
+    }
 
     // 1. Test CatmullRomSpline methods (via ELF trampolines)
     {

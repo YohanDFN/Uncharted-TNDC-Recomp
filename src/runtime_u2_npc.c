@@ -293,18 +293,18 @@ static int64_t ABI detour_DcNpcGroupAliveCount(int32_t argc, uint64_t *argv, uin
     /* 0x002DB160: (npc-group-alive-count group-id) */
     u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
-    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, uint32_t *);
+    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, int32_t, const char *);
     CountFn fn = (CountFn)(uintptr_t)(g_u2_image_base + 0x002DAF00ull);
-    return fn ? fn(argc, argv, status) : 0;
+    return fn ? fn(argc, argv, 0, "npc-group-alive-count") : 0;
 }
 
 static int64_t ABI detour_DcNpcGroupDeadCount(int32_t argc, uint64_t *argv, uint32_t *status) {
     /* 0x002DAEE0: (npc-group-dead-count group-id) */
     u2_set_status(status, 0);
     if (!g_u2_image_base || argc < 1 || !argv) return 0;
-    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, uint32_t *);
-    CountFn fn = (CountFn)(uintptr_t)(g_u2_image_base + 0x002DAEE0ull);
-    return fn ? fn(argc, argv, status) : 0;
+    typedef int64_t (ABI *CountFn)(int32_t, uint64_t *, int32_t, const char *);
+    CountFn fn = (CountFn)(uintptr_t)(g_u2_image_base + 0x002DAF00ull);
+    return fn ? fn(argc, argv, 1, "npc-group-dead-count") : 0;
 }
 
 static int64_t ABI detour_DcNpcInMeleeWithPlayerP(int32_t argc, uint64_t *argv, uint32_t *status) {

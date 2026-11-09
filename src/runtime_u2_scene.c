@@ -1512,7 +1512,7 @@ static int64_t ABI detour_DcStringIdFromString(int32_t argc, uint64_t *argv, uin
     if (argc > 0) {
         typedef uint32_t (ABI *fn_t)(uint64_t, uint64_t, uint32_t);
         fn_t fn = *(fn_t *)(g_u2_image_base + 0x010666C8ull);
-        return (int64_t)fn(0, argv[0], 1u);
+        return fn ? (int64_t)fn(0, argv[0], 1u) : 0;
     }
     return 0;
 }
@@ -1584,6 +1584,7 @@ static int64_t ABI detour_DcElapsedTime(int32_t argc, uint64_t *argv, uint32_t *
     int32_t slot = 1;
     if (argc > 0 && idx >= 0 && idx <= 9) {
         slot = *(const int32_t *)(g_u2_image_base + 0x00DEFA10ull + idx * 4);
+        if (slot < 0 || slot > 16) slot = 1;
     }
     uint8_t *clock_ptr = g_u2_image_base + 0x01116180ull + ((size_t)slot << 6);
     float elapsed = *(const float *)(clock_ptr + 0x4C);
@@ -1599,6 +1600,7 @@ static int64_t ABI detour_DcCurrentTime(int32_t argc, uint64_t *argv, uint32_t *
     int32_t slot = 1;
     if (argc > 0 && idx >= 0 && idx <= 9) {
         slot = *(const int32_t *)(g_u2_image_base + 0x00DEFA10ull + idx * 4);
+        if (slot < 0 || slot > 16) slot = 1;
     }
     uint8_t *clock_ptr = g_u2_image_base + 0x01116180ull + ((size_t)slot << 6);
     int32_t ticks = *(const int32_t *)(clock_ptr + 0x44);
@@ -1681,6 +1683,7 @@ static int64_t ABI detour_DcUnitsPerFrame(int32_t argc, uint64_t *argv, uint32_t
     uint32_t clock_index = 1;
     if (clock_id >= 0 && clock_id <= 9) {
         clock_index = *(const uint32_t *)(g_u2_image_base + 0x00DEFA10ull + (uint64_t)clock_id * 4u);
+        if (clock_index > 16u) clock_index = 1u;
     }
     const uint8_t *clock_ptr = g_u2_image_base + 0x01116180ull + (uint64_t)clock_index * 64u;
     float dt = *(const float *)(clock_ptr + 0x4C);
@@ -1696,6 +1699,7 @@ static int64_t ABI detour_DcUnitsPerSecond(int32_t argc, uint64_t *argv, uint32_
     uint32_t clock_index = 1;
     if (clock_id >= 0 && clock_id <= 9) {
         clock_index = *(const uint32_t *)(g_u2_image_base + 0x00DEFA10ull + (uint64_t)clock_id * 4u);
+        if (clock_index > 16u) clock_index = 1u;
     }
     const uint8_t *clock_ptr = g_u2_image_base + 0x01116180ull + (uint64_t)clock_index * 64u;
     float dt = *(const float *)(clock_ptr + 0x4C);
