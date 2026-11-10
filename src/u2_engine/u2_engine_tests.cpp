@@ -856,7 +856,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         *reinterpret_cast<uint64_t *>(image + 0x015AF448) = 0;
         uint32_t mount_res = fn_mount_archives();
         U2_TEST_ASSERT(mount_res == 1u, "GameLoading::MountInitialArchives returns success");
-        U2_TEST_ASSERT(*reinterpret_cast<uint64_t *>(image + 0x015AF448) == 1u, "Core archives count incremented to 1");
+        U2_TEST_ASSERT(*reinterpret_cast<uint64_t *>(image + 0x015AF448) == 3u, "Core archives count incremented to 3 (bin, data, core)");
         U2_TEST_ASSERT(fn_playgo_wait(100) == 0u, "GameLoading::PlayGoWait ready immediately");
         U2_TEST_ASSERT(*reinterpret_cast<uint8_t *>(image + 0x015AF77C) == 1u, "GameLoading::PlayGoWait sets chunk ready flag");
         U2_TEST_ASSERT(*reinterpret_cast<float *>(image + 0x01050A38) == 1.0f, "GameLoading::PlayGoWait sets progress to 1.0f");

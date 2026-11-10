@@ -325,7 +325,11 @@ void ABI u2_cpp_ProcessMgr_Init(void *mgr) {
 }
 
 /* 0x00B783F0 — GameLoadingMountInitialArchives(void)
- * Registers core archive (u2data/build/main/bin.psarc) into g_CoreArchives (0x015AF450).
+ * Registers core archives into g_CoreArchives (0x015AF450):
+ *   1. u2data/build/main/bin.psarc  -> "build/main/" (State 10)
+ *   2. u2data/data.psarc            -> "" (State 9)
+ *   3. u2data/build/main/core.psarc -> "build/main/" (State 8)
+ * Advances g_pGameLoadingState to 7 (All Initial Archives Mounted).
  */
 uint32_t ABI u2_cpp_GameLoading_MountInitialArchives(void) {
     if (!g_u2_image_base) return 0;
@@ -336,40 +340,53 @@ uint32_t ABI u2_cpp_GameLoading_MountInitialArchives(void) {
 
     auto *num_archives = u2::engine::elf_ptr<uint64_t>(0x015AF448);
     auto *archives = u2::engine::elf_ptr<uint8_t>(0x015AF450);
-    if (*num_archives < 32) {
-        size_t idx = static_cast<size_t>(*num_archives);
-        uint8_t *entry = archives + idx * 24;
-        static const char s_archive_path[] = "u2data/build/main/bin.psarc";
-        static const char s_mount_point[]  = "build/main/";
-        *reinterpret_cast<const char **>(entry + 0x00) = s_archive_path;
-        *reinterpret_cast<const char **>(entry + 0x08) = s_mount_point;
-        *reinterpret_cast<uint64_t *>(entry + 0x10) = 1; // Mounted flag
-        *num_archives = idx + 1;
+
+    struct ArchiveDef {
+        const char *path;
+        const char *mount;
+        uint64_t    state_signal;
+    };
+
+    static const ArchiveDef s_core_archives[] = {
+        { "u2data/build/main/bin.psarc",  "build/main/", 10 },
+        { "u2data/data.psarc",            "",             9 },
+        { "u2data/build/main/core.psarc", "build/main/",  8 },
+    };
+
+    uint8_t **p_state = u2::engine::elf_ptr<uint8_t *>(0x015AF750);
+    uint8_t *state_obj = (p_state && *p_state) ? *p_state : nullptr;
+    auto signal_fn = reinterpret_cast<void (ABI *)(void *, uint64_t)>(g_u2_image_base + 0x00B29440);
+
+    for (const auto &arch : s_core_archives) {
+        if (*num_archives < 32) {
+            size_t idx = static_cast<size_t>(*num_archives);
+            uint8_t *entry = archives + idx * 24;
+            *reinterpret_cast<const char **>(entry + 0x00) = arch.path;
+            *reinterpret_cast<const char **>(entry + 0x08) = arch.mount;
+            *reinterpret_cast<uint64_t *>(entry + 0x10) = 1; // Mounted flag
+            *num_archives = idx + 1;
+            printf("[U2 Engine] Mounted core archive [%zu]: '%s' at '%s'\n", idx, arch.path, arch.mount);
+        }
+
+        if (state_obj && signal_fn) {
+            *reinterpret_cast<uint64_t *>(state_obj + 0x20) = arch.state_signal;
+            signal_fn(state_obj, arch.state_signal);
+        }
     }
 
     // Ensure ScriptManager s_packages list head is initialized
     uint8_t *packages_head = u2::engine::elf_ptr<uint8_t>(0x01534140);
-    printf("[U2 Engine] MountInitialArchives: packages_head=%p, was=%p\n",
-           packages_head, packages_head ? *reinterpret_cast<void **>(packages_head) : nullptr);
     if (packages_head) {
         *reinterpret_cast<uint8_t **>(packages_head + 0) = packages_head;
         *reinterpret_cast<uint8_t **>(packages_head + 8) = packages_head;
     }
-    printf("[U2 Engine] MountInitialArchives: now packages_head[0]=%p, [8]=%p\n",
-           packages_head ? *reinterpret_cast<void **>(packages_head) : nullptr,
-           packages_head ? *reinterpret_cast<void **>(packages_head + 8) : nullptr);
-    fflush(stdout);
 
-    uint8_t **p_state = u2::engine::elf_ptr<uint8_t *>(0x015AF750);
-    if (p_state && *p_state) {
-        uint8_t *state_obj = *p_state;
-        printf("[U2 Engine] Advancing g_pGameLoadingState (%p) from state %llu to 7\n",
-               state_obj, static_cast<unsigned long long>(*reinterpret_cast<uint64_t *>(state_obj + 0x20)));
-        fflush(stdout);
+    if (state_obj && signal_fn) {
+        printf("[U2 Engine] Advancing g_pGameLoadingState (%p) to 7 (READY)\n", state_obj);
         *reinterpret_cast<uint64_t *>(state_obj + 0x20) = 7;
-        auto signal_fn = reinterpret_cast<void (ABI *)(void *, uint64_t)>(g_u2_image_base + 0x00B29440);
         signal_fn(state_obj, 7);
     }
+    fflush(stdout);
     return 1;
 }
 
