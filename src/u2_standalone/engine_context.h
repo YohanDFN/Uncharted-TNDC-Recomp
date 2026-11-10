@@ -37,7 +37,7 @@ public:
         shutdown();
     }
 
-    bool initialize(const std::string &game_dir, const std::string &elf_override_path = "", bool headless = false) {
+    bool initialize(const std::string &game_dir, const std::string &elf_override_path = "", bool headless = false, int display_index = -1) {
         native_log("============================================================\n");
         native_log("[U2 Native] Uncharted 2: Among Thieves — Native C++23 Recomp\n");
         native_log("[U2 Native] Starting Standalone Engine (Zero PS4 Code Execution)\n");
@@ -71,8 +71,8 @@ public:
         }
         native_log("[U2 Native] Memory Subsystem initialized (AllocStack depth 46, thread-local active)\n");
 
-        // 4. Initialize Platform Window & Vulkan Renderer
-        initialize_graphics(1920, 1080, "Uncharted 2: Among Thieves (Native C++ Recomp)", headless);
+        // 4. Initialize Platform Window & Vulkan/Direct3D Renderer
+        initialize_graphics(1920, 1080, "Uncharted 2: Among Thieves (Native C++ Recomp)", headless, display_index);
 
         // 5. Load and Display Splash Screen (sce_sys/pic1.png)
         std::string splash_path;
@@ -99,6 +99,7 @@ public:
 
         native_log("[U2 Native] Native C++23 engine loop active. Presenting splash screen...\n");
         uint64_t start_ticks = SDL_GetTicks();
+        int last_remaining = -1;
         bool running = true;
         SDL_Event ev;
 
@@ -116,9 +117,21 @@ public:
             render_frame();
 
             if (timeout_seconds > 0) {
-                uint64_t elapsed = (SDL_GetTicks() - start_ticks) / 1000;
-                if (elapsed >= static_cast<uint64_t>(timeout_seconds)) {
-                    native_log("[U2 Native] Reached timeout of " + std::to_string(timeout_seconds) + "s. Terminating cleanly.\n");
+                uint64_t elapsed_ms = SDL_GetTicks() - start_ticks;
+                int elapsed_sec = static_cast<int>(elapsed_ms / 1000);
+                int remaining = timeout_seconds - elapsed_sec;
+                if (remaining < 0) remaining = 0;
+
+                if (remaining != last_remaining) {
+                    last_remaining = remaining;
+                    std::string title = "Uncharted 2: Among Thieves (Pure C++23) - Fermeture automatique dans "
+                                        + std::to_string(remaining) + "s [ECHAP pour quitter]";
+                    SDL_SetWindowTitle(m_window, title.c_str());
+                    native_log("[U2 Native] Temps restant avant fermeture: " + std::to_string(remaining) + "s\n");
+                }
+
+                if (elapsed_sec >= timeout_seconds) {
+                    native_log("[U2 Native] Delai de " + std::to_string(timeout_seconds) + "s atteint. Fermeture propre du moteur.\n");
                     break;
                 }
             }
@@ -226,7 +239,7 @@ private:
                    + std::to_string(loaded_bytes / 1024) + " KiB) from '" + path + "'\n");
     }
 
-    bool initialize_graphics(int width, int height, const char *title, bool headless = false) {
+    bool initialize_graphics(int width, int height, const char *title, bool headless = false, int display_index = -1) {
         if (headless) {
             native_log("[U2 Native] Headless mode active: window and surface creation skipped.\n");
             return true;
@@ -245,12 +258,54 @@ private:
             return true;
         }
 
+        // Enumerate displays
+        int num_displays = 0;
+        SDL_DisplayID *displays = SDL_GetDisplays(&num_displays);
+        native_log("[U2 Native] Enumerated " + std::to_string(num_displays) + " connected display(s):\n");
+        if (displays) {
+            for (int i = 0; i < num_displays; ++i) {
+                SDL_Rect b = {};
+                SDL_GetDisplayBounds(displays[i], &b);
+                const char *dname = SDL_GetDisplayName(displays[i]);
+                native_log("  Display [" + std::to_string(i) + "] ID=" + std::to_string(displays[i])
+                           + " '" + (dname ? dname : "Unknown") + "' Bounds=("
+                           + std::to_string(b.x) + "," + std::to_string(b.y) + " "
+                           + std::to_string(b.w) + "x" + std::to_string(b.h) + ")\n");
+            }
+        }
+
         native_log("[U2 Native] Creating SDL window (" + std::to_string(width) + "x" + std::to_string(height) + ")...\n");
         m_window = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
         if (!m_window) {
             native_log("[U2 Native] WARNING: SDL_CreateWindow failed (" + std::string(SDL_GetError())
                        + "). Falling back to headless mode.\n");
+            if (displays) SDL_free(displays);
             return true;
+        }
+
+        // Position window on requested display if specified
+        if (displays && num_displays > 0 && display_index >= 0) {
+            int target_idx = display_index;
+            if (target_idx >= num_displays) {
+                native_log("[U2 Native] Requested display index " + std::to_string(display_index)
+                           + " exceeds available displays (" + std::to_string(num_displays)
+                           + "). Defaulting to display 0.\n");
+                target_idx = 0;
+            }
+            SDL_Rect b = {};
+            if (SDL_GetDisplayBounds(displays[target_idx], &b)) {
+                int win_x = b.x + (b.w > width ? (b.w - width) / 2 : 0);
+                int win_y = b.y + (b.h > height ? (b.h - height) / 2 : 0);
+                SDL_SetWindowPosition(m_window, win_x, win_y);
+                const char *dname = SDL_GetDisplayName(displays[target_idx]);
+                native_log("[U2 Native] Positioned window on Display " + std::to_string(target_idx)
+                           + " ('" + (dname ? dname : "Unknown") + "') at coordinates ("
+                           + std::to_string(win_x) + ", " + std::to_string(win_y) + ")\n");
+            }
+        }
+        if (displays) {
+            SDL_free(displays);
+            displays = nullptr;
         }
 
         native_log("[U2 Native] Creating accelerated renderer...\n");

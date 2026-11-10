@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
     std::string game_dir;
     std::string elf_path;
     int timeout_seconds = 0;
+    int display_index = -1;
     bool headless = false;
 
     // Check environment variables
@@ -33,6 +34,9 @@ int main(int argc, char **argv) {
 
     const char *env_timeout = std::getenv("BB_TIMEOUT");
     if (env_timeout && *env_timeout) timeout_seconds = std::atoi(env_timeout);
+
+    const char *env_display = std::getenv("BB_DISPLAY");
+    if (env_display && *env_display) display_index = std::atoi(env_display);
 
     const char *env_headless = std::getenv("BB_HEADLESS");
     if (env_headless && *env_headless && *env_headless != '0') headless = true;
@@ -46,12 +50,15 @@ int main(int argc, char **argv) {
             if (i + 1 < argc) elf_path = argv[++i];
         } else if (arg == "--timeout") {
             if (i + 1 < argc) timeout_seconds = std::atoi(argv[++i]);
+        } else if (arg == "--display" || arg == "-d" || arg == "--screen") {
+            if (i + 1 < argc) display_index = std::atoi(argv[++i]);
         } else if (arg == "--headless") {
             headless = true;
         } else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: uncharted2-native.exe [options]\n";
             std::cout << "  --game <path>     Path to CUSA02343 game folder\n";
             std::cout << "  --elf <path>      Path to eboot.elf/big2-ps4_Shipping.elf\n";
+            std::cout << "  --display <idx>   Target monitor index (0=primary, 1=second screen)\n";
             std::cout << "  --timeout <sec>   Run for N seconds then exit cleanly\n";
             std::cout << "  --headless        Run without interactive window/GPU\n";
             return 0;
@@ -63,7 +70,7 @@ int main(int argc, char **argv) {
     }
 
     u2::standalone::EngineContext engine;
-    if (!engine.initialize(game_dir, elf_path, headless)) {
+    if (!engine.initialize(game_dir, elf_path, headless, display_index)) {
         u2::standalone::native_log("[U2 Native] Failed to initialize engine context.\n");
         return 1;
     }
