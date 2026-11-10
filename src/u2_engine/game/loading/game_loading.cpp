@@ -3,6 +3,9 @@
 // ADR-006: Dual-Executable Architecture.
 
 #include "u2_engine.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <cstdlib>
 #include <cstring>
 #include <cstdint>
@@ -16,6 +19,17 @@ static uint8_t *s_settings_pool = nullptr;
 static uint8_t **s_settings_hash_buckets = nullptr;
 static uint8_t *s_settings_nodes = nullptr;
 static void *s_process_node_pool = nullptr;
+
+static bool is_guest_code_executable() {
+    if (!g_u2_image_base) return false;
+#ifdef _WIN32
+    MEMORY_BASIC_INFORMATION mbi = {};
+    if (VirtualQuery(g_u2_image_base, &mbi, sizeof(mbi))) {
+        return (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
+    }
+#endif
+    return false;
+}
 
 } // namespace
 
@@ -472,7 +486,7 @@ int32_t ABI u2_cpp_UCCApp_StateMachineUpdate(void *self, float dt) {
         *reinterpret_cast<int32_t *>(app + 0x00) = 7;
         break;
     }
-    case 7: { // MAIN MENU STATE
+    case 7: { // MAIN MENU INITIALIZATION
         // Configure menu camera floats matching 0x00D59ECE
         *reinterpret_cast<int32_t *>(app + 0x04) = 0;
         *reinterpret_cast<float *>(app + 0x08) = 100.0f;
@@ -482,7 +496,48 @@ int32_t ABI u2_cpp_UCCApp_StateMachineUpdate(void *self, float dt) {
         *reinterpret_cast<float *>(app + 0x10) = 1.0f;
         if (g_u2_image_base) {
             *u2::engine::elf_ptr<uint32_t>(0x0147DA0C) = 0;
+            // Create ProcessMgr task for menu process if guest code is executable (bb-probe mode)
+            if (is_guest_code_executable()) {
+                void *proc_mgr = u2::engine::elf_ptr<void>(0x0115F1A0);
+                if (proc_mgr) {
+                    void *script_proc = *reinterpret_cast<void **>(static_cast<uint8_t *>(proc_mgr) + 0xC88);
+                    if (script_proc) {
+                        uint8_t task_params[0x80] = {};
+                        *reinterpret_cast<uint32_t *>(task_params + 0x00) = 0x6019C7E;
+                        *reinterpret_cast<void **>(task_params + 0x08) = script_proc;
+                        auto create_task = reinterpret_cast<void * (ABI *)(void *, int32_t)>(g_u2_image_base + 0x009B5C20);
+                        void *task = create_task(task_params, 0);
+                        printf("[U2 Engine] Menu process task created: %p\n", task);
+                        fflush(stdout);
+                    }
+                }
+            }
         }
+        *reinterpret_cast<int32_t *>(app + 0x00) = 8;
+        break;
+    }
+    case 8: { // MENU TRANSITION & PRESENTATION DELAY
+        if (g_u2_image_base) {
+            float *p_timer = u2::engine::elf_ptr<float>(0x0172BDCC);
+            if (p_timer) {
+                *p_timer += dt;
+                float threshold = *u2::engine::elf_ptr<const float>(0x00E693D8);
+                if (threshold <= 0.0f) threshold = 51.0f;
+                // Transition to State 9 (Main Menu Interactive Loop)
+                if (*p_timer > threshold || *p_timer > 1.0f) {
+                    *reinterpret_cast<int32_t *>(app + 0x00) = 9;
+                    printf("[U2 Engine] Menu timer elapsed (%f s) -> State 9 (MAIN MENU ACTIVE)\n", *p_timer);
+                    fflush(stdout);
+                }
+            } else {
+                *reinterpret_cast<int32_t *>(app + 0x00) = 9;
+            }
+        } else {
+            *reinterpret_cast<int32_t *>(app + 0x00) = 9;
+        }
+        break;
+    }
+    case 9: { // MAIN MENU ACTIVE
         break;
     }
     default:

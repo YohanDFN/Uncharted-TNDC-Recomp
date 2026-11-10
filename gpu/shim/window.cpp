@@ -53,8 +53,24 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     }
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED);
+    int win_x = SDL_WINDOWPOS_CENTERED;
+    int win_y = SDL_WINDOWPOS_CENTERED;
+    const char* env_disp = std::getenv("BB_DISPLAY");
+    if (env_disp && *env_disp) {
+        int target_disp = std::atoi(env_disp);
+        int num_displays = 0;
+        SDL_DisplayID* displays = SDL_GetDisplays(&num_displays);
+        if (displays && target_disp >= 0 && target_disp < num_displays) {
+            SDL_Rect b = {};
+            if (SDL_GetDisplayBounds(displays[target_disp], &b)) {
+                win_x = b.x + (b.w > width_ ? (b.w - width_) / 2 : 0);
+                win_y = b.y + (b.h > height_ ? (b.h - height_) / 2 : 0);
+            }
+            SDL_free(displays);
+        }
+    }
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, win_x);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, win_y);
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width_);
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height_);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
