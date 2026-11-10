@@ -126,12 +126,19 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
    * 831 fonctions DC script validées en Full-Body Sandbox.
    * 0 crash, arrêt propre avec code 0.
 
-### Étape 2 : Machine à États d'Amorçage (`boot_state_machine.cpp`), `Settings`, `ProcessMgr` & `SaveWorker`
-1. **Implémenter `src/u2_engine/boot_state_machine.cpp`** :
-   * Porter en C++23 `Settings::Init` (`0x00A1C710`), `Settings::NewSetting` (`0x00A1CD50`), `ProcessMgr::Init` (`0x009B9530`), `ProcessList::StartUp` (`0x009B0A30`), `IntroState::Update` (`0x00A551B0`) et `UCCApp::StateMachineUpdate` (`0x00D59A50`).
-2. **Brancher le cycle de boot dans `uncharted2-native.exe`** :
-   * Exécuter l'initialisation de `Settings`, `ProcessMgr`, le montage des sauvegardes (`SAVEDATA020`, `SAVEDATA02P`, `SAVEDATA0CC`), la transition du Splash Screen vers l'intro vidéo (`MoviePlayer`) puis l'état Menu (`état 7`).
-3. **Valider unitairement et en direct**.
+### Étape 2 : Machine à États d'Amorçage (`boot_state_machine.cpp`), `Settings`, `ProcessMgr` & Cycle de Boot [COMPLÉTÉ]
+1. **Implémentation de `src/u2_engine/boot_state_machine.cpp`** :
+   * Réécriture en C++23 des 8 fonctions fondamentales de démarrage : `Settings::Init` (`0x00A1C710`), `Settings::NewSetting` (`0x00A1CD50`), `ProcessList::StartUp` (`0x009B0A30`), `ProcessMgr::Init` (`0x009B9530`), `GameLoadingMountInitialArchives` (`0x00B783F0`), `GameLoadingPlayGoWait` (`0x00B78790`), `IntroState::Update` (`0x00A551B0`) et `UCCApp::StateMachineUpdate` (`0x00D59A50`).
+   * Pool de 8192 `Setting` avec table de hachage (modulo 8191), allocation dynamique par masque 64 bits, chaînage par liste chaînée et libération synchronisée avec `Settings_FreeSetting`.
+   * Enregistrement de 8 nouveaux détours natifs dans le module `"engine"` (902 détours au total).
+2. **Brancher le cycle de boot dans `uncharted2-native.exe` & `engine_context.h`** :
+   * Exécution automatique de la séquence d'amorçage à l'initialisation : transitions State 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 (Main Menu).
+   * Mise à jour du titre de la fenêtre SDL3 sur l'écran 2 : `Uncharted 2: Among Thieves (Pure C++23 Standalone) — Menu Principal`.
+3. **Validation complète** :
+   * 97/97 assertions unitaires C++23 réussies (100 % succès).
+   * 831 fonctions DC script validées en Full-Body Sandbox.
+   * `bb-probe.exe` validé avec `STOPPED_AFTER_TIMEOUT` (0 crash).
+   * `uncharted2-native.exe` validé avec code de sortie 0.
 
 ### Étape 3 : Système de Menu Principal (`menu_system.cpp`) & Rendu UI 2D (`MenuDrawer` / `HudQuad`)
 1. **Implémenter `src/u2_engine/menu_system.cpp`** :

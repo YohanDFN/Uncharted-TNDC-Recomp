@@ -76,6 +76,16 @@ static const U2NativeDetour s_engine_detours[] = {
     { "PopAllocator",                                    0x00B361C0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator) },
     { "GetAllocatorStackDepth",                          0x00B362A0, reinterpret_cast<uintptr_t>(&u2_cpp_GetAllocatorStackDepth) },
     { "ProcessHeap_ScanForProcessDroppings",             0x009B7770, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessHeap_ScanForProcessDroppings) },
+
+    /* boot_state_machine.cpp (Boot & State Machine) */
+    { "Settings_Init",                                   0x00A1C710, reinterpret_cast<uintptr_t>(&u2_cpp_Settings_Init) },
+    { "Settings_NewSetting",                             0x00A1CD50, reinterpret_cast<uintptr_t>(&u2_cpp_Settings_NewSetting) },
+    { "ProcessList_StartUp",                             0x009B0A30, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessList_StartUp) },
+    { "ProcessMgr_Init",                                 0x009B9530, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessMgr_Init) },
+    { "GameLoading_MountInitialArchives",                0x00B783F0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_MountInitialArchives) },
+    { "GameLoading_PlayGoWait",                          0x00B78790, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_PlayGoWait) },
+    { "IntroState_Update",                               0x00A551B0, reinterpret_cast<uintptr_t>(&u2_cpp_IntroState_Update) },
+    { "UCCApp_StateMachineUpdate",                       0x00D59A50, reinterpret_cast<uintptr_t>(&u2_cpp_UCCApp_StateMachineUpdate) },
 };
 
 extern "C" size_t u2_get_engine_detours(const U2NativeDetour **out) {

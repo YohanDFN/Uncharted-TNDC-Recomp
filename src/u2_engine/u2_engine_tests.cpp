@@ -170,6 +170,15 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
     // Copy .rodata constants/tables [0x00DA8000 .. 0x01040000) from real_image
     std::memcpy(image + 0x00DA8000, real_image + 0x00DA8000, 0x01040000 - 0x00DA8000);
 
+    // Stub PLT jump table [0x00DE6000 .. 0x00DF0000) with safe SysV ret stubs:
+    // Any legacy DC call to PLT entry points (like 0x00DE6400) safely returns 0 instead of jumping through null GOT
+    for (size_t off = 0x00DE6000; off < 0x00DF0000; off += 16) {
+        uint8_t *slot = image + off;
+        slot[0] = 0x31; slot[1] = 0xC0;                 // xor eax, eax
+        slot[2] = 0x0F; slot[3] = 0x57; slot[4] = 0xC0; // xorps xmm0, xmm0
+        for (size_t k = 5; k < 16; ++k) slot[k] = 0xC3; // ret
+    }
+
     // Copy the actual 12-byte trampolines installed in real_image for every engine detour
     const U2NativeDetour *engine_detours = nullptr;
     size_t engine_count = u2_get_engine_detours(&engine_detours);
@@ -218,9 +227,6 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                 auto tramp_fn = reinterpret_cast<U2DcNativeFn>(image + off);
 
                 // Pass A: g_u2_image_base != NULL, argc=0, NULL argv
-                // Regression check: if %rdx points to a C++ object on the heap (vtable = 0x0B954321u)
-                // when a helper like DcKillAllAttachables is called from C++, u2_set_status(status, 0)
-                // must NEVER zero out the vtable at (%rdx).
                 valid_status = 0x0B954321u;
                 tramp_fn(0, nullptr, &valid_status);
                 if (valid_status == 0) {
@@ -805,6 +811,80 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         *reinterpret_cast<void **>(mock_heap + 0x40) = mock_heap + 0x40; // Empty circular linked list
         fn_scan_heap(mock_heap);
         U2_TEST_ASSERT(true, "ProcessHeap::ScanForProcessDroppings: circular list safe");
+    }
+
+    // 9. Test Boot State Machine, Settings & ProcessMgr (boot_state_machine.cpp)
+    {
+        auto fn_settings_init     = reinterpret_cast<void (ABI *)(void)>(image + 0x00A1C710);
+        auto fn_new_setting       = reinterpret_cast<void * (ABI *)(void *, uint64_t, const char *, uint32_t, void *)>(image + 0x00A1CD50);
+        auto fn_free_setting      = reinterpret_cast<void (ABI *)(void *)>(image + 0x00A1D600);
+        auto fn_process_startup   = reinterpret_cast<void (ABI *)(void)>(image + 0x009B0A30);
+        auto fn_process_init      = reinterpret_cast<void (ABI *)(void *)>(image + 0x009B9530);
+        auto fn_mount_archives    = reinterpret_cast<uint32_t (ABI *)(void)>(image + 0x00B783F0);
+        auto fn_playgo_wait       = reinterpret_cast<uint32_t (ABI *)(int32_t)>(image + 0x00B78790);
+        auto fn_intro_update      = reinterpret_cast<int32_t (ABI *)(void *)>(image + 0x00A551B0);
+        auto fn_state_update      = reinterpret_cast<int32_t (ABI *)(void *, float)>(image + 0x00D59A50);
+
+        // Test Settings::Init
+        fn_settings_init();
+        U2_TEST_ASSERT(*reinterpret_cast<uint8_t *>(image + 0x01535170) == 1u, "Settings::Init sets initialized flag");
+        U2_TEST_ASSERT(*reinterpret_cast<uint8_t **>(image + 0x015350E0) != nullptr, "Settings::Init allocates settings pool");
+        U2_TEST_ASSERT(*reinterpret_cast<int32_t *>(image + 0x0153513C) == 8191, "Settings::Init sets modulo 8191");
+
+        // Test Settings::NewSetting and Settings::FreeSetting
+        void *setting = fn_new_setting(nullptr, 0x12345678ULL, "Setting_MasterVolume", 1, nullptr);
+        U2_TEST_ASSERT(setting != nullptr, "Settings::NewSetting allocates setting");
+        auto *s_bytes = static_cast<uint8_t *>(setting);
+        U2_TEST_ASSERT(*reinterpret_cast<uint64_t *>(s_bytes + 0x18) == 0x12345678ULL, "Setting key matches");
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(s_bytes + 0x20) == 1u, "Setting type matches");
+
+        fn_free_setting(setting);
+        U2_TEST_ASSERT(true, "Settings::FreeSetting cleans up cleanly");
+
+        // Test ProcessList and ProcessMgr
+        fn_process_startup();
+        U2_TEST_ASSERT(*reinterpret_cast<void **>(image + 0x0151FF70) != nullptr, "ProcessList::StartUp initializes pool");
+
+        uint8_t mock_mgr[0xE00] = {};
+        fn_process_init(mock_mgr);
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(mock_mgr + 0x00) == 1u, "ProcessMgr::Init marks initialized");
+
+        // Test Archive mounting and PlayGo wait
+        *reinterpret_cast<uint64_t *>(image + 0x015AF448) = 0;
+        uint32_t mount_res = fn_mount_archives();
+        U2_TEST_ASSERT(mount_res == 1u, "GameLoading::MountInitialArchives returns success");
+        U2_TEST_ASSERT(*reinterpret_cast<uint64_t *>(image + 0x015AF448) == 1u, "Core archives count incremented to 1");
+        U2_TEST_ASSERT(fn_playgo_wait(100) == 0u, "GameLoading::PlayGoWait ready immediately");
+
+        // Test IntroState::Update
+        U2_TEST_ASSERT(fn_intro_update(nullptr) == 1, "IntroState::Update completes logo presentation");
+
+        // Test UCCApp::StateMachineUpdate full transition (1 -> 7)
+        uint8_t mock_ucc[0x100] = {};
+        *reinterpret_cast<int32_t *>(mock_ucc + 0x00) = 1; // State 1
+        int32_t s2 = fn_state_update(mock_ucc, 0.016f);
+        U2_TEST_ASSERT(s2 == 2, "UCCApp state transitions 1 -> 2 (Archives mounting)");
+
+        int32_t s3 = fn_state_update(mock_ucc, 0.016f);
+        U2_TEST_ASSERT(s3 == 3, "UCCApp state transitions 2 -> 3 (Archives ready)");
+
+        int32_t s4 = fn_state_update(mock_ucc, 0.016f);
+        U2_TEST_ASSERT(s4 == 4, "UCCApp state transitions 3 -> 4 (Aux archives)");
+
+        int32_t s5 = fn_state_update(mock_ucc, 0.016f);
+        U2_TEST_ASSERT(s5 == 5, "UCCApp state transitions 4 -> 5 (Settings/ProcessMgr initialized)");
+
+        int32_t s6 = fn_state_update(mock_ucc, 0.016f);
+        U2_TEST_ASSERT(s6 == 6, "UCCApp state transitions 5 -> 6 (Save buffer check)");
+
+        int32_t s7 = fn_state_update(mock_ucc, 0.016f);
+        U2_TEST_ASSERT(s7 == 7, "UCCApp state transitions 6 -> 7 (MAIN MENU ACTIVE!)");
+
+        // Step State 7 once to configure Main Menu parameters
+        fn_state_update(mock_ucc, 0.016f);
+        U2_TEST_ASSERT(std::fabs(*reinterpret_cast<float *>(mock_ucc + 0x08) - 100.0f) < 1e-4f, "Main Menu camera FOV 100.0f");
+        U2_TEST_ASSERT(std::fabs(*reinterpret_cast<float *>(mock_ucc + 0xE0) - (-80.0f)) < 1e-4f, "Main Menu camera angle -80.0f");
+        U2_TEST_ASSERT(std::fabs(*reinterpret_cast<float *>(mock_ucc + 0xE4) - 4.0f) < 1e-4f, "Main Menu camera speed 4.0f");
     }
 
     g_u2_image_base = saved_base;

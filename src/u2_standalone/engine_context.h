@@ -84,6 +84,20 @@ public:
         }
         load_splash_screen(splash_path);
 
+        // 6. Initialize and Step Boot State Machine (UCCApp State 1 -> State 7 Menu)
+        native_log("[U2 Native] Initializing Boot State Machine & Subsystems...\n");
+        *reinterpret_cast<int32_t *>(m_ucc_app_state) = 1;
+        while (*reinterpret_cast<int32_t *>(m_ucc_app_state) < 7) {
+            int32_t old_state = *reinterpret_cast<int32_t *>(m_ucc_app_state);
+            u2_cpp_UCCApp_StateMachineUpdate(m_ucc_app_state, 0.016f);
+            int32_t new_state = *reinterpret_cast<int32_t *>(m_ucc_app_state);
+            native_log("[U2 Native] Boot State Transition: State " + std::to_string(old_state)
+                       + " -> State " + std::to_string(new_state) + "\n");
+        }
+        // Step State 7 once to configure Main Menu camera & environment
+        u2_cpp_UCCApp_StateMachineUpdate(m_ucc_app_state, 0.016f);
+        native_log("[U2 Native] Boot sequence complete! Reached State 7 (MAIN MENU ACTIVE).\n");
+
         m_initialized = true;
         return true;
     }
@@ -124,8 +138,8 @@ public:
 
                 if (remaining != last_remaining) {
                     last_remaining = remaining;
-                    std::string title = "Uncharted 2: Among Thieves (Pure C++23) - Fermeture automatique dans "
-                                        + std::to_string(remaining) + "s [ECHAP pour quitter]";
+                    std::string title = "Uncharted 2: Among Thieves (Pure C++23 Standalone) — Menu Principal [Fermeture auto dans "
+                                        + std::to_string(remaining) + "s - ECHAP pour quitter]";
                     SDL_SetWindowTitle(m_window, title.c_str());
                     native_log("[U2 Native] Temps restant avant fermeture: " + std::to_string(remaining) + "s\n");
                 }
@@ -385,6 +399,7 @@ private:
     SDL_Window *m_window{nullptr};
     SDL_Renderer *m_renderer{nullptr};
     SDL_Texture *m_splash_texture{nullptr};
+    uint8_t m_ucc_app_state[0x100]{};
     bool m_initialized{false};
 };
 
