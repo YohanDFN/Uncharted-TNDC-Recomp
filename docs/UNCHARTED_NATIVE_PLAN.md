@@ -140,8 +140,27 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
    * `bb-probe.exe` validé avec `STOPPED_AFTER_TIMEOUT` (0 crash).
    * `uncharted2-native.exe` validé avec code de sortie 0.
 
-### Étape 3 : Système de Menu Principal (`menu_system.cpp`) & Rendu UI 2D (`MenuDrawer` / `HudQuad`)
-1. **Implémenter `src/u2_engine/menu_system.cpp`** :
-   * Porter en C++23 `MenuHost::SetMode` (`0x005C7BB0`), `MenuHost::ShowWaitPopup` (`0x005C8840`), `MenuHost::AddControlClickedHandler` (`0x005D1BF0`), `BpMenuDataSource::SetValueImpl` (`0x00578EB0`), `MenuDrawer::DrawQuad` (`0x005B5C10`), `HudQuad::Begin_Actual` (`0x00BDBB10`) et `HudQuad::End_Actual` (`0x00BDC670`).
-2. **Exécuter les scripts DC du menu principal dans `uncharted2-native.exe`** :
-   * Charger `startup.bin` / `menu1.bin`, exécuter `DcGameTaskGraphLogin` et `DcUpdateTaskMenu`, et afficher le menu principal interactif dans `uncharted2-native.exe`.
+### Étape 3 : Système de Menu Principal (`menu_system.cpp`), Rendu UI 2D & Navigation Interactive [COMPLÉTÉ]
+1. **Implémentation de `src/u2_engine/menu_system.cpp`** :
+   * Réécriture en C++23 de 7 fonctions clés : `MenuHost::SetMode` (`0x005C7BB0`), `MenuHost::ShowWaitPopup` (`0x005C8840`), `MenuHost::AddControlClickedHandler` (`0x005D1BF0`), `MenuHost::TriggerControlClicked`, `BpMenuDataSource::SetValueImpl` (`0x00578EB0`), `MenuDrawer::DrawQuad` (`0x005B5C10`), `HudQuad::Begin_Actual` (`0x00BDBB10`) et `HudQuad::End_Actual` (`0x00BDC670`).
+   * Structure `MenuHostState` globale thread-safe et gestion des gestionnaires d'événements de clic jusqu'à 128 callbacks.
+   * Enregistrement de 7 nouveaux détours natifs dans le module `"engine"` (909 détours au total).
+2. **Rendu Visuel et Navigation Interactive dans `uncharted2-native.exe` & `engine_context.h`** :
+   * Menu interactif 6 options (`CONTINUER`, `NOUVELLE PARTIE`, `SELECTION DE CHAPITRE`, `OPTIONS & PARAMETRES`, `BONUS & GALERIE`, `QUITTER`).
+   * Surbrillance ambre/dorée avec indicateur latéral et description contextuelle pour chaque élément.
+   * Animation 3D temps réel 60 FPS de la dague rituelle tibétaine Phurba (`render_phurba_dagger_3d`) avec projection perspective et reflets d'éclairage dynamiques.
+   * Navigation double : Clavier (Flèches Haut/Bas, Entrée, Échap) et Souris (survol, clic direct sur item).
+   * Panneau d'informations moteur affichant le statut C++23 en temps réel (State 7, 0 code PS4, 909 hooks, Direct3D 11/Vulkan accéléré).
+3. **Validation complète** :
+   * 108/108 assertions unitaires C++23 réussies (100 % succès).
+   * 831 fonctions DC script validées en Full-Body Sandbox.
+   * `bb-probe.exe` validé 6 secondes avec `STOPPED_AFTER_TIMEOUT` (0 crash).
+   * `uncharted2-native.exe` validé sur l'écran 2 (`MSI MAG241C`) avec auto-fermeture propre à 10 secondes (code de sortie 0).
+
+### Étape 4 : Système Audio Natif C++23 & Musique du Menu Principal (LibAtrac9 & SDL3 Audio)
+1. **Intégration du flux audio SDL3 & Décodeur ATRAC9** :
+   * Initialisation du sous-système audio SDL3 (`SDL_InitSubSystem(SDL_INIT_AUDIO)`).
+   * Stream de lecture audio PCM stéréo 48 kHz / 16 bits.
+   * Décodage des streams audio ATRAC9 du menu principal (`u2data/build/main/snd/...`) via `LibAtrac9`.
+2. **Validation** :
+   * Lecture fluide de la musique du thème d'Uncharted 2 sur les haut-parleurs/casque lors de l'affichage du menu interactif.

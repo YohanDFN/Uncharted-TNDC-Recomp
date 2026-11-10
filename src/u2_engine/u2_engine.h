@@ -21,6 +21,24 @@ inline Fn elf_fn(uintptr_t offset) noexcept {
     return reinterpret_cast<Fn>(g_u2_image_base + offset);
 }
 
+struct ControlClickedHandler {
+    uint32_t id{0};
+    void (ABI *callback)(void *, uint32_t){nullptr};
+    void *user_data{nullptr};
+};
+
+struct MenuHostState {
+    int32_t mode{0}; // 0 = Hidden, 1 = Main Menu, 2 = InGame Pause, 3 = Loading Popup
+    int32_t flags{0};
+    int32_t selected_item{0};
+    int32_t popup_id{0};
+    int32_t popup_flags{0};
+    uint32_t num_handlers{0};
+    ControlClickedHandler handlers[128]{};
+};
+
+extern MenuHostState g_menu_host;
+
 } // namespace u2::engine
 
 /* C++ Engine Detour Declarations (SysV x86-64 ABI) */
@@ -112,5 +130,16 @@ uint32_t     ABI u2_cpp_GameLoading_MountInitialArchives(void);
 uint32_t     ABI u2_cpp_GameLoading_PlayGoWait(int32_t timeout_ms);
 int32_t      ABI u2_cpp_IntroState_Update(void *self);
 int32_t      ABI u2_cpp_UCCApp_StateMachineUpdate(void *self, float dt);
+
+/* menu_system.cpp (menuhost.cpp, menudrawer.cpp, hud-quad.cpp, bp_menudatasource.cpp) */
+void         ABI u2_cpp_MenuHost_SetMode(void *self, int32_t mode, int32_t flags);
+int32_t      ABI u2_cpp_MenuHost_GetMode(void *self);
+void         ABI u2_cpp_MenuHost_ShowWaitPopup(void *self, int32_t popup_id, int32_t flags);
+void         ABI u2_cpp_MenuHost_AddControlClickedHandler(void *self, uint32_t id, void (ABI *cb)(void *, uint32_t), void *user_data);
+void         ABI u2_cpp_MenuHost_TriggerControlClicked(void *self, uint32_t id);
+int32_t      ABI u2_cpp_BpMenuDataSource_SetValueImpl(void *self, int32_t val_id, const void *val_data);
+void         ABI u2_cpp_MenuDrawer_DrawQuad(void *self, const float *dest_rect, void *texture, const float *src_uv_rect);
+void *       ABI u2_cpp_HudQuad_Begin_Actual(void *self, void *render_target, void *pipeline);
+void         ABI u2_cpp_HudQuad_End_Actual(void *self, void *cmd_buf, const float *params);
 
 } // extern "C"
