@@ -97,6 +97,14 @@ static const U2NativeDetour s_engine_detours[] = {
 
     /* game/weapon/tranquilizer.cpp */
     { "Tranquilizer_Init",                               0x009E0CC0, reinterpret_cast<uintptr_t>(&u2_cpp_Tranquilizer_Init) },
+    { "UnlockableManager_SetDefaultWeapon",              0x00A75450, reinterpret_cast<uintptr_t>(&u2_cpp_UnlockableManager_SetDefaultWeapon) },
+
+    /* game/hud/save_hud.cpp & hud.cpp */
+    { "Hud_ReadConfigFile",                              0x00552C70, reinterpret_cast<uintptr_t>(&u2_cpp_Hud_ReadConfigFile) },
+
+    /* game/script/script_manager.cpp (ScriptManager DC Script Resolution) */
+    { "ScriptManager_LookupPointer",                     0x00A15E70, reinterpret_cast<uintptr_t>(&u2_cpp_ScriptManager_LookupPointer) },
+    { "ScriptManager_LookupPointerInModule",             0x00A17280, reinterpret_cast<uintptr_t>(&u2_cpp_ScriptManager_LookupPointerInModule) },
 
     /* audio_system.cpp (audiofile.cpp) */
     { "AudioFile_Initialize",                           0x003CE4A0, reinterpret_cast<uintptr_t>(&u2_cpp_AudioFile_Initialize) },

@@ -113,6 +113,15 @@ void ABI u2_cpp_Settings_Init(void) {
     *u2::engine::elf_ptr<uint64_t>(0x015341C8) = 0;
     *u2::engine::elf_ptr<uint8_t *>(0x015341C0) = u2::engine::elf_ptr<uint8_t>(0x01044BC0);
     *u2::engine::elf_ptr<uint32_t>(0x015341D8) = 0;
+
+    // Initialize StateScript/UccTweaks hash table to safe 1-bucket table (prevents divide-by-zero at 0x00A4BDFE)
+    static void *s_empty_bucket[1] = { nullptr };
+    uint8_t *p_ht_buckets = u2::engine::elf_ptr<uint8_t>(0x0153C000);
+    uint32_t *p_ht_count = u2::engine::elf_ptr<uint32_t>(0x0153C03C);
+    if (p_ht_buckets && p_ht_count && *p_ht_count == 0) {
+        *reinterpret_cast<void ***>(p_ht_buckets) = s_empty_bucket;
+        *p_ht_count = 1;
+    }
     *u2::engine::elf_ptr<uint64_t>(0x015341F0) = 0;
     *u2::engine::elf_ptr<uint64_t>(0x015341E8) = 0;
     *u2::engine::elf_ptr<uint64_t>(0x015341E0) = 0;

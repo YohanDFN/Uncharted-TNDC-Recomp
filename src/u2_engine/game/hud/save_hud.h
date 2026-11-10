@@ -13,6 +13,7 @@
 #endif
 
 extern "C" {
+void         ABI u2_cpp_Hud_ReadConfigFile(void *self);
 void         ABI u2_cpp_SaveBuffer_InitExternal(void *self, uint32_t magic, uint32_t size, void *buf);
 void         ABI u2_cpp_SaveBuffer_DebugSetBuffer(void *self, void *buf);
 void         ABI u2_cpp_SaveBuffer_CopyFrom(void *self, const void *src);

@@ -20,7 +20,9 @@
 #include "game/loading/game_loading.h"
 #include "game/hud/save_hud.h"
 #include "game/weapon/tranquilizer.h"
+#include "game/weapon/unlockable_manager.h"
 #include "game/script/process_system.h"
+#include "game/script/script_manager.h"
 
 namespace u2::engine {
 

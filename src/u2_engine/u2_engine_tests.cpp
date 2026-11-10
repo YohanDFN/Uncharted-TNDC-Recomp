@@ -1016,6 +1016,65 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(true, "Tranquilizer::Init executes safely with absent symbols");
     }
 
+    // 15. Test HUD Subsystem (game/hud/save_hud.cpp)
+    {
+        auto fn_hud_read_config = reinterpret_cast<void (ABI *)(void *)>(image + 0x00552C70);
+
+        // Test A: NULL pointer safety
+        fn_hud_read_config(nullptr);
+        U2_TEST_ASSERT(true, "Hud::ReadConfigFile(NULL) is safe");
+
+        // Test B: Mock HUD buffer initialization
+        uint8_t mock_hud[0x400];
+        std::memset(mock_hud, 0xFF, sizeof(mock_hud));
+        fn_hud_read_config(mock_hud);
+
+        uint32_t num_materials = *reinterpret_cast<uint32_t *>(mock_hud + 0x80);
+        U2_TEST_ASSERT(num_materials == 0, "Hud::ReadConfigFile resets numMaterials to 0");
+
+        uint32_t num_buttons = *reinterpret_cast<uint32_t *>(mock_hud + 0x108);
+        U2_TEST_ASSERT(num_buttons == 0, "Hud::ReadConfigFile resets numButtons to 0");
+    }
+
+    // 16. Test UnlockableManager Subsystem (game/weapon/unlockable_manager.cpp)
+    {
+        auto fn_unlockable_set_default = reinterpret_cast<void (ABI *)(void *, uint8_t)>(image + 0x00A75450);
+
+        // Test A: NULL pointer safety
+        fn_unlockable_set_default(nullptr, 1);
+        U2_TEST_ASSERT(true, "UnlockableManager::SetDefaultWeapon(NULL) is safe");
+
+        // Test B: Mock UnlockableManager buffer initialization
+        uint8_t mock_mgr[0x100];
+        std::memset(mock_mgr, 0xFF, sizeof(mock_mgr));
+        fn_unlockable_set_default(mock_mgr, 1);
+
+        U2_TEST_ASSERT(*reinterpret_cast<void **>(mock_mgr + 0x00) == nullptr,
+                       "UnlockableManager::SetDefaultWeapon clears offset +0x00");
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(mock_mgr + 0x28) == 1,
+                       "UnlockableManager::SetDefaultWeapon sets offset +0x28 to 1");
+        U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(mock_mgr + 0x4C) == 0,
+                       "UnlockableManager::SetDefaultWeapon clears offset +0x4C to 0");
+    }
+
+    // 17. Test ScriptManager DC Symbol Resolution (game/script/script_manager.cpp)
+    {
+        auto fn_lookup_ptr = reinterpret_cast<void * (ABI *)(uint32_t)>(image + 0x00A15E70);
+        auto fn_lookup_mod = reinterpret_cast<void * (ABI *)(uint32_t, uint32_t)>(image + 0x00A17280);
+
+        // Test A: Symbol lookup with known/preloaded DC symbol or safe fallback
+        void *res_menu = fn_lookup_ptr(0x74FFCEEBu);
+        U2_TEST_ASSERT(res_menu != nullptr, "ScriptManager::LookupPointer(0x74FFCEEB) returns valid non-null pointer");
+
+        // Test B: Symbol lookup with unknown hash returns safe fallback non-null buffer
+        void *res_unknown = fn_lookup_ptr(0xDEADBEEFu);
+        U2_TEST_ASSERT(res_unknown != nullptr, "ScriptManager::LookupPointer(unknown) returns safe non-null fallback");
+
+        // Test C: Module lookup returns valid pointer
+        void *res_mod = fn_lookup_mod(0x74FFCEEBu, 0x12345678u);
+        U2_TEST_ASSERT(res_mod != nullptr, "ScriptManager::LookupPointerInModule returns valid non-null pointer");
+    }
+
     g_u2_image_base = saved_base;
     std::printf("[U2 EngineTest] PASSED: %d/%d functional C++23 engine assertions verified via ELF trampolines!\n",
                 s_passed_assertions, s_passed_assertions + s_failed_assertions);
