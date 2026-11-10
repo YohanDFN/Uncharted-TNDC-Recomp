@@ -72,8 +72,12 @@ static const U2NativeDetour s_engine_detours[] = {
 
     /* memory_system.cpp (AllocStack & Heap Diagnostics) */
     { "AllocateAllocStack",                              0x00B36D40, reinterpret_cast<uintptr_t>(&u2_cpp_AllocateAllocStack) },
+    { "FreeThreadAllocStack",                            0x00B35D30, reinterpret_cast<uintptr_t>(&u2_cpp_FreeThreadAllocStack) },
     { "PushAllocator",                                   0x00B360D0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator) },
+    { "PushAllocator_Tag",                               0x00B35EA0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator_Tag) },
+    { "PushAllocator_Ext",                               0x00B371A0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator_Ext) },
     { "PopAllocator",                                    0x00B361C0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator) },
+    { "PopAllocator_Expected",                           0x00B377B0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator_Expected) },
     { "GetAllocatorStackDepth",                          0x00B362A0, reinterpret_cast<uintptr_t>(&u2_cpp_GetAllocatorStackDepth) },
     { "ProcessHeap_ScanForProcessDroppings",             0x009B7770, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessHeap_ScanForProcessDroppings) },
 
@@ -86,6 +90,12 @@ static const U2NativeDetour s_engine_detours[] = {
     { "GameLoading_PlayGoWait",                          0x00B78790, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_PlayGoWait) },
     { "IntroState_Update",                               0x00A551B0, reinterpret_cast<uintptr_t>(&u2_cpp_IntroState_Update) },
     { "UCCApp_StateMachineUpdate",                       0x00D59A50, reinterpret_cast<uintptr_t>(&u2_cpp_UCCApp_StateMachineUpdate) },
+
+    /* file_loader.cpp (streaming.cpp, file-loader.cpp) */
+    { "LoadFileHelper",                                  0x00CED020, reinterpret_cast<uintptr_t>(&u2_cpp_LoadFileHelper) },
+
+    /* audio_system.cpp (audiofile.cpp) */
+    { "AudioFile_Initialize",                           0x003CE4A0, reinterpret_cast<uintptr_t>(&u2_cpp_AudioFile_Initialize) },
 
     /* menu_system.cpp (Menu & 2D GUI Subsystems) */
     { "MenuHost_SetMode",                                0x005C7BB0, reinterpret_cast<uintptr_t>(&u2_cpp_MenuHost_SetMode) },

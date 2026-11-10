@@ -39,10 +39,18 @@ struct MenuHostState {
 
 extern MenuHostState g_menu_host;
 
+/* Memory subsystem helpers */
+void *get_host_allocator() noexcept;
+void  ensure_root_allocator() noexcept;
+void *allocate_from_current_or_host(size_t size, size_t alignment = 16, const char *name = nullptr) noexcept;
+
 } // namespace u2::engine
 
 /* C++ Engine Detour Declarations (SysV x86-64 ABI) */
 extern "C" {
+
+/* file_loader.cpp (streaming.cpp, file-loader.cpp) */
+bool         ABI u2_cpp_LoadFileHelper(void *file_data_out, const char *path);
 
 /* catmull_rom.cpp (catmull-rom.cpp, catmull-rom-manager.cpp, spline-tracker.cpp, vehicle-spline-tracker.cpp) */
 const char * ABI u2_cpp_CatmullRomSpline_GetName(void *self);
@@ -116,8 +124,12 @@ uint32_t     ABI u2_cpp_GameLoading_GetPlayGoSpeed(void);
 
 /* memory_system.cpp (memory.cpp, process-heap.cpp) */
 void *       ABI u2_cpp_AllocateAllocStack(void);
+void         ABI u2_cpp_FreeThreadAllocStack(void);
 void         ABI u2_cpp_PushAllocator(void *allocator, const char *name, int32_t line, const char *file);
+void         ABI u2_cpp_PushAllocator_Tag(void *tag_ptr, const char *name, int32_t line, const char *file);
+void         ABI u2_cpp_PushAllocator_Ext(void *scope, const char *name, int32_t line, const char *file);
 void *       ABI u2_cpp_PopAllocator(void);
+void *       ABI u2_cpp_PopAllocator_Expected(void *scope);
 uint32_t     ABI u2_cpp_GetAllocatorStackDepth(void);
 void         ABI u2_cpp_ProcessHeap_ScanForProcessDroppings(void *self);
 
@@ -130,6 +142,9 @@ uint32_t     ABI u2_cpp_GameLoading_MountInitialArchives(void);
 uint32_t     ABI u2_cpp_GameLoading_PlayGoWait(int32_t timeout_ms);
 int32_t      ABI u2_cpp_IntroState_Update(void *self);
 int32_t      ABI u2_cpp_UCCApp_StateMachineUpdate(void *self, float dt);
+
+/* audio_system.cpp (audiofile.cpp) */
+void         ABI u2_cpp_AudioFile_Initialize(void *self);
 
 /* menu_system.cpp (menuhost.cpp, menudrawer.cpp, hud-quad.cpp, bp_menudatasource.cpp) */
 void         ABI u2_cpp_MenuHost_SetMode(void *self, int32_t mode, int32_t flags);

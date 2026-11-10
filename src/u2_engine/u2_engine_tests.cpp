@@ -775,31 +775,32 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         auto fn_stack_depth  = reinterpret_cast<uint32_t (ABI *)(void)>(image + 0x00B362A0);
         auto fn_scan_heap    = reinterpret_cast<void (ABI *)(void *)>(image + 0x009B7770);
 
-        // Verify AllocateAllocStack creates an initial empty stack
+        // Verify AllocateAllocStack creates an initial stack with HostDefaultHeap root
         void *stack_ptr = fn_alloc_stack();
         U2_TEST_ASSERT(stack_ptr != nullptr, "AllocateAllocStack: valid pointer");
-        U2_TEST_ASSERT(fn_stack_depth() == 0u, "AllocStack: initial depth is 0");
+        U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: initial depth is 1 (HostDefaultHeap root)");
 
         // Verify PushAllocator and GetAllocatorStackDepth
         void *mock_alloc_a = reinterpret_cast<void *>(0x11223344ull);
         void *mock_alloc_b = reinterpret_cast<void *>(0x55667788ull);
         fn_push_alloc(mock_alloc_a, "TagMain", 101, "main.cpp");
-        U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: depth after 1 push");
+        U2_TEST_ASSERT(fn_stack_depth() == 2u, "AllocStack: depth after 1 push");
 
         fn_push_alloc(mock_alloc_b, "TagLevel", 202, "level.cpp");
-        U2_TEST_ASSERT(fn_stack_depth() == 2u, "AllocStack: depth after 2 pushes");
+        U2_TEST_ASSERT(fn_stack_depth() == 3u, "AllocStack: depth after 2 pushes");
 
         // Verify PopAllocator restores order LIFO
         void *popped_b = fn_pop_alloc();
         U2_TEST_ASSERT(popped_b == mock_alloc_b, "AllocStack: pop b matches top");
-        U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: depth after 1 pop");
+        U2_TEST_ASSERT(fn_stack_depth() == 2u, "AllocStack: depth after 1 pop");
 
         void *popped_a = fn_pop_alloc();
         U2_TEST_ASSERT(popped_a == mock_alloc_a, "AllocStack: pop a matches top");
-        U2_TEST_ASSERT(fn_stack_depth() == 0u, "AllocStack: depth after 2 pops");
+        U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: depth after 2 pops");
 
-        void *popped_empty = fn_pop_alloc();
-        U2_TEST_ASSERT(popped_empty == nullptr, "AllocStack: pop on empty returns nullptr");
+        void *popped_root = fn_pop_alloc();
+        U2_TEST_ASSERT(popped_root != nullptr, "AllocStack: pop root returns valid allocator");
+        U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: root allocator preserved at depth 1");
 
         // Verify ProcessHeap::ScanForProcessDroppings safety
         uint8_t mock_heap[0x100] = {};
@@ -830,6 +831,8 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(*reinterpret_cast<uint8_t *>(image + 0x01535170) == 1u, "Settings::Init sets initialized flag");
         U2_TEST_ASSERT(*reinterpret_cast<uint8_t **>(image + 0x015350E0) != nullptr, "Settings::Init allocates settings pool");
         U2_TEST_ASSERT(*reinterpret_cast<int32_t *>(image + 0x0153513C) == 8191, "Settings::Init sets modulo 8191");
+        U2_TEST_ASSERT(*reinterpret_cast<uint8_t **>(image + 0x01534140) == (image + 0x01534140), "ScriptManager: s_packages head points to self");
+        U2_TEST_ASSERT(*reinterpret_cast<uint8_t **>(image + 0x01534208) != nullptr, "ScriptManager: builtin DC registry head initialized");
 
         // Test Settings::NewSetting and Settings::FreeSetting
         void *setting = fn_new_setting(nullptr, 0x12345678ULL, "Setting_MasterVolume", 1, nullptr);
@@ -855,6 +858,8 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(mount_res == 1u, "GameLoading::MountInitialArchives returns success");
         U2_TEST_ASSERT(*reinterpret_cast<uint64_t *>(image + 0x015AF448) == 1u, "Core archives count incremented to 1");
         U2_TEST_ASSERT(fn_playgo_wait(100) == 0u, "GameLoading::PlayGoWait ready immediately");
+        U2_TEST_ASSERT(*reinterpret_cast<uint8_t *>(image + 0x015AF77C) == 1u, "GameLoading::PlayGoWait sets chunk ready flag");
+        U2_TEST_ASSERT(*reinterpret_cast<float *>(image + 0x01050A38) == 1.0f, "GameLoading::PlayGoWait sets progress to 1.0f");
 
         // Test IntroState::Update
         U2_TEST_ASSERT(fn_intro_update(nullptr) == 1, "IntroState::Update completes logo presentation");
@@ -929,6 +934,45 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(hud_ctx != nullptr, "HudQuad::Begin_Actual returns context");
         fn_hud_end(hud_ctx, nullptr, nullptr);
         U2_TEST_ASSERT(true, "HudQuad::End_Actual flushes batch cleanly");
+    }
+
+    // 11. Test File Loader Subsystem (file_loader.cpp)
+    {
+        auto fn_load_file = reinterpret_cast<bool (ABI *)(void *, const char *)>(image + 0x00CED020);
+
+        // Test A: NULL arguments safely rejected
+        U2_TEST_ASSERT(fn_load_file(nullptr, nullptr) == false, "LoadFileHelper(NULL, NULL) returns false");
+
+        // Test B: Non-existent file returns false with clean struct
+        struct TestFileData {
+            void *buf{reinterpret_cast<void *>(0x1234)};
+            uint64_t size{999};
+        } test_data;
+        bool bRes = fn_load_file(&test_data, "non_existent_mock_shader.cxo");
+        U2_TEST_ASSERT(bRes == false, "LoadFileHelper(non-existent) returns false");
+        U2_TEST_ASSERT(test_data.buf == nullptr, "LoadFileHelper resets buffer on failure");
+        U2_TEST_ASSERT(test_data.size == 0, "LoadFileHelper resets size on failure");
+    }
+
+    // 12. Test Audio Subsystem (audio_system.cpp)
+    {
+        auto fn_audio_init = reinterpret_cast<void (ABI *)(void *)>(image + 0x003CE4A0);
+
+        // Test A: NULL pointer safety
+        fn_audio_init(nullptr);
+        U2_TEST_ASSERT(true, "AudioFile::Initialize(NULL) safe");
+
+        // Test B: Mock AudioFile initialization
+        uint8_t mock_audio[0x100] = {};
+        fn_audio_init(mock_audio);
+        U2_TEST_ASSERT(mock_audio[0] == 1, "AudioFile::Initialize sets initialized flag");
+        U2_TEST_ASSERT(*reinterpret_cast<void **>(mock_audio + 0x08) != nullptr, "AudioFile buffer 1 allocated");
+        U2_TEST_ASSERT(*reinterpret_cast<void **>(mock_audio + 0x28) != nullptr, "AudioFile buffer 2 allocated");
+        U2_TEST_ASSERT(*reinterpret_cast<void **>(mock_audio + 0x50) != nullptr, "AudioFile slots allocated");
+
+        // Test C: Idempotent initialization
+        fn_audio_init(mock_audio);
+        U2_TEST_ASSERT(mock_audio[0] == 1, "AudioFile::Initialize idempotent re-init safe");
     }
 
     g_u2_image_base = saved_base;
