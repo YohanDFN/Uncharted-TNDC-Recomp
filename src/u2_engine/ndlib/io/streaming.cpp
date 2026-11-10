@@ -96,3 +96,48 @@ extern "C" bool ABI u2_cpp_LoadFileHelper(void *file_data_out, const char *path)
 
     return true;
 }
+
+/* 0x00B70270 — Streaming::ResolvePath(const char *original_path, char *resolved_out)
+ * Normalizes paths for PC VFS:
+ * - If original_path starts with "/host/Z:/" or "/host/", strips the host prefix.
+ * - If path doesn't start with "/", prepends "/app0/".
+ * - If path is relative like "u2data/..." or "build/main/...", prepends "/app0/".
+ * - Ensures Windows backslashes are normalized to forward slashes.
+ */
+extern "C" void ABI u2_cpp_Streaming_ResolvePath(const char *original_path, char *resolved_out) {
+    if (!resolved_out) return;
+    resolved_out[0] = '\0';
+    if (!original_path || !*original_path) return;
+
+    const char *p = original_path;
+    // Strip "/host/Z:/" or "/host/z:/" or "/host/"
+    if (std::strncmp(p, "/host/Z:/", 9) == 0 || std::strncmp(p, "/host/z:/", 9) == 0) {
+        p += 9;
+    } else if (std::strncmp(p, "/host/", 6) == 0) {
+        p += 6;
+    }
+
+    // Skip any leading drive letter e.g. "Z:/"
+    if (p[0] && p[1] == ':' && (p[2] == '/' || p[2] == '\\')) {
+        p += 3;
+    }
+
+    char clean_path[1024];
+    size_t len = 0;
+    while (*p && len < sizeof(clean_path) - 1) {
+        clean_path[len++] = (*p == '\\') ? '/' : *p;
+        p++;
+    }
+    clean_path[len] = '\0';
+
+    if (clean_path[0] == '/') {
+        // Already absolute guest path e.g. /app0/...
+        std::snprintf(resolved_out, 1024, "%s", clean_path);
+    } else if (std::strncmp(clean_path, "u2data/", 7) == 0) {
+        std::snprintf(resolved_out, 1024, "/app0/%s", clean_path);
+    } else if (std::strncmp(clean_path, "build/main/", 11) == 0) {
+        std::snprintf(resolved_out, 1024, "/app0/u2data/%s", clean_path);
+    } else {
+        std::snprintf(resolved_out, 1024, "/app0/u2data/build/main/%s", clean_path);
+    }
+}

@@ -209,23 +209,33 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
         uintptr_t rip = (uintptr_t)info->ContextRecord->Rip;
         const uint8_t *insn = (const uint8_t *)rip;
         if (insn && insn[0] == 0xCD && insn[1] == 0x41) {
+            uint64_t off = image ? rip - (uintptr_t)image : 0;
             fprintf(stderr, "[U2 Trap] Bypassing PS4 debug assertion (int $0x41) at rip=%p (offset=%#llx)\n",
-                    (void *)rip, (unsigned long long)(image ? rip - (uintptr_t)image : 0));
+                    (void *)rip, (unsigned long long)off);
             fflush(stderr);
+            // Check if this assertion is inside an inlined PopAllocator where m_allocatorStackSize is 0:
+            // insn[2..9]: 8b 83 30 07 00 00 ff c8 (movl 0x730(%rbx), %eax; decl %eax)
+            if (insn[2] == 0x8B && insn[3] == 0x83 && insn[4] == 0x30 && insn[5] == 0x07 &&
+                insn[6] == 0x00 && insn[7] == 0x00 && insn[8] == 0xFF && insn[9] == 0xC8) {
+                uintptr_t rbx = (uintptr_t)info->ContextRecord->Rbx;
+                if (rbx >= 0x10000) {
+                    uint32_t stack_size = *(const uint32_t *)(rbx + 0x730);
+                    if (stack_size == 0) {
+                        fprintf(stderr, "[U2 Trap] Safely skipping inlined PopAllocator underflow (64 bytes) at offset=%#llx\n",
+                                (unsigned long long)off);
+                        fflush(stderr);
+                        info->ContextRecord->Rip += 0x40; // Skip to instruction after inlined pop (0x3f6895)
+                        return EXCEPTION_CONTINUE_EXECUTION;
+                    }
+                }
+            }
             info->ContextRecord->Rip += 2;
             return EXCEPTION_CONTINUE_EXECUTION;
         }
     }
     if (code==EXCEPTION_ACCESS_VIOLATION || code==EXCEPTION_ILLEGAL_INSTRUCTION || code==EXCEPTION_PRIV_INSTRUCTION ||
         code==EXCEPTION_STACK_OVERFLOW || code==EXCEPTION_INT_DIVIDE_BY_ZERO || code==EXCEPTION_DATATYPE_MISALIGNMENT) {
-        /* Faults in guest code, the loader or the runtime end the process with a report; drivers
-         * and system libraries may handle their own exceptions. */
-        uintptr_t rip=(uintptr_t)info->ContextRecord->Rip;
-        HMODULE self=GetModuleHandleA(NULL), module=NULL;
-        int ours=(image && rip-(uintptr_t)image<0x20000000) ||
-                 (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,(LPCSTR)rip,&module) && module==self) ||
-                 !module;
-        if (ours) return fatal_exception(info);
+        return fatal_exception(info);
     }
     /* BB_STRICT_HANDLES=1: a closed or invalid handle used anywhere is reported (diagnostics). */
     if (code==0xC0000008 /* STATUS_INVALID_HANDLE */) return fatal_exception(info);

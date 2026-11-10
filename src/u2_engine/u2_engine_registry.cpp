@@ -93,6 +93,10 @@ static const U2NativeDetour s_engine_detours[] = {
 
     /* file_loader.cpp (streaming.cpp, file-loader.cpp) */
     { "LoadFileHelper",                                  0x00CED020, reinterpret_cast<uintptr_t>(&u2_cpp_LoadFileHelper) },
+    { "Streaming_ResolvePath",                           0x00B70270, reinterpret_cast<uintptr_t>(&u2_cpp_Streaming_ResolvePath) },
+
+    /* game/weapon/tranquilizer.cpp */
+    { "Tranquilizer_Init",                               0x009E0CC0, reinterpret_cast<uintptr_t>(&u2_cpp_Tranquilizer_Init) },
 
     /* audio_system.cpp (audiofile.cpp) */
     { "AudioFile_Initialize",                           0x003CE4A0, reinterpret_cast<uintptr_t>(&u2_cpp_AudioFile_Initialize) },

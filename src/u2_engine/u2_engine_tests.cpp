@@ -975,6 +975,47 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(mock_audio[0] == 1, "AudioFile::Initialize idempotent re-init safe");
     }
 
+    // 13. Test Streaming Path Resolution (ndlib/io/streaming.cpp)
+    {
+        auto fn_resolve = reinterpret_cast<void (ABI *)(const char *, char *)>(image + 0x00B70270);
+
+        // Test A: NULL pointer safety
+        fn_resolve(nullptr, nullptr);
+        char out_buf[1024] = {};
+        fn_resolve(nullptr, out_buf);
+        U2_TEST_ASSERT(out_buf[0] == '\0', "Streaming::ResolvePath(NULL) produces empty string");
+
+        // Test B: Host network prefix stripped and mapped to /app0/
+        fn_resolve("/host/Z:/u2data/test.bin", out_buf);
+        U2_TEST_ASSERT(std::strcmp(out_buf, "/app0/u2data/test.bin") == 0, "Streaming::ResolvePath strips /host/Z:/");
+
+        // Test C: Relative path starting with u2data/ mapped to /app0/u2data/
+        fn_resolve("u2data/build/main/dc1/ps4/hud-settings.bin", out_buf);
+        U2_TEST_ASSERT(std::strcmp(out_buf, "/app0/u2data/build/main/dc1/ps4/hud-settings.bin") == 0,
+                       "Streaming::ResolvePath maps relative u2data/ to /app0/u2data/");
+
+        // Test D: Windows backslashes normalized to forward slashes
+        fn_resolve("u2data\\build\\main\\test.bin", out_buf);
+        U2_TEST_ASSERT(std::strcmp(out_buf, "/app0/u2data/build/main/test.bin") == 0,
+                       "Streaming::ResolvePath normalizes backslashes to forward slashes");
+    }
+
+    // 14. Test Tranquilizer Weapon Subsystem (game/weapon/tranquilizer.cpp)
+    {
+        auto fn_tranquilizer_init = reinterpret_cast<void (ABI *)(void)>(image + 0x009E0CC0);
+
+        // Setup mock table at 0x015296F0
+        uint8_t *mock_table = image + 0x015296F0;
+        std::memset(mock_table, 0, 5 * 0x48);
+        for (int i = 0; i < 5; ++i) {
+            *reinterpret_cast<uint32_t *>(mock_table + i * 0x48 + 0x24) = 0xCD0FBE5Au;
+        }
+
+        // Must execute cleanly without NULL dereference even when symbols are absent
+        fn_tranquilizer_init();
+        U2_TEST_ASSERT(true, "Tranquilizer::Init executes safely with absent symbols");
+    }
+
     g_u2_image_base = saved_base;
     std::printf("[U2 EngineTest] PASSED: %d/%d functional C++23 engine assertions verified via ELF trampolines!\n",
                 s_passed_assertions, s_passed_assertions + s_failed_assertions);

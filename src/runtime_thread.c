@@ -67,7 +67,10 @@ static size_t created, joined_count, exited;
 void runtime_set_main_tls(const void *data,uint64_t filesz,uint64_t memsz,uint64_t align) {
     tls_template=data; tls_filesz=filesz; tls_memsz=memsz; tls_align=align ? align : 16;
 }
-static uint64_t tls_offset(void) { return (tls_memsz+tls_align-1)&~(tls_align-1); }
+static uint64_t tls_offset(void) {
+    uint64_t off = (tls_memsz+tls_align-1)&~(tls_align-1);
+    return off < 64 ? 64 : off;
+}
 #ifdef _WIN32
 /* TEB TlsSlots[64] start at gs:0x1480; slots 64+ live elsewhere and cannot be used. */
 static DWORD tls_slot=TLS_OUT_OF_INDEXES;

@@ -51,6 +51,10 @@ extern "C" {
 
 /* file_loader.cpp (streaming.cpp, file-loader.cpp) */
 bool         ABI u2_cpp_LoadFileHelper(void *file_data_out, const char *path);
+void         ABI u2_cpp_Streaming_ResolvePath(const char *original_path, char *resolved_out);
+
+/* game/weapon/tranquilizer.cpp */
+void         ABI u2_cpp_Tranquilizer_Init(void);
 
 /* catmull_rom.cpp (catmull-rom.cpp, catmull-rom-manager.cpp, spline-tracker.cpp, vehicle-spline-tracker.cpp) */
 const char * ABI u2_cpp_CatmullRomSpline_GetName(void *self);
