@@ -108,15 +108,6 @@ static const U2NativeDetour s_engine_detours[] = {
 
     /* audio_system.cpp (audiofile.cpp) */
     { "AudioFile_Initialize",                           0x003CE4A0, reinterpret_cast<uintptr_t>(&u2_cpp_AudioFile_Initialize) },
-
-    /* menu_system.cpp (Menu & 2D GUI Subsystems) */
-    { "MenuHost_SetMode",                                0x005C7BB0, reinterpret_cast<uintptr_t>(&u2_cpp_MenuHost_SetMode) },
-    { "MenuHost_ShowWaitPopup",                          0x005C8840, reinterpret_cast<uintptr_t>(&u2_cpp_MenuHost_ShowWaitPopup) },
-    { "MenuHost_AddControlClickedHandler",                0x005D1BF0, reinterpret_cast<uintptr_t>(&u2_cpp_MenuHost_AddControlClickedHandler) },
-    { "BpMenuDataSource_SetValueImpl",                   0x00578EB0, reinterpret_cast<uintptr_t>(&u2_cpp_BpMenuDataSource_SetValueImpl) },
-    { "MenuDrawer_DrawQuad",                             0x005B5C10, reinterpret_cast<uintptr_t>(&u2_cpp_MenuDrawer_DrawQuad) },
-    { "HudQuad_Begin_Actual",                            0x00BDBB10, reinterpret_cast<uintptr_t>(&u2_cpp_HudQuad_Begin_Actual) },
-    { "HudQuad_End_Actual",                              0x00BDC670, reinterpret_cast<uintptr_t>(&u2_cpp_HudQuad_End_Actual) },
 };
 
 extern "C" size_t u2_get_engine_detours(const U2NativeDetour **out) {

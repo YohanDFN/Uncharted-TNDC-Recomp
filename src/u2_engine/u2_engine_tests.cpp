@@ -892,28 +892,20 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(std::fabs(*reinterpret_cast<float *>(mock_ucc + 0xE4) - 4.0f) < 1e-4f, "Main Menu camera speed 4.0f");
     }
 
-    // 10. Test Main Menu & 2D GUI Subsystems (menu_system.cpp)
+    // 10. Test Main Menu & 2D GUI Subsystems (main_menu.cpp)
     {
-        auto fn_set_mode        = reinterpret_cast<void (ABI *)(void *, int32_t, int32_t)>(image + 0x005C7BB0);
-        auto fn_show_popup      = reinterpret_cast<void (ABI *)(void *, int32_t, int32_t)>(image + 0x005C8840);
-        auto fn_add_handler     = reinterpret_cast<void (ABI *)(void *, uint32_t, void (ABI *)(void *, uint32_t), void *)>(image + 0x005D1BF0);
-        auto fn_set_val_impl    = reinterpret_cast<int32_t (ABI *)(void *, int32_t, const void *)>(image + 0x00578EB0);
-        auto fn_draw_quad       = reinterpret_cast<void (ABI *)(void *, const float *, void *, const float *)>(image + 0x005B5C10);
-        auto fn_hud_begin       = reinterpret_cast<void * (ABI *)(void *, void *, void *)>(image + 0x00BDBB10);
-        auto fn_hud_end         = reinterpret_cast<void (ABI *)(void *, void *, const float *)>(image + 0x00BDC670);
-
         uint8_t mock_menuhost[0x2000] = {};
-        fn_set_mode(mock_menuhost, 1, 0); // Set mode 1 (Main Menu)
+        u2_cpp_MenuHost_SetMode(mock_menuhost, 1, 0); // Set mode 1 (Main Menu)
         U2_TEST_ASSERT(*reinterpret_cast<int32_t *>(mock_menuhost + 0x00) == 1, "MenuHost::SetMode sets mode 1 (Main Menu)");
         U2_TEST_ASSERT(u2_cpp_MenuHost_GetMode(mock_menuhost) == 1, "MenuHost::GetMode returns 1");
         U2_TEST_ASSERT(*reinterpret_cast<int32_t *>(image + 0x014CE97C) == 1, "MenuHost::SetMode updates global offset 0x014CE97C");
 
-        fn_show_popup(mock_menuhost, 42, 1);
+        u2_cpp_MenuHost_ShowWaitPopup(mock_menuhost, 42, 1);
         U2_TEST_ASSERT(*reinterpret_cast<int32_t *>(mock_menuhost + 0x9B0) == 42, "MenuHost::ShowWaitPopup sets popup ID");
 
         static uint32_t s_clicked_id = 0;
         auto click_cb = [](void *, uint32_t id) ABI { s_clicked_id = id; };
-        fn_add_handler(mock_menuhost, 101, click_cb, nullptr);
+        u2_cpp_MenuHost_AddControlClickedHandler(mock_menuhost, 101, click_cb, nullptr);
         U2_TEST_ASSERT(*reinterpret_cast<uint32_t *>(mock_menuhost + 0x18EC) == 1u, "MenuHost::AddControlClickedHandler registers handler");
 
         u2_cpp_MenuHost_TriggerControlClicked(mock_menuhost, 101);
@@ -921,18 +913,18 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
 
         uint8_t mock_datasource[0x100] = {};
         float vol_data[4] = { 0.8f, 0.8f, 0.8f, 1.0f };
-        int32_t val_res = fn_set_val_impl(mock_datasource, 5, vol_data);
+        int32_t val_res = u2_cpp_BpMenuDataSource_SetValueImpl(mock_datasource, 5, vol_data);
         U2_TEST_ASSERT(val_res == 1, "BpMenuDataSource::SetValueImpl returns 1");
         U2_TEST_ASSERT(*reinterpret_cast<int32_t *>(mock_datasource + 0x40) == 5, "BpMenuDataSource value ID matches");
 
         float drect[4] = { 10.0f, 20.0f, 100.0f, 50.0f };
         float uvs[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-        fn_draw_quad(nullptr, drect, nullptr, uvs);
+        u2_cpp_MenuDrawer_DrawQuad(nullptr, drect, nullptr, uvs);
         U2_TEST_ASSERT(true, "MenuDrawer::DrawQuad safe execution");
 
-        void *hud_ctx = fn_hud_begin(mock_menuhost, nullptr, nullptr);
+        void *hud_ctx = u2_cpp_HudQuad_Begin_Actual(mock_menuhost, nullptr, nullptr);
         U2_TEST_ASSERT(hud_ctx != nullptr, "HudQuad::Begin_Actual returns context");
-        fn_hud_end(hud_ctx, nullptr, nullptr);
+        u2_cpp_HudQuad_End_Actual(hud_ctx, nullptr, nullptr);
         U2_TEST_ASSERT(true, "HudQuad::End_Actual flushes batch cleanly");
     }
 
