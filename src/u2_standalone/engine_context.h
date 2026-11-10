@@ -44,6 +44,11 @@ public:
         native_log("[U2 Native] Starting Standalone Engine (Zero PS4 Code Execution)\n");
         native_log("============================================================\n");
 
+        // 0. Configure game filesystem mounts (/app0 -> game_dir)
+        if (!game_dir.empty()) {
+            runtime_file_configure(game_dir.c_str(), "user");
+        }
+
         // 1. Allocate non-executable guest data buffer (PAGE_READWRITE only)
         if (!allocate_memory_buffer()) {
             native_log("[U2 Native] FATAL: Failed to allocate 24 MiB non-executable data buffer.\n");
