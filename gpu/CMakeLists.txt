@@ -255,6 +255,16 @@ if (WIN32)
     # The PS4 range (64 GiB - 1 TiB) must stay free: no high-entropy ASLR for heaps and stacks.
     # The guest main thread runs on the process stack: 16 MiB, committed (no stack probes).
     target_link_options(bb-probe PRIVATE -Wl,--disable-high-entropy-va "SHELL:-Xlinker --stack -Xlinker 16777216,16777216")
+
+    # ADR-006: Standalone 100% C++23 native executable (zero PS4 guest code execution)
+    file(GLOB BB_U2_STANDALONE CONFIGURE_DEPENDS ../src/u2_standalone/*.cpp)
+    add_executable(uncharted2-native ${BB_U2_STANDALONE} ${BB_U2_ENGINE} ${BB_RUNTIME}
+        ../src/compat_win.c ../src/vulkan_smoke.c ../packaging/windows/bb-probe.rc)
+    set_target_properties(uncharted2-native PROPERTIES C_STANDARD 11 C_EXTENSIONS OFF CXX_STANDARD 23 CXX_EXTENSIONS OFF)
+    target_compile_options(uncharted2-native PRIVATE -Wall -Wextra -Werror)
+    target_include_directories(uncharted2-native PRIVATE .. ../src third_party/miniz)
+    target_link_libraries(uncharted2-native PRIVATE bbgpu atrac9 miniz::miniz PkgConfig::SDL3 onecore bcrypt ws2_32 -pthread)
+    target_link_options(uncharted2-native PRIVATE -mconsole -Wl,--disable-high-entropy-va "SHELL:-Xlinker --stack -Xlinker 16777216,16777216")
     add_executable(bb-gpu-capabilities ../tools/gpu_capabilities.c ../packaging/windows/bb-gpu-capabilities.rc)
     target_link_libraries(bb-gpu-capabilities PRIVATE Vulkan::Vulkan)
     # "Play Bloodborne.exe": the game with the launcher's saved settings, no launcher window.

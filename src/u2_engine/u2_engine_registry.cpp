@@ -69,6 +69,13 @@ static const U2NativeDetour s_engine_detours[] = {
     { "Settings_FreeSetting",                            0x00A1D600, reinterpret_cast<uintptr_t>(&u2_cpp_Settings_FreeSetting) },
     { "GameLoading_IsChunkSetEntirelyWithin",            0x00B77AA0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_IsChunkSetEntirelyWithin) },
     { "GameLoading_GetPlayGoSpeed",                      0x00B770D0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_GetPlayGoSpeed) },
+
+    /* memory_system.cpp (AllocStack & Heap Diagnostics) */
+    { "AllocateAllocStack",                              0x00B36D40, reinterpret_cast<uintptr_t>(&u2_cpp_AllocateAllocStack) },
+    { "PushAllocator",                                   0x00B360D0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator) },
+    { "PopAllocator",                                    0x00B361C0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator) },
+    { "GetAllocatorStackDepth",                          0x00B362A0, reinterpret_cast<uintptr_t>(&u2_cpp_GetAllocatorStackDepth) },
+    { "ProcessHeap_ScanForProcessDroppings",             0x009B7770, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessHeap_ScanForProcessDroppings) },
 };
 
 extern "C" size_t u2_get_engine_detours(const U2NativeDetour **out) {

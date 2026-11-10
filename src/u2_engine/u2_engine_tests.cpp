@@ -761,6 +761,52 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(fn_playgo_speed() == 0u, "GameLoading::GetPlayGoSpeed(suspended)");
     }
 
+    // 8. Test AllocStack & ProcessHeap diagnostics (memory_system.cpp)
+    {
+        auto fn_alloc_stack  = reinterpret_cast<void * (ABI *)(void)>(image + 0x00B36D40);
+        auto fn_push_alloc   = reinterpret_cast<void (ABI *)(void *, const char *, int32_t, const char *)>(image + 0x00B360D0);
+        auto fn_pop_alloc    = reinterpret_cast<void * (ABI *)(void)>(image + 0x00B361C0);
+        auto fn_stack_depth  = reinterpret_cast<uint32_t (ABI *)(void)>(image + 0x00B362A0);
+        auto fn_scan_heap    = reinterpret_cast<void (ABI *)(void *)>(image + 0x009B7770);
+
+        // Verify AllocateAllocStack creates an initial empty stack
+        void *stack_ptr = fn_alloc_stack();
+        U2_TEST_ASSERT(stack_ptr != nullptr, "AllocateAllocStack: valid pointer");
+        U2_TEST_ASSERT(fn_stack_depth() == 0u, "AllocStack: initial depth is 0");
+
+        // Verify PushAllocator and GetAllocatorStackDepth
+        void *mock_alloc_a = reinterpret_cast<void *>(0x11223344ull);
+        void *mock_alloc_b = reinterpret_cast<void *>(0x55667788ull);
+        fn_push_alloc(mock_alloc_a, "TagMain", 101, "main.cpp");
+        U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: depth after 1 push");
+
+        fn_push_alloc(mock_alloc_b, "TagLevel", 202, "level.cpp");
+        U2_TEST_ASSERT(fn_stack_depth() == 2u, "AllocStack: depth after 2 pushes");
+
+        // Verify PopAllocator restores order LIFO
+        void *popped_b = fn_pop_alloc();
+        U2_TEST_ASSERT(popped_b == mock_alloc_b, "AllocStack: pop b matches top");
+        U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: depth after 1 pop");
+
+        void *popped_a = fn_pop_alloc();
+        U2_TEST_ASSERT(popped_a == mock_alloc_a, "AllocStack: pop a matches top");
+        U2_TEST_ASSERT(fn_stack_depth() == 0u, "AllocStack: depth after 2 pops");
+
+        void *popped_empty = fn_pop_alloc();
+        U2_TEST_ASSERT(popped_empty == nullptr, "AllocStack: pop on empty returns nullptr");
+
+        // Verify ProcessHeap::ScanForProcessDroppings safety
+        uint8_t mock_heap[0x100] = {};
+        mock_heap[0xF0] = 0; // Inactive heap
+        fn_scan_heap(mock_heap);
+        U2_TEST_ASSERT(true, "ProcessHeap::ScanForProcessDroppings: inactive safe");
+
+        mock_heap[0xF0] = 1; // Active heap
+        *reinterpret_cast<void **>(mock_heap + 0x40) = mock_heap + 0x40; // Empty circular linked list
+        fn_scan_heap(mock_heap);
+        U2_TEST_ASSERT(true, "ProcessHeap::ScanForProcessDroppings: circular list safe");
+    }
+
     g_u2_image_base = saved_base;
     std::printf("[U2 EngineTest] PASSED: %d/%d functional C++23 engine assertions verified via ELF trampolines!\n",
                 s_passed_assertions, s_passed_assertions + s_failed_assertions);

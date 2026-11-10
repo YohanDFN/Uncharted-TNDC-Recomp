@@ -96,4 +96,11 @@ void         ABI u2_cpp_Settings_FreeSetting(void *setting);
 uint8_t      ABI u2_cpp_GameLoading_IsChunkSetEntirelyWithin(const char *chunk_set_name, const uint64_t *target_mask);
 uint32_t     ABI u2_cpp_GameLoading_GetPlayGoSpeed(void);
 
+/* memory_system.cpp (memory.cpp, process-heap.cpp) */
+void *       ABI u2_cpp_AllocateAllocStack(void);
+void         ABI u2_cpp_PushAllocator(void *allocator, const char *name, int32_t line, const char *file);
+void *       ABI u2_cpp_PopAllocator(void);
+uint32_t     ABI u2_cpp_GetAllocatorStackDepth(void);
+void         ABI u2_cpp_ProcessHeap_ScanForProcessDroppings(void *self);
+
 } // extern "C"

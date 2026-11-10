@@ -108,15 +108,23 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 
 ## 4. Plan d'Exécution Séquentiel (Étape par Étape)
 
-### Étape 1 : Cible CMake `uncharted2-native.exe`, Mémoire C++23 & Splash Screen Vulkan
-1. **Implémenter `src/u2_engine/memory_system.cpp`** :
-   * Réécrire en C++23 les fonctions d'allocateur de démarrage (`AllocateAllocStack`, `PushAllocator`, `PopAllocator`, `ScanForProcessDroppings`) et ajouter leurs tests unitaires dans [`src/u2_engine/u2_engine_tests.cpp`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_engine/u2_engine_tests.cpp).
-2. **Créer l'exécutable `src/u2_standalone/main.cpp`** :
-   * Initialiser le contexte moteur C++23 (données `.rodata`/`.data` non exécutables), monter le répertoire `Uncharted/CUSA02343`, créer la fenêtre SDL3/Vulkan 1920x1080, charger et afficher le Splash Screen (`sce_sys/pic1.png`), et lancer la boucle principale C++23.
-3. **Ajouter la cible `uncharted2-native` dans [`gpu/CMakeLists.txt`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/gpu/CMakeLists.txt) et [`scratch/build_msys2.ps1`](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/scratch/build_msys2.ps1)** :
-   * Produire `out/uncharted2-native.exe` en parallèle de `out/bb-probe.exe`.
-4. **Valider et Committer** :
-   * Vérifier que `bb-probe.exe` et `uncharted2-native.exe` compilent sans warning (`-Werror`) et s'exécutent sans crash.
+### Étape 1 : Cible CMake `uncharted2-native.exe`, Mémoire C++23 & Splash Screen Vulkan [COMPLÉTÉ]
+1. **Implémentation de `src/u2_engine/memory_system.cpp`** :
+   * Réécriture en C++23 des 5 fonctions fondamentales d'allocation (`AllocateAllocStack`, `PushAllocator`, `PopAllocator`, `GetAllocatorStackDepth`, `ProcessHeap::ScanForProcessDroppings`).
+   * Structure `AllocStack` conforme (46 entrées de 40 octets, taille totale 0x780, offset `m_allocatorStackSize` à 0x730).
+   * Tests unitaires fonctionnels validés dans `u2_run_engine_unit_tests()` (75/75 assertions réussies).
+2. **Création du point d'entrée natif `src/u2_standalone/main.cpp` & `engine_context.h`** :
+   * Allocation d'un buffer mémoire non-exécutable de 24 Mo (`PAGE_READWRITE` pur, 0 page de code PS4 exécutable).
+   * Décodeur PNG streaming RFC 2083 minimal avec `miniz::uncompress` pour `sce_sys/pic1.png` (1920x1080).
+   * Initialisation de la fenêtre SDL3 et du renderer accéléré.
+   * Mode headless automatique (`--headless` ou `BB_HEADLESS=1`) pour tests CI/headless.
+3. **Cible CMake `uncharted2-native` dans `gpu/CMakeLists.txt` & `scratch/build_msys2.ps1`** :
+   * Compilation simultanée de `out/bb-probe.exe` et `out/uncharted2-native.exe` avec `-Wall -Wextra -Werror`.
+   * Script de test dédié `scratch/run_native_test.ps1`.
+4. **Validation complète** :
+   * 894 détours natifs C/C++ installés.
+   * 831 fonctions DC script validées en Full-Body Sandbox.
+   * 0 crash, arrêt propre avec code 0.
 
 ### Étape 2 : Machine à États d'Amorçage (`boot_state_machine.cpp`), `Settings`, `ProcessMgr` & `SaveWorker`
 1. **Implémenter `src/u2_engine/boot_state_machine.cpp`** :

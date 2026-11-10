@@ -1,5 +1,8 @@
 #ifndef BB_RUNTIME_H
 #define BB_RUNTIME_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stdint.h>
 #include <stddef.h>
 #ifdef _WIN32
@@ -117,4 +120,7 @@ void __attribute__((ms_abi)) runtime_u2_eval_ex(uint64_t rdi, uint64_t rsi, uint
 uint64_t *runtime_thread_current_tcb(void);
 void runtime_u2_install_detours(uint8_t *image, uint64_t image_size);
 void runtime_u2_memory_install_detours(uint8_t *image, uint64_t image_size);
+#ifdef __cplusplus
+}
+#endif
 #endif
