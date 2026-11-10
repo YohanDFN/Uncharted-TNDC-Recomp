@@ -498,6 +498,25 @@ int32_t ABI u2_cpp_UCCApp_StateMachineUpdate(void *self, float dt) {
             *u2::engine::elf_ptr<uint32_t>(0x0147DA0C) = 0;
             // Create ProcessMgr task for menu process if guest code is executable (bb-probe mode)
             if (is_guest_code_executable()) {
+                // Request genuine Naughty Dog menu packages
+                void *package_mgr = u2::engine::elf_ptr<void>(0x01130390);
+                auto request_package = reinterpret_cast<void (ABI *)(void *, const char *)>(g_u2_image_base + 0x0056C0E0);
+                if (package_mgr && request_package) {
+                    printf("[U2 Engine] Requesting genuine packages: 'menu' and 'menu-temple'...\n");
+                    request_package(package_mgr, "menu");
+                    request_package(package_mgr, "menu-temple");
+                    fflush(stdout);
+                }
+
+                // Activate MenuHost Mode 1 (Main Menu)
+                void *menu_host = u2::engine::elf_ptr<void>(0x01059640);
+                auto set_mode = reinterpret_cast<void (ABI *)(void *, int32_t, int32_t)>(g_u2_image_base + 0x005C7BB0);
+                if (menu_host && set_mode) {
+                    printf("[U2 Engine] Setting MenuHost mode to 1 (Main Menu)...\n");
+                    set_mode(menu_host, 1, 0);
+                    fflush(stdout);
+                }
+
                 void *proc_mgr = u2::engine::elf_ptr<void>(0x0115F1A0);
                 if (proc_mgr) {
                     void *script_proc = *reinterpret_cast<void **>(static_cast<uint8_t *>(proc_mgr) + 0xC88);
