@@ -152,8 +152,8 @@ public:
                         float mx = ev.button.x;
                         float my = ev.button.y;
                         for (int i = 0; i < static_cast<int>(m_menu_items.size()); ++i) {
-                            float item_y = 310.0f + i * 85.0f;
-                            if (mx >= 130.0f && mx <= 790.0f && my >= item_y && my <= item_y + 65.0f) {
+                            float item_y = 360.0f + i * 78.0f;
+                            if (mx >= 120.0f && mx <= 620.0f && my >= item_y && my <= item_y + 58.0f) {
                                 m_menu_selected_item = i;
                                 native_log("[U2 Native] Clic Souris -> Selection: " + m_menu_items[i].title + "\n");
                                 u2_cpp_MenuHost_TriggerControlClicked(nullptr, i);
@@ -170,8 +170,8 @@ public:
                     float mx = ev.motion.x;
                     float my = ev.motion.y;
                     for (int i = 0; i < static_cast<int>(m_menu_items.size()); ++i) {
-                        float item_y = 310.0f + i * 85.0f;
-                        if (mx >= 130.0f && mx <= 790.0f && my >= item_y && my <= item_y + 65.0f) {
+                        float item_y = 360.0f + i * 78.0f;
+                        if (mx >= 120.0f && mx <= 620.0f && my >= item_y && my <= item_y + 58.0f) {
                             m_menu_selected_item = i;
                             break;
                         }
@@ -533,129 +533,169 @@ private:
         }
     }
 
+    struct SnowFlake {
+        float x{0.0f};
+        float y{0.0f};
+        float vx{1.0f};
+        float vy{2.0f};
+        float size{2.0f};
+        float alpha{180.0f};
+    };
+
+    std::vector<SnowFlake> m_snowflakes;
+
+    void init_snowflakes() {
+        if (!m_snowflakes.empty()) return;
+        m_snowflakes.resize(340);
+        for (auto &f : m_snowflakes) {
+            f.x = static_cast<float>(std::rand() % 1920);
+            f.y = static_cast<float>(std::rand() % 1080);
+            float depth = static_cast<float>(std::rand() % 100) / 100.0f; // 0.0 (fond) a 1.0 (premier plan)
+            f.size = 1.0f + depth * 3.2f;
+            f.vy = 1.4f + depth * 3.6f;
+            f.vx = 0.8f + depth * 2.5f;
+            f.alpha = 80.0f + depth * 160.0f;
+        }
+    }
+
+    void render_snowflakes(float time_sec) {
+        init_snowflakes();
+        for (auto &f : m_snowflakes) {
+            f.x += f.vx + std::sin(time_sec * 2.2f + f.y * 0.007f) * 0.8f;
+            f.y += f.vy;
+            if (f.y > 1080.0f) {
+                f.y = -6.0f;
+                f.x = static_cast<float>(std::rand() % 1920);
+            }
+            if (f.x > 1920.0f) {
+                f.x = 0.0f;
+            }
+
+            Uint8 a = static_cast<Uint8>(f.alpha);
+            SDL_SetRenderDrawColor(m_renderer, 240, 245, 255, a);
+            SDL_FRect r = {f.x, f.y, f.size, f.size};
+            SDL_RenderFillRect(m_renderer, &r);
+        }
+    }
+
+    void render_uncharted_logo(float x, float y) {
+        // Ombre portee profonde 3D noire
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 235);
+        draw_debug_text(x + 4.0f, y + 4.0f, "UNCHARTED", 3.2f);
+        draw_debug_text(x + 284.0f, y - 4.0f, "2", 4.2f);
+
+        // Titre "UNCHARTED" en pierre ivoire alpine avec biseau
+        SDL_SetRenderDrawColor(m_renderer, 245, 242, 235, 255);
+        draw_debug_text(x, y, "UNCHARTED", 3.2f);
+
+        // Chiffre "2" officiel Naughty Dog sculpte en rouge rubis / ambre
+        SDL_SetRenderDrawColor(m_renderer, 235, 75, 45, 255);
+        draw_debug_text(x + 280.0f, y - 8.0f, "2", 4.2f);
+
+        // Filet decoratif dore superieur
+        SDL_SetRenderDrawColor(m_renderer, 215, 175, 65, 230);
+        SDL_RenderLine(m_renderer, x, y + 54.0f, x + 340.0f, y + 54.0f);
+
+        // Sous-titre "A M O N G   T H I E V E S"
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 200);
+        draw_debug_text(x + 13.0f, y + 62.0f, "A M O N G   T H I E V E S", 1.35f);
+        SDL_SetRenderDrawColor(m_renderer, 255, 225, 130, 255);
+        draw_debug_text(x + 12.0f, y + 61.0f, "A M O N G   T H I E V E S", 1.35f);
+
+        // Filet decoratif dore inferieur
+        SDL_SetRenderDrawColor(m_renderer, 215, 175, 65, 230);
+        SDL_RenderLine(m_renderer, x, y + 84.0f, x + 340.0f, y + 84.0f);
+    }
+
     void render_main_menu() {
         if (!m_renderer) return;
 
+        float time_sec = static_cast<float>(SDL_GetTicks()) / 1000.0f;
         SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
 
-        // 1. Fond semi-transparent sombre sur toute la fenetre
-        SDL_FRect backdrop = {0.0f, 0.0f, 1920.0f, 1080.0f};
-        SDL_SetRenderDrawColor(m_renderer, 6, 9, 14, 185);
-        SDL_RenderFillRect(m_renderer, &backdrop);
+        // 1. Degrade cinematographique atmospherique sur la gauche (pour contraster le texte avec le paysage)
+        for (int col = 0; col < 850; col += 30) {
+            float progress = static_cast<float>(col) / 850.0f;
+            float alpha = 210.0f * (1.0f - progress * progress);
+            if (alpha < 0.0f) alpha = 0.0f;
+            SDL_FRect strip = {static_cast<float>(col), 0.0f, 30.0f, 1080.0f};
+            SDL_SetRenderDrawColor(m_renderer, 4, 7, 12, static_cast<Uint8>(alpha));
+            SDL_RenderFillRect(m_renderer, &strip);
+        }
 
-        // 2. Panneau lateral gauche du menu
-        SDL_FRect panel = {100.0f, 140.0f, 720.0f, 760.0f};
-        SDL_SetRenderDrawColor(m_renderer, 12, 16, 24, 215);
-        SDL_RenderFillRect(m_renderer, &panel);
-        SDL_SetRenderDrawColor(m_renderer, 190, 150, 55, 200);
-        SDL_RenderRect(m_renderer, &panel);
+        // 2. Particules de blizzard et flocons de neige himalayens en temps reel
+        render_snowflakes(time_sec);
 
-        // 3. Titre et sous-titre
-        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 220);
-        draw_debug_text(132.0f, 172.0f, "UNCHARTED 2: AMONG THIEVES", 2.6f);
-        SDL_SetRenderDrawColor(m_renderer, 255, 215, 0, 255);
-        draw_debug_text(130.0f, 170.0f, "UNCHARTED 2: AMONG THIEVES", 2.6f);
+        // 3. Logo officiel sculpte d'Uncharted 2: Among Thieves
+        render_uncharted_logo(140.0f, 170.0f);
 
-        SDL_SetRenderDrawColor(m_renderer, 175, 205, 235, 255);
-        draw_debug_text(132.0f, 218.0f, "REMASTERED -- 100% PURE C++23 NATIVE RECOMP", 1.25f);
-
-        SDL_SetRenderDrawColor(m_renderer, 190, 150, 55, 180);
-        SDL_RenderLine(m_renderer, 130.0f, 248.0f, 790.0f, 248.0f);
-
-        // 4. Liste des options de menu
+        // 4. Liste des options authentiques de menu Naughty Dog
         for (int i = 0; i < static_cast<int>(m_menu_items.size()); ++i) {
-            float item_y = 280.0f + i * 85.0f;
-            SDL_FRect item_box = {130.0f, item_y, 660.0f, 68.0f};
+            float item_y = 360.0f + i * 78.0f;
 
             if (i == m_menu_selected_item) {
-                // Fond surligne ambre/or
-                SDL_SetRenderDrawColor(m_renderer, 210, 160, 30, 95);
-                SDL_RenderFillRect(m_renderer, &item_box);
-                SDL_SetRenderDrawColor(m_renderer, 255, 215, 60, 255);
-                SDL_RenderRect(m_renderer, &item_box);
+                // Pulsation lumineuse doree
+                float pulse = 0.85f + 0.15f * std::sin(time_sec * 5.0f);
+                Uint8 gold_r = 255;
+                Uint8 gold_g = static_cast<Uint8>(215 * pulse);
+                Uint8 gold_b = static_cast<Uint8>(55 * pulse);
 
-                // Barre verticale doree sur la gauche
-                SDL_FRect bar = {130.0f, item_y, 8.0f, 68.0f};
-                SDL_SetRenderDrawColor(m_renderer, 255, 215, 0, 255);
+                // Filet vertical dore discret a gauche de la selection
+                SDL_FRect bar = {118.0f, item_y + 4.0f, 5.0f, 44.0f};
+                SDL_SetRenderDrawColor(m_renderer, gold_r, gold_g, gold_b, 240);
                 SDL_RenderFillRect(m_renderer, &bar);
 
-                // Pointeur et Titre
+                // Ombre portee douce
+                SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 230);
                 std::string label = "> " + m_menu_items[i].title;
-                SDL_SetRenderDrawColor(m_renderer, 255, 245, 190, 255);
-                draw_debug_text(155.0f, item_y + 13.0f, label.c_str(), 1.7f);
+                draw_debug_text(138.0f, item_y + 8.0f, label.c_str(), 2.15f);
 
-                // Description
-                SDL_SetRenderDrawColor(m_renderer, 230, 220, 170, 230);
-                draw_debug_text(160.0f, item_y + 42.0f, m_menu_items[i].description.c_str(), 1.0f);
+                // Titre dore illuminé
+                SDL_SetRenderDrawColor(m_renderer, gold_r, gold_g, gold_b, 255);
+                draw_debug_text(136.0f, item_y + 6.0f, label.c_str(), 2.15f);
+
+                // Description sous l'option sélectionnée
+                SDL_SetRenderDrawColor(m_renderer, 220, 215, 180, 220);
+                draw_debug_text(160.0f, item_y + 36.0f, m_menu_items[i].description.c_str(), 1.05f);
             } else {
-                // Fond discret
-                SDL_SetRenderDrawColor(m_renderer, 22, 28, 40, 130);
-                SDL_RenderFillRect(m_renderer, &item_box);
-                SDL_SetRenderDrawColor(m_renderer, 55, 65, 85, 130);
-                SDL_RenderRect(m_renderer, &item_box);
-
-                // Titre normal
+                // Ombre portee
+                SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 190);
                 std::string label = "  " + m_menu_items[i].title;
-                SDL_SetRenderDrawColor(m_renderer, 175, 185, 200, 210);
-                draw_debug_text(155.0f, item_y + 13.0f, label.c_str(), 1.55f);
+                draw_debug_text(138.0f, item_y + 8.0f, label.c_str(), 1.95f);
 
-                // Description
-                SDL_SetRenderDrawColor(m_renderer, 125, 135, 150, 160);
-                draw_debug_text(160.0f, item_y + 42.0f, m_menu_items[i].description.c_str(), 0.95f);
+                // Titre en pierre ivoire douce Naughty Dog
+                SDL_SetRenderDrawColor(m_renderer, 205, 215, 225, 220);
+                draw_debug_text(136.0f, item_y + 6.0f, label.c_str(), 1.95f);
             }
         }
 
-        // 5. Notification d'action si recente (< 2.5 secondes)
+        // 5. Notification d'action si récente (< 2.0 secondes)
         if (!m_last_action_msg.empty()) {
             uint64_t diff = SDL_GetTicks() - m_last_action_time;
-            if (diff < 2500) {
-                SDL_FRect notif_box = {130.0f, 810.0f, 660.0f, 50.0f};
-                SDL_SetRenderDrawColor(m_renderer, 30, 80, 50, 220);
-                SDL_RenderFillRect(m_renderer, &notif_box);
-                SDL_SetRenderDrawColor(m_renderer, 60, 200, 100, 240);
-                SDL_RenderRect(m_renderer, &notif_box);
+            if (diff < 2000) {
+                SDL_FRect notif_bar = {120.0f, 850.0f, 480.0f, 40.0f};
+                SDL_SetRenderDrawColor(m_renderer, 15, 30, 20, 200);
+                SDL_RenderFillRect(m_renderer, &notif_bar);
+                SDL_SetRenderDrawColor(m_renderer, 80, 200, 120, 220);
+                SDL_RenderRect(m_renderer, &notif_bar);
                 SDL_SetRenderDrawColor(m_renderer, 220, 255, 220, 255);
-                draw_debug_text(150.0f, 826.0f, m_last_action_msg.c_str(), 1.2f);
+                draw_debug_text(140.0f, 862.0f, m_last_action_msg.c_str(), 1.15f);
             }
         }
 
-        // 6. Panneau d'informations Moteur a droite
-        SDL_FRect info_box = {1320.0f, 140.0f, 520.0f, 200.0f};
-        SDL_SetRenderDrawColor(m_renderer, 12, 16, 26, 215);
-        SDL_RenderFillRect(m_renderer, &info_box);
-        SDL_SetRenderDrawColor(m_renderer, 70, 105, 150, 180);
-        SDL_RenderRect(m_renderer, &info_box);
+        // 6. Dague rituelle Phurba 3D integree dans le décor enneigé (côté droit)
+        render_phurba_dagger_3d(1480.0f, 540.0f, 1.8f, time_sec);
 
-        SDL_SetRenderDrawColor(m_renderer, 240, 200, 70, 255);
-        draw_debug_text(1340.0f, 155.0f, "STATUT DU MOTEUR NATIF C++23", 1.35f);
-        SDL_SetRenderDrawColor(m_renderer, 70, 105, 150, 180);
-        SDL_RenderLine(m_renderer, 1340.0f, 178.0f, 1810.0f, 178.0f);
-
-        SDL_SetRenderDrawColor(m_renderer, 200, 220, 240, 240);
-        draw_debug_text(1340.0f, 192.0f, "- UCCApp State: 7 (MAIN MENU ACTIVE)", 1.05f);
-        draw_debug_text(1340.0f, 214.0f, "- Code PS4 execute: ZERO (0 instructions)", 1.05f);
-        draw_debug_text(1340.0f, 236.0f, "- Detours ELF actifs: 909 hooks C++ / C", 1.05f);
-        draw_debug_text(1340.0f, 258.0f, "- Archives montees: build/main/bin.psarc", 1.05f);
-        draw_debug_text(1340.0f, 280.0f, "- AllocStack Mem: Profondeur 46 active", 1.05f);
-        draw_debug_text(1340.0f, 302.0f, "- Presenteur: SDL3 Accelerated (60 FPS)", 1.05f);
-
-        // 7. Dague Phurba rituelle 3D animee en temps reel
-        float time_sec = static_cast<float>(SDL_GetTicks()) / 1000.0f;
-        render_phurba_dagger_3d(1580.0f, 620.0f, 1.4f, time_sec);
-
-        SDL_SetRenderDrawColor(m_renderer, 210, 175, 70, 200);
-        draw_debug_text(1470.0f, 830.0f, "DAGUETTE PHURBA -- RENDU 3D TEMPS REEL", 1.05f);
-
-        // 8. Pied de page / Barre de statut d'aide
-        SDL_FRect footer = {0.0f, 1025.0f, 1920.0f, 55.0f};
-        SDL_SetRenderDrawColor(m_renderer, 8, 11, 18, 245);
+        // 7. Pied de page cinématique sobre
+        SDL_FRect footer = {0.0f, 1030.0f, 1920.0f, 50.0f};
+        SDL_SetRenderDrawColor(m_renderer, 5, 8, 14, 235);
         SDL_RenderFillRect(m_renderer, &footer);
-        SDL_SetRenderDrawColor(m_renderer, 190, 150, 55, 160);
-        SDL_RenderLine(m_renderer, 0.0f, 1025.0f, 1920.0f, 1025.0f);
+        SDL_SetRenderDrawColor(m_renderer, 215, 175, 65, 140);
+        SDL_RenderLine(m_renderer, 0.0f, 1030.0f, 1920.0f, 1030.0f);
 
-        SDL_SetRenderDrawColor(m_renderer, 210, 225, 240, 240);
-        draw_debug_text(40.0f, 1042.0f,
-            "[FLECHES HAUT / BAS / SOURIS] Naviguer   [ENTREE / CLIC] Valider   [ECHAP] Quitter   -- Dual-Executable Native Uncharted 2",
+        SDL_SetRenderDrawColor(m_renderer, 210, 220, 235, 230);
+        draw_debug_text(60.0f, 1046.0f,
+            "[FLECHES HAUT / BAS / SOURIS] Naviguer   [ENTREE / CLIC] Valider   [ECHAP] Quitter   -- Uncharted 2: Among Thieves",
             1.15f);
     }
 
