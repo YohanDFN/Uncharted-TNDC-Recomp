@@ -185,6 +185,8 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > hôte. Le nom, la position et les deux vecteurs d'orientation stockés de la
 > caméra de départ sont décodés dans une copie possédée (voir
 > `NATIVE_CAMERA_DEFINITIONS.md` et `NATIVE_CAMERA_ORIENTATION.md`) ;
+> le quaternion natif est calculé et comparé à une capture du calcul ELF original
+> (voir `NATIVE_CAMERA_QUATERNION.md`). Les paramètres de projection,
 > l'objet caméra, son login moteur et son utilisation pour le rendu restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
 > Son attribution historique à `PackageMgr::RequestPackage` est à corriger :

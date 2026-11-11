@@ -27,6 +27,9 @@ struct U2NativeCameraDefinition {
     // A non-null +40 selects an external transform instead of these vectors.
     // Keep only its presence: the native reader never follows this pointer.
     bool uses_external_transform{false};
+    // Derived from the stored vectors only when the inline path is supported.
+    std::array<float, 4> orientation_xyzw{};
+    bool orientation_calculated{false};
     bool is_start{false};
 };
 

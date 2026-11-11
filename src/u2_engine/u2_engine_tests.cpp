@@ -6,6 +6,7 @@
 
 #include "u2_engine.h"
 #include "game/loading/level_resources.h"
+#include "game/camera/camera_orientation.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -998,6 +999,83 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        std::abs(actual_camera.orientation_axis_b[2] - 0.803713620f) < 0.000001f &&
                        !actual_camera.uses_external_transform,
                        "Real camera preserves both stored orientation vectors without external transform");
+        {
+            // Original ELF XMM0 at 435A11, one menu-temple call in the hybrid:
+            // low/high words 3e6ad52ebe5a8cda / 3f72c1043d536b35.
+            const std::array<float, 4> original{-0.213427931f, 0.229328841f, 0.0516159125f, 0.948257685f};
+            bool matches_original = actual_camera.orientation_calculated;
+            for (size_t i = 0; i < 4; ++i)
+                matches_original &= std::abs(actual_camera.orientation_xyzw[i] - original[i]) < 0.000002f;
+            U2_TEST_ASSERT(matches_original, "Native camera quaternion matches original ELF runtime capture within 2e-6");
+        }
+        {
+            struct OrientationCase {
+                std::array<float, 3> a, b;
+                std::array<float, 4> expected;
+                const char *label;
+            };
+            constexpr float half_sqrt_two = 0.707106781f;
+            const OrientationCase cases[] = {
+                {{0, 1, 0}, {0, 0, 1}, {0, 0, 0, 1}, "Camera identity quaternion"},
+                {{0, -1, 0}, {0, 0, -1}, {1, 0, 0, 0}, "Camera X half-turn branch"},
+                {{0, 1, 0}, {0, 0, -1}, {0, 1, 0, 0}, "Camera Y half-turn branch"},
+                {{0, -1, 0}, {0, 0, 1}, {0, 0, 1, 0}, "Camera Z half-turn branch"},
+                {{0, 0, 1}, {0, -1, 0}, {half_sqrt_two, 0, 0, half_sqrt_two}, "Camera positive X quarter-turn signs"},
+                {{0, 1, 0}, {1, 0, 0}, {0, half_sqrt_two, 0, half_sqrt_two}, "Camera positive Y quarter-turn signs"},
+                {{-1, 0, 0}, {0, 0, 1}, {0, 0, half_sqrt_two, half_sqrt_two}, "Camera positive Z quarter-turn signs"},
+                {{0, 0, 3}, {0, -5, 0}, {half_sqrt_two, 0, 0, half_sqrt_two}, "Camera normalizes independently scaled stored axes"},
+            };
+            for (const auto &test : cases) {
+                U2NativeCameraDefinition camera;
+                camera.orientation_axis_a = test.a;
+                camera.orientation_axis_b = test.b;
+                std::array<float, 4> q{};
+                bool valid = u2_native_CalculateCameraOrientation(camera, &q);
+                for (size_t i = 0; i < 4; ++i) valid &= std::abs(q[i] - test.expected[i]) < 0.000002f;
+                U2_TEST_ASSERT(valid, test.label);
+            }
+            // Independent check: rotate local basis vectors by the real camera
+            // quaternion. Column Y must become A and column Z must become B.
+            const auto &q = actual_camera.orientation_xyzw;
+            const float x = q[0], y = q[1], z = q[2], w = q[3];
+            const std::array<float, 3> rotated_y{2*(x*y-z*w), 1-2*(x*x+z*z), 2*(y*z+x*w)};
+            const std::array<float, 3> rotated_z{2*(x*z+y*w), 2*(y*z-x*w), 1-2*(x*x+y*y)};
+            bool basis_matches = actual_camera.orientation_calculated;
+            for (size_t i = 0; i < 3; ++i) {
+                basis_matches &= std::abs(rotated_y[i] - actual_camera.orientation_axis_a[i]) < 0.00001f;
+                basis_matches &= std::abs(rotated_z[i] - actual_camera.orientation_axis_b[i]) < 0.00001f;
+            }
+            U2_TEST_ASSERT(basis_matches, "Camera quaternion reconstructs the stored temple basis with the established column convention");
+            U2NativeCameraDefinition camera;
+            camera.orientation_axis_a = {0, 1, 0};
+            camera.orientation_axis_b = {0, 0, 1};
+            const std::array<float, 4> sentinel{2, 3, 4, 5};
+            auto output = sentinel;
+            camera.uses_external_transform = true;
+            U2_TEST_ASSERT(!u2_native_CalculateCameraOrientation(camera, &output) && output == sentinel,
+                           "Camera orientation refuses unresolved external transforms without modifying output");
+            camera.uses_external_transform = false;
+            U2_TEST_ASSERT(!u2_native_CalculateCameraOrientation(camera, nullptr), "Camera orientation rejects missing output");
+            bool degenerate_rejected = true;
+            const std::array<float, 3> invalid_b[] = {{0,0,0}, {0,2,0}, {0,-2,0}, {0,0,1e-30f}, {0,0,3e38f}};
+            for (const auto &invalid : invalid_b) {
+                camera.orientation_axis_b = invalid;
+                degenerate_rejected &= !u2_native_CalculateCameraOrientation(camera, &output) && output == sentinel;
+            }
+            U2_TEST_ASSERT(degenerate_rejected, "Camera orientation refuses zero, parallel, underflow and overflow arithmetic atomically");
+            camera.orientation_axis_b = {0,0,1};
+            bool nonfinite_rejected = true;
+            for (size_t i = 0; i < 6; ++i) {
+                auto &axis = i < 3 ? camera.orientation_axis_a : camera.orientation_axis_b;
+                const float saved = axis[i % 3];
+                for (uint32_t bits : {uint32_t{0x7FC00000}, uint32_t{0x7F800000}, uint32_t{0xFF800000}}) {
+                    axis[i % 3] = std::bit_cast<float>(bits);
+                    nonfinite_rejected &= !u2_native_CalculateCameraOrientation(camera, &output) && output == sentinel;
+                }
+                axis[i % 3] = saved;
+            }
+            U2_TEST_ASSERT(nonfinite_rejected, "Camera orientation rejects nonfinite values in all six input components");
+        }
         U2_TEST_ASSERT(temple && temple->state == U2NativePackageState::Resolved && temple->login_resources == 10,
                        "Camera decoding does not declare the package ready or complete engine login");
         const auto saved_camera_name = actual_camera.name;
@@ -1042,7 +1120,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            "Camera vectors retain signs, components and magnitude without normalization");
             put64(64 + 0x40, UINT64_MAX);
             U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
-                           cameras[0].uses_external_transform,
+                           cameras[0].uses_external_transform && !cameras[0].orientation_calculated,
                            "Camera decoder records external-transform presence without dereferencing it");
             put64(64 + 0x40, 0);
             put32(32, 2);
@@ -1052,7 +1130,8 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
                            cameras.size() == 2 && cameras[1].name == "overview" && !cameras[1].is_start &&
                            cameras[1].position[0] == 5 && cameras[1].orientation_axis_a == zero_vector &&
-                           cameras[1].orientation_axis_b == zero_vector && !cameras[1].uses_external_transform,
+                           cameras[1].orientation_axis_b == zero_vector && !cameras[1].uses_external_transform &&
+                           !cameras[1].orientation_calculated,
                            "Camera decoder uses proven 0x48 stride across adjacent records");
             put32(32, 1);
             bool rejected_nonfinite_axes = true;

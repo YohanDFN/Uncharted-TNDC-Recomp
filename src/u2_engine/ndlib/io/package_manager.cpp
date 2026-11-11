@@ -195,6 +195,10 @@ bool resolve_package_file(NativePackageRequest &request) {
                                                     camera.orientation_axis_a[0], camera.orientation_axis_a[1], camera.orientation_axis_a[2],
                                                     camera.orientation_axis_b[0], camera.orientation_axis_b[1], camera.orientation_axis_b[2],
                                                     camera.uses_external_transform);
+                                                if (camera.orientation_calculated)
+                                                    std::printf("[U2 Native Camera] quaternion xyzw=(%.9f, %.9f, %.9f, %.9f)\n",
+                                                        camera.orientation_xyzw[0], camera.orientation_xyzw[1],
+                                                        camera.orientation_xyzw[2], camera.orientation_xyzw[3]);
                                             }
                                         }
                                     }

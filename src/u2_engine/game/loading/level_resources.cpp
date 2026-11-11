@@ -1,4 +1,5 @@
 #include "level_resources.h"
+#include "../camera/camera_orientation.h"
 #include <cstring>
 #include <bit>
 #include <cmath>
@@ -84,6 +85,7 @@ bool u2_native_ReadCameraDefinitions(std::vector<U2NativeCameraDefinition> *out,
                     !std::isfinite(camera.orientation_axis_a[axis]) ||
                     !std::isfinite(camera.orientation_axis_b[axis])) return false;
             }
+            camera.orientation_calculated = u2_native_CalculateCameraOrientation(camera, &camera.orientation_xyzw);
             result.push_back(std::move(camera));
         }
         *out = std::move(result);
