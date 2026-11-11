@@ -170,3 +170,27 @@ le prochain scénario utile à une vraie transition guest de niveau, et non une
 fermeture de fenêtre. La transition doit être observée sans forcer d'état ni
 appeler directement une routine de déchargement hors de son contexte.
 Fichier modifié : ce rapport. Build/tests non relancés, documentation uniquement.
+
+## Boot prolongé à 40 secondes et lien vers le retour du slot
+
+Expérience : BB_GUEST_HOOKS=0x56ea40:10,0x5704c0:13,0x5708a0:11,0x56ac30:8,
+run_test.ps1 40, exécuté avec permission de terminer le processus de test.
+Résultat : 26 Init, aucun changement de compteur pour les trois entrées de
+déchargement/retour au pool. SelfTest et EngineTest passent (187/187), timeout
+et aucun Fault/Guest fault/assertion/échec d'allocation. Aucun bb-probe résiduel.
+L'observation négative est bornée à ce scénario de boot de 40 secondes.
+
+Nouvelle preuve statique : la recherche des appels directs E8 à 0x56AC30 ne
+trouve rien ; la recherche des sauts E9 trouve un tail-call à 0x5724E9.
+0x5724B0 remet Level+0x30 à zéro, 0x5724D1 charge le gestionnaire global
+0x1130390, rsi reçoit le Level, puis le slot est rendu par le tail-call.
+L'appelant attend auparavant que la frame de rendu dépasse Level+0x930 + 4
+(0x5723DE..0x5723ED). Cela relie statiquement le nettoyage à la remise au pool
+et confirme que libérer dès refcount=0 violerait cette attente.
+
+Conclusion : lien statique établi, exécution non observée. Une interaction
+guest causant une transition reste nécessaire pour la validation dynamique.
+Aucune écriture guest, réimplémentation ou forçage d'état ajouté.
+Prochaine expérience utile : changement de chapitre ou de niveau dans le
+moteur hybride, avec ces quatre points de trace ; ne pas répéter le boot idle.
+Modification : ce rapport uniquement ; build non requis, code inchangé.
