@@ -892,6 +892,29 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(std::fabs(*reinterpret_cast<float *>(mock_ucc + 0xE4) - 4.0f) < 1e-4f, "Main Menu camera speed 4.0f");
     }
 
+    // 9b. Test the native-only PackageMgr request registry. This must resolve
+    // files without claiming that their PAK contents are loaded or ready.
+    {
+        u2_cpp_PackageMgr_ResetNativeRequestsForTests();
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_RequestPackage(nullptr, nullptr) == false,
+                       "PackageMgr::RequestPackage rejects NULL name");
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_RequestPackage(nullptr, "menu") == true,
+                       "PackageMgr::RequestPackage resolves menu.pak");
+        const U2NativePackageInfo *menu = u2_cpp_PackageMgr_FindNativeRequest("menu");
+        U2_TEST_ASSERT(menu != nullptr, "PackageMgr native registry contains menu");
+        U2_TEST_ASSERT(menu && menu->file_size > 0, "PackageMgr records menu.pak size");
+        U2_TEST_ASSERT(menu && menu->state == U2NativePackageState::Resolved,
+                       "PackageMgr marks menu resolved but not ready");
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_RequestPackage(nullptr, "menu") == true,
+                       "PackageMgr duplicate menu request succeeds");
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 1u,
+                       "PackageMgr deduplicates requests by StringId");
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_RequestPackage(nullptr, "menu-temple") == true,
+                       "PackageMgr::RequestPackage resolves menu-temple.pak");
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 2u,
+                       "PackageMgr registers both native menu packages");
+    }
+
     // 10. Test Main Menu & 2D GUI Subsystems (main_menu.cpp)
     {
         uint8_t mock_menuhost[0x2000] = {};

@@ -530,6 +530,13 @@ int32_t ABI u2_cpp_UCCApp_StateMachineUpdate(void *self, float dt) {
                         fflush(stdout);
                     }
                 }
+            } else {
+                // Native standalone: reproduce only the proven request and
+                // deduplication stage. Loading/relocation is a later milestone.
+                std::printf("[U2 Native PackageMgr] Requesting menu packages...\n");
+                u2_cpp_PackageMgr_RequestPackage(u2::engine::elf_ptr<void>(0x01130390), "menu");
+                u2_cpp_PackageMgr_RequestPackage(u2::engine::elf_ptr<void>(0x01130390), "menu-temple");
+                std::fflush(stdout);
             }
         }
         *reinterpret_cast<int32_t *>(app + 0x00) = 8;

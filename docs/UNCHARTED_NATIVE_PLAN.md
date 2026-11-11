@@ -158,6 +158,14 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
    * `uncharted2-native.exe` validé sur l'écran 2 (`MSI MAG241C`) avec auto-fermeture propre à 10 secondes (code de sortie 0).
 
 ### Étape 4 : Système Audio Natif C++23 & Musique du Menu Principal (LibAtrac9 & SDL3 Audio)
+> **Jalon PackageMgr validé (11 novembre 2026)** : le standalone demande désormais
+> `menu` et `menu-temple` via un registre C++23 natif, déduplique les demandes par
+> `StringId` et résout réellement `pak22/ps4/menu.pak` et
+> `pak22/ps4/menu-temple.pak` par le VFS. Leur état reste volontairement
+> `resolved`, et non `ready` : la lecture des en-têtes, les relocations et
+> l'enregistrement des pages PAK ne sont pas encore implémentés. Le détour ELF
+> `PackageMgr::RequestPackage` (`0x0056C0E0`) reste inchangé dans `bb-probe`.
+
 1. **Intégration du flux audio SDL3 & Décodeur ATRAC9** :
    * Initialisation du sous-système audio SDL3 (`SDL_InitSubSystem(SDL_INIT_AUDIO)`).
    * Stream de lecture audio PCM stéréo 48 kHz / 16 bits.

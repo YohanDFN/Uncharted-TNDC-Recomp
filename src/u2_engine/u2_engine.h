@@ -10,6 +10,7 @@
 // Subsystem Headers: ndlib/ (Core Engine)
 #include "ndlib/memory/alloc_stack.h"
 #include "ndlib/io/streaming.h"
+#include "ndlib/io/package_manager.h"
 #include "ndlib/anim/spline.h"
 #include "ndlib/audio/audio_driver.h"
 
