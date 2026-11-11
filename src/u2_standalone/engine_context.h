@@ -111,7 +111,7 @@ public:
 
     void run_loop(int timeout_seconds = 0) {
         if (m_temple_preview.load()) {
-            native_log("[U2 Native] Previewing real temple mesh positions from the start camera.\n");
+            native_log("[U2 Native] Previewing real temple triangle edges from the start camera.\n");
             if (m_renderer) SDL_SetRenderLogicalPresentation(m_renderer,1920,1080,SDL_LOGICAL_PRESENTATION_LETTERBOX);
         } else {
             native_log("[U2 Native] Temple position preview unavailable; see resource diagnostics.\n");
@@ -125,7 +125,7 @@ public:
         }
 
         native_log(m_temple_preview.ready()
-            ? "[U2 Native] Native loop active: temple asset-position preview.\n"
+            ? "[U2 Native] Native loop active: temple geometry preview.\n"
             : "[U2 Native] Native loop active: prototype menu.\n");
         uint64_t start_ticks = SDL_GetTicks();
         int last_remaining = -1;
@@ -136,6 +136,7 @@ public:
             while (SDL_PollEvent(&ev)) {
                 if (m_temple_preview.ready()) {
                     if (ev.type==SDL_EVENT_QUIT || (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_ESCAPE)) running=false;
+                    if (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_SPACE && !ev.key.repeat) m_temple_preview.toggle_mode();
                     continue;
                 }
                 if (ev.type == SDL_EVENT_QUIT) {
@@ -208,7 +209,7 @@ public:
                 if (remaining != last_remaining) {
                     last_remaining = remaining;
                     std::string title = "Uncharted 2: Among Thieves (Pure C++23 Standalone) - "
-                                        + std::string(m_temple_preview.ready() ? "Temple : apercu natif des sommets" : "Menu prototype")
+                                        + std::string(m_temple_preview.ready() ? "Temple : apercu natif" : "Menu prototype")
                                         + " [Fermeture auto dans "
                                         + std::to_string(remaining) + "s - ECHAP pour quitter]";
                     SDL_SetWindowTitle(m_window, title.c_str());

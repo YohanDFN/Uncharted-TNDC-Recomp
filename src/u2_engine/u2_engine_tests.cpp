@@ -9,6 +9,7 @@
 #include "game/camera/camera_orientation.h"
 #include "game/camera/camera_position.h"
 #include "game/rendercamera.h"
+#include "../u2_standalone/preview_clip.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -984,6 +985,34 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
+        {
+            const std::array<float,4> inside_a{0,0,0.25f,1},inside_b{0.5f,0.5f,0.75f,1};
+            auto a=inside_a,b=inside_b;
+            U2_TEST_ASSERT(u2::standalone::clip_preview_line(a,b) && a==inside_a && b==inside_b,
+                           "Preview clipping preserves a fully visible line");
+            a={0,0,-1,1};b={0,0,1,1};
+            U2_TEST_ASSERT(u2::standalone::clip_preview_line(a,b) && a[2]==0 && b[2]==1,
+                           "Preview clipping retains the visible portion across the near plane");
+            a={0,0,0.5f,1};b={0,0,2,1};
+            U2_TEST_ASSERT(u2::standalone::clip_preview_line(a,b) && b[2]==b[3],
+                           "Preview clipping terminates a line at the far plane");
+            bool lateral=true;
+            for(size_t axis=0;axis<2;++axis) for(float sign : {-1.0f,1.0f}) {
+                a={0,0,0.5f,1};b=a;b[axis]=sign*2;
+                lateral &= u2::standalone::clip_preview_line(a,b) && b[axis]==sign && b[3]==1;
+            }
+            U2_TEST_ASSERT(lateral,"Preview clipping handles all four side planes");
+            a={-3,0,0.5f,1};b={-2,0,0.5f,1};const auto saved_a=a,saved_b=b;
+            U2_TEST_ASSERT(!u2::standalone::clip_preview_line(a,b) && a==saved_a && b==saved_b,
+                           "Preview clipping rejects a fully hidden line atomically");
+            a={0,0,-1,-1};b={0,0,-2,-2};
+            U2_TEST_ASSERT(!u2::standalone::clip_preview_line(a,b),"Preview clipping rejects lines behind the camera");
+            a={0,0,0,0};b=a;
+            U2_TEST_ASSERT(!u2::standalone::clip_preview_line(a,b),"Preview clipping rejects zero homogeneous divisors");
+            a=inside_a;b=inside_b;a[0]=std::bit_cast<float>(uint32_t{0x7FC00000});
+            U2_TEST_ASSERT(!u2::standalone::clip_preview_line(a,b) && b==inside_b,
+                           "Preview clipping rejects nonfinite coordinates before projection");
+        }
         {
             std::vector<U2NativeMeshPreview> meshes;
             U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeGeometryPreview("menu-temple", &meshes) && meshes.size()==13,

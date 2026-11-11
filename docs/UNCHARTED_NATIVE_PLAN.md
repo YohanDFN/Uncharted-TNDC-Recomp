@@ -192,11 +192,12 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > et comparé aux 16 floats de RenderCamera (`NATIVE_CAMERA_PROJECTION.md`).
 > Le producteur actif des paramètres de projection,
 > l'objet caméra, son login moteur et son utilisation pour le rendu restent à porter.
-> Un premier aperçu d'assets affiche maintenant les 12 383 positions réelles de
-> treize sous-meshes du temple comme nuage de points, avec la caméra de départ
+> Un aperçu d'assets affiche les 12 383 positions et 13 680 triangles réels de
+> treize sous-meshes du temple en fil de fer, avec la caméra de départ
 > et une lentille de référence capturée. Voir `NATIVE_GEOMETRY_PREVIEW.md` et
-> `NATIVE_TEMPLE_POINT_PREVIEW.md`. Les triangles, matériaux et interactions
-> du menu original ne sont pas encore rendus par le standalone.
+> `NATIVE_TEMPLE_POINT_PREVIEW.md`, `NATIVE_TEMPLE_TRIANGLE_INDICES.md` et
+> `NATIVE_TEMPLE_WIREFRAME.md`. Espace alterne fil de fer et sommets.
+> Les surfaces pleines, matériaux et interactions du menu original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
 > Son attribution historique à `PackageMgr::RequestPackage` est à corriger :
 > les appelants et la trace établissent ici une frontière LevelMgr/Level,
