@@ -1,0 +1,69 @@
+#include "geometry_preview.h"
+#include <bit>
+#include <cmath>
+#include <cstring>
+#include <new>
+#include <utility>
+
+bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
+                                   const uint8_t *page, size_t size, size_t metadata) {
+    if (!out || !page || metadata > size || 0x78 > size - metadata) return false;
+    auto u16 = [](const uint8_t *p) { return uint16_t(p[0] | (uint16_t(p[1]) << 8)); };
+    auto u32 = [](const uint8_t *p) { return uint32_t(p[0]) | (uint32_t(p[1])<<8) | (uint32_t(p[2])<<16) | (uint32_t(p[3])<<24); };
+    auto u64 = [](const uint8_t *p) {
+        uint64_t value=0;
+        for (unsigned i=0;i<8;++i) value |= uint64_t(p[i]) << (i*8);
+        return value;
+    };
+    constexpr char type[] = "GEOMETRY_1";
+    const uint64_t type_offset=u64(page+metadata+8);
+    if (type_offset > size || sizeof(type) > size-type_offset ||
+        std::memcmp(page+type_offset,type,sizeof(type))) return false;
+    auto range = [page,size](uint64_t address, size_t bytes, size_t &offset) {
+        const auto base=reinterpret_cast<uintptr_t>(page);
+        if (address<base || address-base>size || bytes>size-(address-base)) return false;
+        offset=static_cast<size_t>(address-base);
+        return true;
+    };
+    // GeoGroup mesh definitions: geometry payload+8/+10, stride 88 hex.
+    // C29394/C29398 and C29660..C296F6; vertex count at MeshDesc+20
+    // and stream count/pointer +28/+30 at C36E2E/C36EA2/C36F80..C36FAC.
+    const uint32_t count=u32(page+metadata+0x28);
+    size_t records=0;
+    if (count && (!range(u64(page+metadata+0x30),0,records) || count>(size-records)/0x88)) return false;
+    try {
+        std::vector<U2NativeMeshPreview> result;
+        result.reserve(count);
+        size_t remaining_positions=size/12;
+        for (size_t i=0;i<count;++i) {
+            const auto *record=page+records+i*0x88;
+            const uint32_t vertices=u32(record+0x20), streams=u32(record+0x28);
+            size_t stream=0,attribute=0,data=0,name=0;
+            if (!vertices || vertices>65536 || vertices>remaining_positions || !streams ||
+                !range(u64(record+0x30),0,stream) || streams>(size-stream)/24 ||
+                !range(u64(record+8),1,name)) return false;
+            remaining_positions-=vertices;
+            const auto *desc=page+stream;
+            // C4E509..C4E543: u16 stride, u32 bytes, data pointer at +10.
+            // Format 6 name is R32G32B32Float in the live format table +60.
+            if (u16(desc)!=1 || u16(desc+2)!=12 || u32(desc+4)!=vertices*12 ||
+                !range(u64(desc+8),4,attribute) || u32(page+attribute)!=0x060C0000 ||
+                !range(u64(desc+0x10),vertices*12,data)) return false;
+            const auto *end=static_cast<const uint8_t *>(std::memchr(page+name,0,size-name));
+            if (!end) return false;
+            U2NativeMeshPreview mesh;
+            mesh.name.assign(reinterpret_cast<const char *>(page+name),end-(page+name));
+            mesh.positions.resize(vertices);
+            for (size_t v=0;v<vertices;++v) {
+                for (size_t axis=0;axis<3;++axis) {
+                    const float value=std::bit_cast<float>(u32(page+data+v*12+axis*4));
+                    if (!std::isfinite(value)) return false;
+                    mesh.positions[v][axis]=value;
+                }
+            }
+            result.push_back(std::move(mesh));
+        }
+        *out=std::move(result);
+        return true;
+    } catch (const std::bad_alloc &) { return false; }
+}

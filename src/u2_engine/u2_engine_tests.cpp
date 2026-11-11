@@ -985,6 +985,70 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
         {
+            std::vector<U2NativeMeshPreview> meshes;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeGeometryPreview("menu-temple", &meshes) && meshes.size()==13,
+                           "Real GEOMETRY_1 yields 13 owned position-only mesh snapshots");
+            U2_TEST_ASSERT(!meshes.empty() && meshes[0].name=="menu-temple.Prototype0.Submesh0" && meshes[0].positions.size()==321 &&
+                           meshes[0].positions[0][0]==-69.251220703125f && meshes[0].positions[0][1]==38.54443359375f &&
+                           meshes[0].positions[0][2]==-9.87060546875f,
+                           "First real temple mesh preserves its original name, vertex count and float3 coordinates");
+            size_t total=0;
+            for (const auto &mesh : meshes) total+=mesh.positions.size();
+            U2_TEST_ASSERT(total==12383, "All 13 temple mesh position streams decoded with their 0x88 descriptor stride");
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetNativeGeometryPreview("missing", &meshes) &&
+                           !u2_cpp_PackageMgr_GetNativeGeometryPreview(nullptr, &meshes) &&
+                           !u2_cpp_PackageMgr_GetNativeGeometryPreview("menu-temple", nullptr) && meshes.size()==13,
+                           "Geometry snapshot lookup rejects absent inputs without replacing owned output");
+            uint8_t page[768]{};
+            auto put32=[&](size_t offset,uint32_t value) { for(unsigned i=0;i<4;++i) page[offset+i]=uint8_t(value>>(8*i)); };
+            auto put64=[&](size_t offset,uint64_t value) { for(unsigned i=0;i<8;++i) page[offset+i]=uint8_t(value>>(8*i)); };
+            auto ptr=[&](size_t offset,size_t target) { put64(offset,reinterpret_cast<uintptr_t>(page+target)); };
+            put64(8,640);std::memcpy(page+640,"GEOMETRY_1",sizeof("GEOMETRY_1"));
+            put32(40,1);ptr(48,128); // payload mesh count +8 and table +10
+            ptr(128+8,544);std::memcpy(page+544,"test-mesh",sizeof("test-mesh"));
+            put32(128+32,3);put32(128+40,1);ptr(128+48,416);
+            page[416]=1;page[418]=12;put32(420,36);ptr(424,448);ptr(432,464);put32(448,0x060C0000);
+            const std::array<float,3> first{-1,2,3.5f};
+            for (size_t i=0;i<3;++i) put32(464+i*4,std::bit_cast<uint32_t>(first[i]));
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==1 &&
+                           meshes[0].positions.size()==3 && meshes[0].positions[0]==first,
+                           "Geometry preview decodes signed nonzero float3 positions");
+            std::memcpy(page+128+0x88,page+128,0x88);put32(40,2);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==2 &&
+                           meshes[1].positions[0]==first, "Geometry preview uses established adjacent mesh descriptor stride");
+            put32(40,UINT32_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==2,
+                           "Geometry preview bounds table extent and preserves prior output");
+            put32(40,1);page[418]=8;
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0), "Geometry preview refuses unsupported vertex stride");
+            page[418]=12;put32(448,0x070C0000);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0), "Geometry preview refuses unproven attribute formats");
+            put32(448,0x060C0000);put32(420,35);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0), "Geometry preview checks exact stream byte count");
+            put32(420,36);put64(432,UINT64_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0), "Geometry preview rejects foreign vertex buffer pointers");
+            ptr(432,464);put32(128+32,UINT32_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0), "Geometry preview bounds vertex counts before allocation");
+            put32(128+32,3);
+            bool nonfinite_rejected=true;
+            for(size_t axis=0;axis<3;++axis) {
+                put32(464+4*axis,0x7FC00000);
+                nonfinite_rejected &= !u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==2 && meshes[0].positions[0]==first;
+                put32(464+4*axis,std::bit_cast<uint32_t>(first[axis]));
+            }
+            U2_TEST_ASSERT(nonfinite_rejected,"Geometry preview rejects nonfinite positions without partial publication");
+            page[640]='X';
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0), "Geometry preview checks exact resource type");
+            page[640]='G';
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(nullptr,page,sizeof(page),0) &&
+                           !u2_native_ReadGeometryPreview(&meshes,nullptr,sizeof(page),0) &&
+                           !u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),SIZE_MAX) &&
+                           !u2_native_ReadGeometryPreview(&meshes,page,0x77,0), "Geometry preview rejects null, overflowing and truncated metadata");
+            std::memset(page,0,sizeof(page));
+            U2_TEST_ASSERT(meshes[0].name=="test-mesh" && meshes[0].positions[0]==first,
+                           "Geometry positions and names survive destruction of source page data");
+        }
+        {
             // Coherent perspective sample 307 from the original RenderCamera
             // dump (25 s menu test), object bytes +250..+25C and +90..+C0.
             const U2NativePerspectiveParams captured{0.5625f, 1.3032253980636597f, 0.23999999463558197f, 5000};

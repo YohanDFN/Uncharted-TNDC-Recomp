@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "game/loading/level_resources.h"
+#include "ndlib/render/ngen/geometry_preview.h"
 
 #ifndef ABI
 #if defined(_WIN32)
@@ -47,6 +48,7 @@ struct U2NativePackageInfo {
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_GetNativeGeometryPreview(const char *package, std::vector<U2NativeMeshPreview> *out);
 bool u2_cpp_PackageMgr_GetNativeLevelOffset(const char *package, U2NativeLevelOffset *out);
 bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,
                                      U2NativeCameraDefinition *out);

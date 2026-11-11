@@ -42,6 +42,8 @@ struct NativePackageRequest {
     U2NativeLevelOffset level_offset;
     bool cameras_decoded{false};
     std::vector<U2NativeCameraDefinition> cameras;
+    bool geometry_preview_decoded{false};
+    std::vector<U2NativeMeshPreview> geometry_preview;
     U2NativePackageInfo view{};
 };
 
@@ -219,6 +221,17 @@ bool resolve_package_file(NativePackageRequest &request) {
                                             }
                                         }
                                     }
+                                    for (size_t i=0;i<request.login_types.size();++i) {
+                                        if (request.login_types[i]!="GEOMETRY_1") continue;
+                                        const uint32_t page_index=read_le32(root+0x28+i*8);
+                                        const uint32_t metadata=read_le32(root+0x2C+i*8);
+                                        request.geometry_preview_decoded=u2_native_ReadGeometryPreview(&request.geometry_preview,
+                                            pages[page_index],sizes[page_index],metadata);
+                                        size_t vertices=0;
+                                        for (const auto &mesh : request.geometry_preview) vertices+=mesh.positions.size();
+                                        std::printf("[U2 Native Geometry] decoded=%u meshes=%zu positions=%zu (position-only preview; engine login pending)\n",
+                                            request.geometry_preview_decoded,request.geometry_preview.size(),vertices);
+                                    }
                                 } else {
                                     request.second_page.clear();
                                     request.resource_types.clear();
@@ -292,6 +305,18 @@ extern "C" const char *u2_cpp_PackageMgr_GetLoginType(const char *package, size_
     std::lock_guard lock(s_request_mutex);
     const auto *request = find_request(string_id(package));
     return request && index < request->login_types.size() ? request->login_types[index].c_str() : nullptr;
+}
+
+extern "C" bool u2_cpp_PackageMgr_GetNativeGeometryPreview(const char *package, std::vector<U2NativeMeshPreview> *out) {
+    if (!package || !*package || !out) return false;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request=find_request(string_id(package));
+    if (!request || !request->geometry_preview_decoded) return false;
+    try {
+        auto copy=request->geometry_preview;
+        *out=std::move(copy);
+        return true;
+    } catch (const std::bad_alloc &) { return false; }
 }
 
 extern "C" bool u2_cpp_PackageMgr_GetNativeLevelOffset(const char *package, U2NativeLevelOffset *out) {
