@@ -14,6 +14,7 @@
 #include <new>
 #include <algorithm>
 #include "game/loading/level_resources.h"
+#include "game/camera/camera_position.h"
 
 namespace {
 
@@ -38,6 +39,7 @@ struct NativePackageRequest {
     std::vector<std::string> resource_types;
     std::vector<std::string> login_types;
     U2NativeLevelInfo level_info;
+    U2NativeLevelOffset level_offset;
     bool cameras_decoded{false};
     std::vector<U2NativeCameraDefinition> cameras;
     U2NativePackageInfo view{};
@@ -86,6 +88,7 @@ void refresh_view(NativePackageRequest &request) {
         request.level_info.value,
         request.cameras_decoded,
         static_cast<uint32_t>(request.cameras.size()),
+        request.level_offset.decoded,
     };
 }
 
@@ -179,6 +182,15 @@ bool resolve_package_file(NativePackageRequest &request) {
                                         if (u2_native_LoginLevelInfo(&request.level_info, pages[page_index], sizes[page_index], metadata))
                                             std::printf("[U2 Native Level] LEVEL_INFO_1 loaded value=0x%08X; remaining login=9\n", request.level_info.value);
                                     }
+                                    // Snapshot resource data only; engine login ordering remains pending.
+                                    for (size_t i = 0; i < request.login_types.size(); ++i) {
+                                        if (request.login_types[i] != "LEVEL_OFFSET_1") continue;
+                                        const uint32_t page_index = read_le32(root + 0x28 + i * 8);
+                                        const uint32_t metadata = read_le32(root + 0x2C + i * 8);
+                                        if (u2_native_ReadLevelOffset(&request.level_offset, pages[page_index], sizes[page_index], metadata))
+                                            std::printf("[U2 Native Level] LEVEL_OFFSET_1 decoded translation=(%.9f, %.9f, %.9f) (engine login pending)\n",
+                                                request.level_offset.translation[0], request.level_offset.translation[1], request.level_offset.translation[2]);
+                                    }
                                     for (size_t i = 0; i < request.login_types.size(); ++i) {
                                         if (request.login_types[i] != "CAMERA_TABLE_1") continue;
                                         const uint32_t page_index = read_le32(root + 0x28 + i * 8);
@@ -187,7 +199,9 @@ bool resolve_package_file(NativePackageRequest &request) {
                                             pages[page_index], sizes[page_index], metadata);
                                         std::printf("[U2 Native Camera] CAMERA_TABLE_1 decoded=%u definitions=%zu (engine login pending)\n",
                                                     request.cameras_decoded, request.cameras.size());
-                                        for (const auto &camera : request.cameras) {
+                                        for (auto &camera : request.cameras) {
+                                            camera.position_translated = u2_native_TranslateCameraPosition(camera,
+                                                request.level_offset, &camera.translated_position);
                                             if (camera.is_start) {
                                                 std::printf("[U2 Native Camera] start='%s' position=(%.6f, %.6f, %.6f)\n",
                                                     camera.name.c_str(), camera.position[0], camera.position[1], camera.position[2]);
@@ -199,6 +213,9 @@ bool resolve_package_file(NativePackageRequest &request) {
                                                     std::printf("[U2 Native Camera] quaternion xyzw=(%.9f, %.9f, %.9f, %.9f)\n",
                                                         camera.orientation_xyzw[0], camera.orientation_xyzw[1],
                                                         camera.orientation_xyzw[2], camera.orientation_xyzw[3]);
+                                                if (camera.position_translated)
+                                                    std::printf("[U2 Native Camera] translated position=(%.9f, %.9f, %.9f)\n",
+                                                        camera.translated_position[0], camera.translated_position[1], camera.translated_position[2]);
                                             }
                                         }
                                     }
@@ -275,6 +292,15 @@ extern "C" const char *u2_cpp_PackageMgr_GetLoginType(const char *package, size_
     std::lock_guard lock(s_request_mutex);
     const auto *request = find_request(string_id(package));
     return request && index < request->login_types.size() ? request->login_types[index].c_str() : nullptr;
+}
+
+extern "C" bool u2_cpp_PackageMgr_GetNativeLevelOffset(const char *package, U2NativeLevelOffset *out) {
+    if (!package || !*package || !out) return false;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request = find_request(string_id(package));
+    if (!request || !request->level_offset.decoded) return false;
+    *out = request->level_offset;
+    return true;
 }
 
 extern "C" bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,

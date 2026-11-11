@@ -417,15 +417,17 @@ static void apply_patches(const char *path, Segment *segments, uint64_t ns, cons
  * The first `bytes` (>= 5, whole position-independent instructions) at each image offset move
  * to a thunk near the image, which counts the call and keeps its first two arguments; START-END
  * hooks every 16-byte aligned function in that range that begins with a frame-pointer prologue.
- * The counts that changed and the last XMM0 bits are printed every 2 s.
+ * The counts that changed and the last XMM0/XMM1 bits are printed every 2 s.
  * Snapshots are diagnostic, not a synchronized per-call trace. */
 #include <pthread.h>
 typedef struct {
     volatile uint64_t calls, rdi, rsi, rdx, rcx, r8, r15;
     uint64_t offset, printed;
     volatile uint64_t xmm0_bits[2];
+    volatile uint64_t xmm1_bits[2];
 } GuestHook;
 _Static_assert(offsetof(GuestHook, xmm0_bits) == 72, "hook thunk XMM0 offset");
+_Static_assert(offsetof(GuestHook, xmm1_bits) == 88, "hook thunk XMM1 offset");
 static GuestHook *guest_hooks;
 static size_t guest_hook_count;
 static uint64_t guest_image_size;
@@ -458,6 +460,8 @@ static void *report_guest_hooks(void *unused) {
                    (uint64_t)h->rsi,(uint64_t)h->rdx,(uint64_t)h->rcx,(uint64_t)h->r8,(uint64_t)h->r15);
             printf("    xmm0 bits: %016" PRIx64 " %016" PRIx64 "\n",
                    (uint64_t)h->xmm0_bits[0], (uint64_t)h->xmm0_bits[1]);
+            printf("    xmm1 bits: %016" PRIx64 " %016" PRIx64 "\n",
+                   (uint64_t)h->xmm1_bits[0], (uint64_t)h->xmm1_bits[1]);
             h->printed=calls;
             print_hook_string("rdi",h->rdi); print_hook_string("rsi",h->rsi);
             print_hook_string("rdx",h->rdx); print_hook_string("rcx",h->rcx);
@@ -563,6 +567,7 @@ static void install_guest_hooks(Segment *segments, uint64_t ns) {
             t[k++]=0x4c; t[k++]=0x89; t[k++]=0x40; t[k++]=0x28;         /* mov [rax+40], r8 */
             t[k++]=0x4c; t[k++]=0x89; t[k++]=0x78; t[k++]=0x30;         /* mov [rax+48], r15 */
             t[k++]=0xc5; t[k++]=0xf8; t[k++]=0x11; t[k++]=0x40; t[k++]=0x48; /* vmovups [rax+72], xmm0; register unchanged */
+            t[k++]=0xc5; t[k++]=0xf8; t[k++]=0x11; t[k++]=0x48; t[k++]=0x58; /* vmovups [rax+88], xmm1; register unchanged */
             t[k++]=0x58;                                                /* pop rax */
             memcpy(t+k,f,moved); k+=moved;                              /* the moved instructions */
             int32_t back=(int32_t)((int64_t)(uintptr_t)(f+moved)-(int64_t)(uintptr_t)(t+k+5));

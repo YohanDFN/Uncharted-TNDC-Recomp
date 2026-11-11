@@ -15,6 +15,14 @@ struct U2NativeLevelInfo {
 bool u2_native_LoginLevelInfo(U2NativeLevelInfo *level, const uint8_t *page,
                              size_t page_size, size_t metadata_offset);
 
+// Owned resource data, not a guest Level or an applied engine login.
+struct U2NativeLevelOffset {
+    std::array<float, 3> translation{};
+    bool decoded{false};
+};
+bool u2_native_ReadLevelOffset(U2NativeLevelOffset *out, const uint8_t *page,
+                              size_t page_size, size_t metadata_offset);
+
 // Owned snapshot of established camera-definition fields, not a live engine
 // Camera or a guest Level. No pointer into a PAK page survives decoding.
 struct U2NativeCameraDefinition {
@@ -30,6 +38,8 @@ struct U2NativeCameraDefinition {
     // Derived from the stored vectors only when the inline path is supported.
     std::array<float, 4> orientation_xyzw{};
     bool orientation_calculated{false};
+    std::array<float, 3> translated_position{};
+    bool position_translated{false};
     bool is_start{false};
 };
 

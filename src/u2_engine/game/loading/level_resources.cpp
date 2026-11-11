@@ -27,6 +27,31 @@ bool u2_native_LoginLevelInfo(U2NativeLevelInfo *level, const uint8_t *page,
     return true;
 }
 
+// LEVEL_OFFSET_1 hash A0C08245: 48E9E5..48EA2B copies three floats
+// from metadata+20/+24/+28 into Level+20/+24/+28, with a null owner check.
+bool u2_native_ReadLevelOffset(U2NativeLevelOffset *out, const uint8_t *page,
+                              size_t page_size, size_t metadata_offset) {
+    if (!out || !page || metadata_offset > page_size || 44 > page_size - metadata_offset)
+        return false;
+    uint64_t type_offset = 0;
+    for (unsigned i = 0; i < 8; ++i)
+        type_offset |= uint64_t{page[metadata_offset + 8 + i]} << (8 * i);
+    constexpr char type[] = "LEVEL_OFFSET_1";
+    if (type_offset > page_size || sizeof(type) > page_size - type_offset ||
+        std::memcmp(page + type_offset, type, sizeof(type)) != 0) return false;
+    U2NativeLevelOffset result;
+    for (size_t axis = 0; axis < 3; ++axis) {
+        const auto *p = page + metadata_offset + 0x20 + axis * 4;
+        const uint32_t bits = uint32_t{p[0]} | (uint32_t{p[1]} << 8) |
+                              (uint32_t{p[2]} << 16) | (uint32_t{p[3]} << 24);
+        result.translation[axis] = std::bit_cast<float>(bits);
+        if (!std::isfinite(result.translation[axis])) return false;
+    }
+    result.decoded = true;
+    *out = result;
+    return true;
+}
+
 // CameraManager message F2ACC8EC: 43535C/43536B read count/records,
 // 435376/43538C use the record name, 435A21..435A2C use position +8/+C/+10,
 // 4355E6..435629 read orientation vectors +20/+14 on the null +40 branch,

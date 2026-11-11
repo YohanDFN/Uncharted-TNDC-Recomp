@@ -43,9 +43,11 @@ struct U2NativePackageInfo {
     uint32_t level_info_value;
     bool camera_definitions_decoded;
     uint32_t camera_definitions;
+    bool level_offset_decoded;
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_GetNativeLevelOffset(const char *package, U2NativeLevelOffset *out);
 bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,
                                      U2NativeCameraDefinition *out);
 bool u2_cpp_PackageMgr_ReadLoginTypes(const uint8_t *header, size_t header_size,

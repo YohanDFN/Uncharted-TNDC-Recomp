@@ -7,6 +7,7 @@
 #include "u2_engine.h"
 #include "game/loading/level_resources.h"
 #include "game/camera/camera_orientation.h"
+#include "game/camera/camera_position.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -982,6 +983,17 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
+        U2NativeLevelOffset actual_offset;
+        const std::array<float, 3> no_translation{};
+        U2_TEST_ASSERT(temple && temple->level_offset_decoded &&
+                       u2_cpp_PackageMgr_GetNativeLevelOffset("menu-temple", &actual_offset) &&
+                       actual_offset.decoded && actual_offset.translation == no_translation,
+                       "Real LEVEL_OFFSET_1 decodes its zero translation from the PAK");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetNativeLevelOffset(nullptr, &actual_offset) &&
+                       !u2_cpp_PackageMgr_GetNativeLevelOffset("missing", &actual_offset) &&
+                       !u2_cpp_PackageMgr_GetNativeLevelOffset("menu-temple", nullptr) &&
+                       actual_offset.decoded && actual_offset.translation == no_translation,
+                       "Level offset lookup rejects absent input without changing the prior snapshot");
         U2_TEST_ASSERT(temple && temple->camera_definitions_decoded && temple->camera_definitions == 1 &&
                        u2_cpp_PackageMgr_GetNativeCamera("menu-temple", 0, &actual_camera),
                        "Real CAMERA_TABLE_1 yields one owned camera definition");
@@ -991,6 +1003,84 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        std::abs(actual_camera.position[1] - 26.8985996f) < 0.0001f &&
                        std::abs(actual_camera.position[2] + 29.6289997f) < 0.0001f,
                        "Real camera position decoded from PAK payload");
+        U2_TEST_ASSERT(actual_camera.position_translated &&
+                       std::bit_cast<uint32_t>(actual_camera.translated_position[0]) == 0xC29CC505 &&
+                       std::bit_cast<uint32_t>(actual_camera.translated_position[1]) == 0x41D73055 &&
+                       std::bit_cast<uint32_t>(actual_camera.translated_position[2]) == 0xC1ED0831,
+                       "Translated temple camera position matches original ELF XMM1 capture at 435A5D");
+        {
+            uint8_t page[64] = {};
+            auto put32 = [&page](size_t off, uint32_t value) {
+                for (unsigned i = 0; i < 4; ++i) page[off+i] = static_cast<uint8_t>(value >> (8*i));
+            };
+            page[8] = 48;
+            std::memcpy(page + 48, "LEVEL_OFFSET_1", sizeof("LEVEL_OFFSET_1"));
+            const std::array<float, 3> expected{10, -20, 30.5f};
+            for (size_t i = 0; i < 3; ++i) put32(32 + 4*i, std::bit_cast<uint32_t>(expected[i]));
+            U2NativeLevelOffset offset;
+            U2_TEST_ASSERT(u2_native_ReadLevelOffset(&offset, page, sizeof(page), 0) &&
+                           offset.decoded && offset.translation == expected,
+                           "Level offset decoder preserves signed nonzero float components");
+            bool rejects_nonfinite = true;
+            for (size_t i = 0; i < 3; ++i) {
+                for (uint32_t bits : {uint32_t{0x7FC00000}, uint32_t{0x7F800000}, uint32_t{0xFF800000}}) {
+                    put32(32 + i*4, bits);
+                    rejects_nonfinite &= !u2_native_ReadLevelOffset(&offset, page, sizeof(page), 0) &&
+                        offset.decoded && offset.translation == expected;
+                }
+                put32(32 + i*4, std::bit_cast<uint32_t>(expected[i]));
+            }
+            U2_TEST_ASSERT(rejects_nonfinite, "Level offset rejects NaN and infinities atomically in all three components");
+            page[48] = 'X';
+            U2_TEST_ASSERT(!u2_native_ReadLevelOffset(&offset, page, sizeof(page), 0) && offset.translation == expected,
+                           "Level offset verifies exact resource type");
+            page[48] = 'L';
+            page[8] = 63;
+            U2_TEST_ASSERT(!u2_native_ReadLevelOffset(&offset, page, sizeof(page), 0),
+                           "Level offset rejects truncated type string");
+            std::memset(page + 8, 0xFF, 8);
+            U2_TEST_ASSERT(!u2_native_ReadLevelOffset(&offset, page, sizeof(page), 0),
+                           "Level offset bounds the full 64-bit type offset");
+            std::memset(page + 8, 0, 8); page[8] = 48;
+            U2_TEST_ASSERT(!u2_native_ReadLevelOffset(&offset, page, 43, 0) &&
+                           !u2_native_ReadLevelOffset(&offset, page, sizeof(page), SIZE_MAX) &&
+                           !u2_native_ReadLevelOffset(nullptr, page, sizeof(page), 0) &&
+                           !u2_native_ReadLevelOffset(&offset, nullptr, sizeof(page), 0) && offset.translation == expected,
+                           "Level offset rejects null, truncated and overflowing metadata inputs");
+            U2NativeCameraDefinition camera;
+            camera.position = {1, 2, -3.5f};
+            const std::array<float, 3> translated{11, -18, 27};
+            const std::array<float, 3> sentinel{100, 200, 300};
+            auto out = sentinel;
+            U2_TEST_ASSERT(u2_native_TranslateCameraPosition(camera, offset, &out) && out == translated &&
+                           camera.position[0] == 1 && offset.translation == expected,
+                           "Camera translation adds nonzero level offset once without mutating stored inputs");
+            out = sentinel;
+            offset.decoded = false;
+            U2_TEST_ASSERT(!u2_native_TranslateCameraPosition(camera, offset, &out) && out == sentinel,
+                           "Camera translation requires a decoded level offset");
+            offset.decoded = true; camera.uses_external_transform = true;
+            U2_TEST_ASSERT(!u2_native_TranslateCameraPosition(camera, offset, &out) && out == sentinel,
+                           "Camera translation refuses unresolved external transform atomically");
+            camera.uses_external_transform = false;
+            U2_TEST_ASSERT(!u2_native_TranslateCameraPosition(camera, offset, nullptr), "Camera translation rejects null destination");
+            bool invalid_rejected = true;
+            for (size_t i = 0; i < 6; ++i) {
+                auto &vector = i < 3 ? camera.position : offset.translation;
+                const float saved = vector[i%3];
+                for (uint32_t bits : {uint32_t{0x7FC00000}, uint32_t{0x7F800000}, uint32_t{0xFF800000}}) {
+                    vector[i%3] = std::bit_cast<float>(bits);
+                    invalid_rejected &= !u2_native_TranslateCameraPosition(camera, offset, &out) && out == sentinel;
+                }
+                vector[i%3] = saved;
+            }
+            camera.position[2] = offset.translation[2] = 3e38f;
+            U2_TEST_ASSERT(invalid_rejected && !u2_native_TranslateCameraPosition(camera, offset, &out) && out == sentinel,
+                           "Camera translation rejects nonfinite inputs and result overflow without partial writes");
+            std::memset(page, 0, sizeof(page));
+            U2_TEST_ASSERT(offset.translation[0] == 10 && offset.translation[1] == -20,
+                           "Level offset copy survives source buffer overwrite");
+        }
         U2_TEST_ASSERT(std::abs(actual_camera.orientation_axis_a[0] + 0.195780724f) < 0.000001f &&
                        std::abs(actual_camera.orientation_axis_a[1] - 0.903568625f) < 0.000001f &&
                        std::abs(actual_camera.orientation_axis_a[2] + 0.381095320f) < 0.000001f &&
