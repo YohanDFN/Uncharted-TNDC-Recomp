@@ -34,6 +34,7 @@ struct NativePackageRequest {
     uint32_t pending_fixups{0};
     std::vector<uint8_t> second_page;
     bool pointers_relocated{false};
+    std::vector<std::string> resource_types;
     U2NativePackageInfo view{};
 };
 
@@ -74,6 +75,7 @@ void refresh_view(NativePackageRequest &request) {
         request.pending_fixups,
         static_cast<uint32_t>(request.second_page.size()),
         request.pointers_relocated,
+        static_cast<uint32_t>(request.resource_types.size()),
     };
 }
 
@@ -141,13 +143,18 @@ bool resolve_package_file(NativePackageRequest &request) {
                                 if (runtime_file_pread(fd, request.second_page.data(), size1, offset1) == size1 &&
                                     u2_cpp_PackageMgr_CheckPage(second_entry.data(), second_entry.size(),
                                         static_cast<uint64_t>(size), request.second_page.data(), size1) &&
+                                    u2_cpp_PackageMgr_ReadResourceTypes(request.first_page.data(),
+                                        request.first_page.size(), &request.resource_types) &&
                                     u2_cpp_PackageMgr_RelocatePages(header.data(), header.size(),
                                         request.first_page.data(), request.first_page.size(),
                                         request.second_page.data(), size1, &request.pointers_relocated)) {
                                     std::printf("[U2 Native PackageMgr] page1 verified bytes=%u; relocated=%u\n",
                                                 size1, request.local_fixups + request.pending_fixups);
+                                    std::printf("[U2 Native PackageMgr] resource catalog entries=%zu (login pending)\n",
+                                                request.resource_types.size());
                                 } else {
                                     request.second_page.clear();
+                                    request.resource_types.clear();
                                     std::fprintf(stderr, "[U2 Native PackageMgr] page1/relocation rejected\n");
                                 }
                             }
@@ -175,6 +182,46 @@ bool resolve_package_file(NativePackageRequest &request) {
 }
 
 } // namespace
+
+// LoadingPages 0xB69FB0..0xB6A026: uint16 count at +0x12,
+// 16-byte descriptors at +0x14, metadata offset at descriptor+8.
+// Metadata's first two uint64 values are page-relative name/type strings.
+// Parse before the original's separate metadata-pointer normalization stage.
+extern "C" bool u2_cpp_PackageMgr_ReadResourceTypes(const uint8_t *page, size_t size,
+                                                   std::vector<std::string> *types) {
+    if (!page || !types || size < 0x14) return false;
+    const uint32_t count = uint32_t{page[0x12]} | (uint32_t{page[0x13]} << 8);
+    if (count > (size - 0x14) / 16) return false;
+    try {
+        std::vector<std::string> result;
+        for (size_t i = 0; i < count; ++i) {
+            const uint32_t metadata = read_le32(page + 0x14 + i * 16 + 8);
+            if (metadata > 0x7FFFFFFFu || metadata > size || 32 > size - metadata) return false;
+            std::string type;
+            for (size_t field = 0; field < 2; ++field) {
+                uint64_t offset = 0;
+                for (unsigned b = 0; b < 8; ++b) offset |= uint64_t{page[metadata + field * 8 + b]} << (b * 8);
+                if (offset >= size) return false;
+                const auto *end = static_cast<const uint8_t *>(std::memchr(page + offset, 0, size - offset));
+                if (!end) return false;
+                if (field == 1) type.assign(reinterpret_cast<const char *>(page + offset), end - (page + offset));
+            }
+            result.push_back(std::move(type));
+        }
+        *types = std::move(result);
+        return true;
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
+}
+
+extern "C" size_t u2_cpp_PackageMgr_CountResourceType(const char *package, const char *type) {
+    if (!package || !*package || !type) return 0;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request = find_request(string_id(package));
+    if (!request) return 0;
+    return static_cast<size_t>(std::count(request->resource_types.begin(), request->resource_types.end(), type));
+}
 
 extern "C" bool u2_cpp_PackageMgr_RelocatePages(const uint8_t *header, size_t header_size,
                                                uint8_t *page0, size_t size0, uint8_t *page1, size_t size1,

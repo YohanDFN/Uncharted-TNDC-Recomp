@@ -914,6 +914,26 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 2u,
                        "PackageMgr registers both native menu packages");
         const auto *temple = u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
+        U2_TEST_ASSERT(temple && temple->catalog_resources == 538,
+                       "PAK catalog registers 538 real page-0 metadata descriptors");
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_CountResourceType("menu-temple", "CAMERA_TABLE_1") == 1,
+                       "PAK native catalog resolves camera table type");
+        {
+            uint8_t page[80] = {};
+            page[0x12] = 1; page[0x1C] = 36;
+            page[36] = 68; page[44] = 69; page[69] = 'T';
+            std::vector<std::string> types;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_ReadResourceTypes(page, sizeof(page), &types) &&
+                           types.size() == 1 && types[0] == "T", "PAK metadata strings decoded");
+            page[44] = 80;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_ReadResourceTypes(page, sizeof(page), &types) &&
+                           types.size() == 1 && types[0] == "T", "PAK invalid string leaves catalog unchanged");
+            page[44] = 79; page[79] = 'X';
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_ReadResourceTypes(page, sizeof(page), &types),
+                           "PAK rejects unterminated metadata string");
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_ReadResourceTypes(page, 30, &types),
+                           "PAK rejects truncated descriptor table");
+        }
         U2_TEST_ASSERT(temple && temple->local_fixups == 4088 && temple->pending_fixups == 60,
                        "PAK fixup audit validates real page 0 and counts missing page 1 slots");
         uint8_t fix_header[136] = {};

@@ -188,3 +188,51 @@ Commit : feat(native), atomique avec ce rapport.
 Prochaine hypothèse : comprendre le login et les descripteurs de ressources
 de page (notamment les 538 entrées indiquées à page0+0x12), avant publication
 au moteur ou exécution de scripts.
+
+## Itération : catalogue de types de ressources
+
+Sous-système : ndlib/io.
+Symptôme : pages relogées sans inventaire natif consultable des métadonnées.
+Dernier point fonctionnel : 4148 fixups appliqués sur deux pages.
+Premier point incorrect : descripteurs de page non examinés.
+Hypothèse : la boucle de normalisation des métadonnées permet de lire les
+types de ressources avant leur login spécifique au moteur.
+
+Offsets étudiés / preuve statique : 0xB69FB0..0xB6A026 (compte uint16 à
+page+0x12, descripteurs de 16 octets à +0x14, offset signé des métadonnées à
+descripteur+8). L'original ajoute la base page aux deux premiers uint64 des
+métadonnées, puis calcule deux StringId. Ces chaînes sont examinées avant
+normalisation ; leurs offsets ne doivent pas être confondus avec des pointeurs
+absolus produits par les fixups généraux.
+
+0xB6B9F2..0xB6BA49 : le login utilise une autre liste de couples
+index-page/offset, puis appelle le callback global à 0x12441C0. Le corps de
+BigPackageLoginResItem (repéré par les assertions dans u2_engine_map.json)
+implique notamment des dépendances de géométrie. Ce login reste à étudier.
+
+Preuve runtime : 538 types lus dans les descripteurs de page0 de menu-temple,
+dont CAMERA_TABLE_1 trouvé exactement une fois. Les premières chaînes de type
+comprennent COLLISION_DATA_HAVOK_BG et DEBUG_INFO_1. Le journal confirme
+resource catalog entries=538 (login pending).
+
+Conclusion : catalogue hôte consultable par type, pas un registre moteur de
+ressources initialisées. Aucun callback de login ni constructeur moteur appelé.
+La liste de login n'est pas encore décodée et peut différer de cet inventaire.
+
+Modification : lecture bornée des descripteurs, métadonnées et deux chaînes
+terminées dans la page. Copie des types dans des std::string possédés par la
+requête. Publication après succès complet et relocation réussie ; catalogue
+effacé si la relocation est refusée. L'état du package reste resolved.
+Fichiers modifiés : package_manager.cpp/.h, u2_engine_tests.cpp et ce rapport.
+Tests ajoutés : catalogue réel 538, recherche CAMERA_TABLE_1, cas synthétique,
+offset de chaîne invalide avec sortie préservée, chaîne non terminée,
+descripteurs tronqués.
+Build : réussi.
+Test 6 secondes : SelfTest et EngineTest passent, 175/175 assertions,
+STOPPED_AFTER_TIMEOUT ; natif sortie 0.
+Test prolongé : non nécessaire pour cette lecture synchrone.
+Régression observée : aucune dans ces scénarios.
+Commit : feat(native), atomique avec ce rapport.
+Prochaine hypothèse : identifier la liste de login et la résolution du callback
+BigPackageLoginResItem ; choisir un type dont l'initialisation est entièrement
+établie avant d'enregistrer une ressource comme utilisable par le moteur.

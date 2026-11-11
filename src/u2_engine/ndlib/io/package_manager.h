@@ -3,6 +3,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #ifndef ABI
 #if defined(_WIN32)
@@ -34,9 +36,13 @@ struct U2NativePackageInfo {
     uint32_t pending_fixups;
     uint32_t second_page_size;
     bool pointers_relocated;
+    uint32_t catalog_resources;
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_ReadResourceTypes(const uint8_t *page, size_t size,
+                                       std::vector<std::string> *types);
+size_t u2_cpp_PackageMgr_CountResourceType(const char *package, const char *type);
 bool u2_cpp_PackageMgr_RelocatePages(const uint8_t *header, size_t header_size,
                                    uint8_t *page0, size_t size0, uint8_t *page1, size_t size1,
                                    bool *relocated);
