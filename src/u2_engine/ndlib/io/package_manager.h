@@ -32,9 +32,14 @@ struct U2NativePackageInfo {
     uint32_t first_page_size;
     uint32_t local_fixups;
     uint32_t pending_fixups;
+    uint32_t second_page_size;
+    bool pointers_relocated;
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_RelocatePages(const uint8_t *header, size_t header_size,
+                                   uint8_t *page0, size_t size0, uint8_t *page1, size_t size1,
+                                   bool *relocated);
 bool u2_cpp_PackageMgr_AuditFixups(const uint8_t *header, size_t header_size,
                                  const uint8_t *page, size_t page_size,
                                  uint32_t *local, uint32_t *pending);

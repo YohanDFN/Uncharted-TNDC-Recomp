@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <new>
+#include <algorithm>
 
 namespace {
 
@@ -31,6 +32,8 @@ struct NativePackageRequest {
     std::vector<uint8_t> first_page;
     uint32_t local_fixups{0};
     uint32_t pending_fixups{0};
+    std::vector<uint8_t> second_page;
+    bool pointers_relocated{false};
     U2NativePackageInfo view{};
 };
 
@@ -69,6 +72,8 @@ void refresh_view(NativePackageRequest &request) {
         static_cast<uint32_t>(request.first_page.size()),
         request.local_fixups,
         request.pending_fixups,
+        static_cast<uint32_t>(request.second_page.size()),
+        request.pointers_relocated,
     };
 }
 
@@ -98,9 +103,9 @@ bool resolve_package_file(NativePackageRequest &request) {
                     static_cast<int64_t>(entry.size());
         if (i == 0 && inspected) first_entry = entry;
     }
-    // First incremental payload: only menu-temple page 0, raw kind 0.
-    // Keep the host-owned bytes alive with the request; no guest pointers are
-    // patched and no executable memory is allocated.
+    // Incremental payload: menu-temple's two observed kind-0 pages.
+    // Host-owned page storage stays fixed once pointers have been relocated;
+    // no executable memory is allocated.
     if (inspected && request.page_count && request.name == "menu-temple") {
         const uint32_t offset = read_le32(first_entry.data());
         const uint32_t page_size = read_le32(first_entry.data() + 4);
@@ -124,6 +129,29 @@ bool resolve_package_file(NativePackageRequest &request) {
                             &request.local_fixups, &request.pending_fixups)) {
                         std::printf("[U2 Native PackageMgr] fixups audited local=%u pending=%u (no writes)\n",
                                     request.local_fixups, request.pending_fixups);
+                        std::array<uint8_t, 12> second_entry{};
+                        if (request.page_count == 2 && runtime_file_pread(fd, second_entry.data(),
+                            second_entry.size(), uint64_t{request.page_table_offset} + 12) == 12) {
+                            const uint32_t offset1 = read_le32(second_entry.data());
+                            const uint32_t size1 = read_le32(second_entry.data() + 4);
+                            if (size1 >= 16 && size1 <= kInspectionBudget &&
+                                offset1 <= static_cast<uint64_t>(size) &&
+                                size1 <= static_cast<uint64_t>(size) - offset1) {
+                                request.second_page.resize(size1);
+                                if (runtime_file_pread(fd, request.second_page.data(), size1, offset1) == size1 &&
+                                    u2_cpp_PackageMgr_CheckPage(second_entry.data(), second_entry.size(),
+                                        static_cast<uint64_t>(size), request.second_page.data(), size1) &&
+                                    u2_cpp_PackageMgr_RelocatePages(header.data(), header.size(),
+                                        request.first_page.data(), request.first_page.size(),
+                                        request.second_page.data(), size1, &request.pointers_relocated)) {
+                                    std::printf("[U2 Native PackageMgr] page1 verified bytes=%u; relocated=%u\n",
+                                                size1, request.local_fixups + request.pending_fixups);
+                                } else {
+                                    request.second_page.clear();
+                                    std::fprintf(stderr, "[U2 Native PackageMgr] page1/relocation rejected\n");
+                                }
+                            }
+                        }
                     }
                 }
             } catch (const std::bad_alloc &) {
@@ -147,6 +175,52 @@ bool resolve_package_file(NativePackageRequest &request) {
 }
 
 } // namespace
+
+extern "C" bool u2_cpp_PackageMgr_RelocatePages(const uint8_t *header, size_t header_size,
+                                               uint8_t *page0, size_t size0, uint8_t *page1, size_t size1,
+                                               bool *relocated) {
+    if (!relocated || *relocated || !page0 || !page1) return false;
+    uint32_t local = 0, pending = 0;
+    if (!u2_cpp_PackageMgr_AuditFixups(header, header_size, page0, size0, &local, &pending)) return false;
+    // Prepare every write first. No mutation is allowed until the entire plan
+    // is valid. Vectors owning page0/page1 must not resize after this call.
+    struct Write { uint32_t destination; uint32_t slot; uint64_t value; };
+    try {
+        std::vector<Write> writes;
+        const uint32_t table = read_le32(header + 0x1C);
+        uint8_t *pages[] = {page0, page1};
+        const size_t sizes[] = {size0, size1};
+        for (size_t group = 0; group < 8; ++group) {
+            const auto *desc = header + table + group * 12;
+            const uint32_t offset = read_le32(desc + 4), count = read_le32(desc + 8);
+            for (size_t i = 0; i < count; ++i) {
+                const auto *record = header + offset + i * 8;
+                const uint32_t destination = read_le32(record) & 0x7FFF;
+                const uint32_t slot = read_le32(record + 4);
+                if (slot > 0x7FFFFFFFu || slot % 8 || slot > sizes[destination] ||
+                    8 > sizes[destination] - slot) return false;
+                uint64_t target = 0;
+                for (unsigned b = 0; b < 8; ++b) target |= uint64_t{pages[destination][slot + b]} << (b * 8);
+                const uint64_t base = reinterpret_cast<uintptr_t>(page0);
+                if (target >= size0 || target > UINT64_MAX - base) return false;
+                writes.push_back({destination, slot, base + target});
+            }
+        }
+        std::sort(writes.begin(), writes.end(), [](const Write &a, const Write &b) {
+            return a.destination < b.destination || (a.destination == b.destination && a.slot < b.slot);
+        });
+        for (size_t i = 1; i < writes.size(); ++i) {
+            if (writes[i].destination == writes[i-1].destination && writes[i].slot == writes[i-1].slot) return false;
+        }
+        for (const auto &write : writes) {
+            std::memcpy(pages[write.destination] + write.slot, &write.value, sizeof(write.value));
+        }
+        *relocated = true;
+        return true;
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
+}
 
 // Read-only preflight of the eight groups consumed by FixUpPakPointers
 // (0xB6E800). Only destination/base page 0 is available in this milestone.

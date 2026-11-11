@@ -146,3 +146,45 @@ Régression observée : aucune dans ces scénarios.
 Commit : feat(native), atomique avec ce rapport.
 Prochaine hypothèse : charger et vérifier page 1, compléter les bornes des
 60 emplacements, puis préparer une relocation transactionnelle à exécution unique.
+
+## Itération : page 1 et application des relocations
+
+Sous-système : ndlib/io.
+Symptôme : 60 emplacements non vérifiés car page 1 absente.
+Dernier point fonctionnel : audit page 0, 4088 locaux / 60 en attente.
+Premier point incorrect : page 1 et pointeurs absolus absents.
+Hypothèse : la seconde entrée permet de lire page 1 puis de valider toutes
+les écritures du sous-ensemble observé avant de les appliquer une fois.
+Offsets étudiés : 0x00B6E840..0x00B6E908, mêmes preuves que l'itération précédente.
+Preuve statique : 0xB6E88C charge l'index de base cible, 0xB6E895 l'emplacement
+signé ; 0xB6E89D ajoute la base au uint64 de destination.
+Preuve runtime : page 1 à 0x1F0400, taille 696 (0x2B8), champ +8 nul,
+taille à page+0x0C identique. 4148 écritures validées et appliquées ; journal
+page1 verified bytes=696; relocated=4148.
+
+Conclusion : les deux pages du package menu-temple contiennent désormais les
+pointeurs absolus correspondant au sous-ensemble observé de FixUpPakPointers.
+Il ne s'agit pas du login des ressources moteur ni de leur enregistrement.
+L'état du package reste resolved et pointers_relocated indique ce jalon séparément.
+
+Modification : page 1 bornée et lue exactement, construction d'un plan
+d'écritures, validation de tous les slots/cibles et rejet des doublons avant
+la première mutation. Toutes les écritures utilisent memcpy sur huit octets.
+Un drapeau empêche la seconde application. Les vecteurs sont possédés par la
+requête statique et ne sont plus redimensionnés après succès ; déduplication
+des demandes conserve leurs adresses. Le reset de tests détruit les pages ;
+aucun consommateur externe ne reçoit actuellement leurs pointeurs.
+Modes spéciaux, indices autres que ceux observés et bases manquantes restent refusés.
+
+Fichiers modifiés : package_manager.cpp/.h, u2_engine_tests.cpp, ce rapport.
+Tests ajoutés : vrai package relogé, échec tardif sans mutation des deux pages,
+adresses locales et inter-pages exactes, seconde application refusée.
+Build : réussi.
+Test 6 secondes : SelfTest/EngineTest passent, 169/169 assertions ; timeout propre.
+Test natif 6 secondes : sortie 0 et 4148 relocations.
+Test prolongé : non nécessaire pour cette opération synchrone.
+Régression observée : aucune dans ces scénarios.
+Commit : feat(native), atomique avec ce rapport.
+Prochaine hypothèse : comprendre le login et les descripteurs de ressources
+de page (notamment les 538 entrées indiquées à page0+0x12), avant publication
+au moteur ou exécution de scripts.

@@ -917,6 +917,30 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(temple && temple->local_fixups == 4088 && temple->pending_fixups == 60,
                        "PAK fixup audit validates real page 0 and counts missing page 1 slots");
         uint8_t fix_header[136] = {};
+        U2_TEST_ASSERT(temple && temple->second_page_size == 696 && temple->pointers_relocated,
+                       "PAK both real menu-temple pages relocated successfully");
+        {
+            uint8_t header[144] = {};
+            header[0x18] = 8; header[0x1C] = 32;
+            header[36] = 128; header[40] = 2;
+            header[136] = 1; // Second record writes page 1.
+            uint8_t p0[16] = {}, p1[16] = {};
+            p0[0] = 8; p1[0] = 16; // Invalid target at end of page.
+            bool relocated = false;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_RelocatePages(header, sizeof(header), p0, 16, p1, 16, &relocated)
+                           && !relocated && p0[0] == 8 && p1[0] == 16,
+                           "PAK relocation failure leaves all pages unchanged");
+            p1[0] = 0;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_RelocatePages(header, sizeof(header), p0, 16, p1, 16, &relocated)
+                           && relocated, "PAK relocation commits validated cross-page plan");
+            uint64_t pointer0 = 0, pointer1 = 0;
+            std::memcpy(&pointer0, p0, 8); std::memcpy(&pointer1, p1, 8);
+            U2_TEST_ASSERT(pointer0 == reinterpret_cast<uintptr_t>(p0 + 8) &&
+                           pointer1 == reinterpret_cast<uintptr_t>(p0),
+                           "PAK relocation produces correct local and cross-page addresses");
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_RelocatePages(header, sizeof(header), p0, 16, p1, 16, &relocated),
+                           "PAK relocation rejects second application");
+        }
         fix_header[0x18] = 8;
         fix_header[0x1C] = 32;
         fix_header[36] = 128;
