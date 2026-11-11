@@ -188,6 +188,31 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         std::memcpy(image + off, real_image + off, 12);
     }
 
+    // Host memory routines remain testable through sandbox trampolines even
+    // when they are deliberately absent from the hybrid production registry.
+    const U2NativeDetour host_stack_tests[] = {
+        { "AllocateAllocStack", 0x00B36D40, reinterpret_cast<uintptr_t>(&u2_cpp_AllocateAllocStack) },
+        { "FreeThreadAllocStack", 0x00B35D30, reinterpret_cast<uintptr_t>(&u2_cpp_FreeThreadAllocStack) },
+        { "PushAllocator", 0x00B360D0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator) },
+        { "PushAllocator_Tag", 0x00B35EA0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator_Tag) },
+        { "PushAllocator_Ext", 0x00B371A0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator_Ext) },
+        { "PopAllocator", 0x00B361C0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator) },
+        { "PopAllocator_Expected", 0x00B377B0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator_Expected) },
+        { "GetAllocatorStackDepth", 0x00B362A0, reinterpret_cast<uintptr_t>(&u2_cpp_GetAllocatorStackDepth) },
+    };
+    for (const auto &entry : host_stack_tests) {
+        bool registered = false;
+        for (size_t i = 0; i < engine_count; ++i) {
+            if (engine_detours[i].offset == entry.offset) registered = true;
+        }
+#if defined(U2_STANDALONE)
+        U2_TEST_ASSERT(registered, "Native registry includes host AllocStack family");
+#else
+        U2_TEST_ASSERT(!registered, "Hybrid registry preserves original ELF AllocStack family");
+#endif
+        write_temp_jmp64(image + entry.offset, entry.host_fn);
+    }
+
     uint8_t *saved_base = g_u2_image_base;
     g_u2_image_base = image;
 
@@ -770,7 +795,18 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
 
     // 8. Test AllocStack & ProcessHeap diagnostics (memory_system.cpp)
     {
+        // Prove host operations neither adopt nor overwrite an existing guest
+        // stack. The TLS slot is established by runtime_thread.c and the ELF.
+#if !defined(U2_STANDALONE)
+        uint64_t *tcb = runtime_thread_current_tcb();
+        auto **guest_slot = tcb ? reinterpret_cast<void **>(reinterpret_cast<uint8_t *>(tcb) - 0x20) : nullptr;
+        void *saved_guest_stack = guest_slot ? *guest_slot : nullptr;
+        alignas(16) uint8_t guest_stack_marker[0x780] = {};
+        if (guest_slot) *guest_slot = guest_stack_marker;
+        U2_TEST_ASSERT(guest_slot != nullptr, "AllocStack isolation test has guest TLS slot");
+#endif
         auto fn_alloc_stack  = reinterpret_cast<void * (ABI *)(void)>(image + 0x00B36D40);
+        auto fn_free_stack   = reinterpret_cast<void (ABI *)(void)>(image + 0x00B35D30);
         auto fn_push_alloc   = reinterpret_cast<void (ABI *)(void *, const char *, int32_t, const char *)>(image + 0x00B360D0);
         auto fn_pop_alloc    = reinterpret_cast<void * (ABI *)(void)>(image + 0x00B361C0);
         auto fn_stack_depth  = reinterpret_cast<uint32_t (ABI *)(void)>(image + 0x00B362A0);
@@ -802,6 +838,21 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         void *popped_root = fn_pop_alloc();
         U2_TEST_ASSERT(popped_root != nullptr, "AllocStack: pop root returns valid allocator");
         U2_TEST_ASSERT(fn_stack_depth() == 1u, "AllocStack: root allocator preserved at depth 1");
+
+#if !defined(U2_STANDALONE)
+        U2_TEST_ASSERT(!guest_slot || *guest_slot == guest_stack_marker,
+                       "Host allocate/push/pop preserve guest TLS ownership");
+#endif
+        fn_free_stack();
+        fn_free_stack();
+#if !defined(U2_STANDALONE)
+        U2_TEST_ASSERT(!guest_slot || *guest_slot == guest_stack_marker,
+                       "Host release preserves guest TLS ownership, including repeated release");
+        bool marker_unchanged = true;
+        for (uint8_t byte : guest_stack_marker) marker_unchanged &= byte == 0;
+        U2_TEST_ASSERT(marker_unchanged, "Host AllocStack operations never mutate guest stack data");
+        if (guest_slot) *guest_slot = saved_guest_stack;
+#endif
 
         // Verify ProcessHeap::ScanForProcessDroppings safety
         uint8_t mock_heap[0x100] = {};

@@ -38,6 +38,12 @@ flowchart TD
 ```
 
 ### Garanties d'Isolation de `uncharted2-native.exe`
+
+La famille AllocStack hôte est enregistrée uniquement pour cette cible
+(`U2_STANDALONE=1`), avec un TLS C++ indépendant. Dans `bb-probe`, les huit
+routines correspondantes restent à l'ELF ; les autotests mémoire utilisent
+leurs propres trampolines de sandbox. Cette correction ne valide pas les
+autres réécritures de boot partagées (voir `HYBRID_REGRESSION_ALLOCSTACK.md`).
 1. **Zéro Exécution de Code Machine PS4** : Contrairement à `bb-probe.exe`, `uncharted2-native.exe` ne mappe **aucune page mémoire avec `PAGE_EXECUTE_READ` ou `PAGE_EXECUTE_READWRITE` provenant de `eboot.elf`**.
 2. **Séparation Code / Données Statiques (`.rodata`)** :
    * Tant que certaines tables de constantes (hashes `StringId`, constantes mathématiques SIMD, tables de configuration de niveaux) sont référencées par leur offset, `uncharted2-native.exe` peut charger uniquement le segment de données en **lecture seule (`PAGE_READONLY`)** dans un tampon non exécutable, tandis que toute tentative de saut vers une adresse `.text` PS4 déclenche immédiatement une erreur explicite permettant d'identifier la fonction C++23 manquante.

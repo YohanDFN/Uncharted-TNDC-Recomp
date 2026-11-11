@@ -70,7 +70,9 @@ static const U2NativeDetour s_engine_detours[] = {
     { "GameLoading_IsChunkSetEntirelyWithin",            0x00B77AA0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_IsChunkSetEntirelyWithin) },
     { "GameLoading_GetPlayGoSpeed",                      0x00B770D0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_GetPlayGoSpeed) },
 
-    /* memory_system.cpp (AllocStack & Heap Diagnostics) */
+    /* Host AllocStack ownership is incompatible with the ELF pool/bitmap.
+     * Keep the complete allocation/stack/release family on the native side. */
+#if defined(U2_STANDALONE)
     { "AllocateAllocStack",                              0x00B36D40, reinterpret_cast<uintptr_t>(&u2_cpp_AllocateAllocStack) },
     { "FreeThreadAllocStack",                            0x00B35D30, reinterpret_cast<uintptr_t>(&u2_cpp_FreeThreadAllocStack) },
     { "PushAllocator",                                   0x00B360D0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator) },
@@ -79,6 +81,7 @@ static const U2NativeDetour s_engine_detours[] = {
     { "PopAllocator",                                    0x00B361C0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator) },
     { "PopAllocator_Expected",                           0x00B377B0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator_Expected) },
     { "GetAllocatorStackDepth",                          0x00B362A0, reinterpret_cast<uintptr_t>(&u2_cpp_GetAllocatorStackDepth) },
+#endif
     { "ProcessHeap_ScanForProcessDroppings",             0x009B7770, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessHeap_ScanForProcessDroppings) },
 
     /* boot_state_machine.cpp (Boot & State Machine) */

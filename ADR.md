@@ -103,6 +103,16 @@ Lors des tests d'amorçage complets (affichage du splash screen, montage des sau
 
 ## ADR-006 : Branche `dev-native` & Exécutable Autonome 100 % C++23 (`uncharted2-native.exe`)
 
+### Correction de frontière mémoire (11 novembre 2026)
+
+Les huit entrées de la famille AllocStack hôte sont réservées au registre de
+la cible compilée avec `U2_STANDALONE=1`. Dans `bb-probe`, allocation, pile et
+libération restent ensemble dans l'ELF. Le C++ utilise exclusivement son
+`thread_local` hôte et ne lit ni n'écrit le slot TLS invité ; sa libération
+ne peut donc pas recevoir un bloc du pool ELF. Les tests installent leurs
+trampolines mémoire uniquement dans la sandbox et vérifient la préservation
+d'une pile invitée sentinelle. Voir [les preuves et limites](docs/HYBRID_REGRESSION_ALLOCSTACK.md).
+
 ### Statut
 Accepté & Planifié sur `dev-native`.
 

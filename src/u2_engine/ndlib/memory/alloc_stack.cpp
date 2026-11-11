@@ -132,39 +132,12 @@ static HostAllocator s_host_allocator = { &s_host_vtable };
 
 thread_local AllocStack *t_thread_alloc_stack = nullptr;
 
-inline AllocStack **get_guest_tls_slot() noexcept {
-    // In hybrid emulation mode, runtime_thread_current_tcb() returns the guest TCB
-    // pAllocStack pointer is located at TLS offset -0x20 from guest TCB
-    if (!g_u2_image_base) return nullptr;
-    uint64_t *tcb = runtime_thread_current_tcb();
-    if (!tcb) return nullptr;
-    return reinterpret_cast<AllocStack **>(reinterpret_cast<uintptr_t>(tcb) - 0x20);
-}
-
 inline AllocStack *get_active_alloc_stack() noexcept {
-    AllocStack **slot = get_guest_tls_slot();
-    if (slot && *slot) {
-        uintptr_t addr = reinterpret_cast<uintptr_t>(*slot);
-        if (addr >= 0x10000 && (addr & 0xF) == 0) {
-            AllocStack *s = *slot;
-            if (s->m_allocatorStackSize == 0) {
-                s->stack[0].allocator = &s_host_allocator;
-                s->stack[0].name = "HostDefaultHeap";
-                s->stack[0].line = 1;
-                s->stack[0].file = "memory_system.cpp";
-                s->stack[0].flags = 1;
-                s->m_allocatorStackSize = 1;
-            }
-            return s;
-        }
-    }
+    // Native stacks are owned by the host thread, never by the guest TLS pool.
     if (!t_thread_alloc_stack) {
         t_thread_alloc_stack = allocate_alloc_stack();
     }
     if (t_thread_alloc_stack) {
-        if (slot) {
-            *slot = t_thread_alloc_stack;
-        }
         if (t_thread_alloc_stack->m_allocatorStackSize == 0) {
             t_thread_alloc_stack->stack[0].allocator = &s_host_allocator;
             t_thread_alloc_stack->stack[0].name = "HostDefaultHeap";
@@ -180,10 +153,6 @@ inline AllocStack *get_active_alloc_stack() noexcept {
 
 inline void set_active_alloc_stack(AllocStack *stack) noexcept {
     t_thread_alloc_stack = stack;
-    AllocStack **slot = get_guest_tls_slot();
-    if (slot) {
-        *slot = stack;
-    }
 }
 
 } // namespace
@@ -221,15 +190,7 @@ AllocStack *allocate_alloc_stack() noexcept {
 }
 
 void free_alloc_stack(AllocStack *stack) noexcept {
-    if (stack) {
-        stack->stack[0].allocator = &s_host_allocator;
-        stack->stack[0].name = "HostDefaultHeap";
-        stack->stack[0].line = 1;
-        stack->stack[0].file = "memory_system.cpp";
-        stack->stack[0].flags = 1;
-        stack->m_allocatorStackSize = 1;
-        std::memset(&stack->stack[1], 0, sizeof(AllocStackEntry) * (kMaxAllocatorStackDepth - 1));
-    }
+    std::free(stack);
 }
 
 void push_allocator(void *allocator, const char *name, int32_t line, const char *file) noexcept {
@@ -337,11 +298,7 @@ void * ABI u2_cpp_AllocateAllocStack(void) {
 
 /* 0x00B35D30 — FreeThreadAllocStack() */
 void ABI u2_cpp_FreeThreadAllocStack(void) {
-    auto **slot = u2::engine::get_guest_tls_slot();
-    if (slot && *slot) {
-        u2::engine::free_alloc_stack(*slot);
-        *slot = nullptr;
-    }
+    u2::engine::free_alloc_stack(u2::engine::t_thread_alloc_stack);
     u2::engine::t_thread_alloc_stack = nullptr;
 }
 

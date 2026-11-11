@@ -74,3 +74,59 @@ Commit : diagnostic atomique, sans correction de runtime.
 Prochaine correction proposée : conserver les allocations/libérations ELF
 ensemble dans bb-probe et réserver le système mémoire hôte au standalone ;
 valider ensuite les modifications partagées ajoutées après b50f534 une par une.
+
+## Itération suivante : isolation de la famille AllocStack
+
+Sous-système : frontière mémoire standalone / hybride.
+Symptôme : huit routines de pile hôte remplacent encore le pool ELF ; les
+appels C++ natifs peuvent aussi adopter ou modifier la pile TLS invitée.
+Dernier point fonctionnel : A/B de b50f534 ci-dessus.
+Premier point incorrect : enregistrement partagé et accès au TLS invité dans
+`ndlib/memory/alloc_stack.cpp`.
+Hypothèse : réserver la famille au standalone et son stockage au thread hôte
+empêche de mélanger les deux propriétaires, y compris pendant les autotests.
+Offsets étudiés : B36D40, B35D30, B360D0, B35EA0, B371A0, B361C0, B377B0,
+B362A0 ; slot TLS invité TCB-0x20 établi par le runtime et l'ELF.
+Preuve statique : pool/bitmap ELF incompatible avec calloc ; suppression des
+accès TLS invités du C++ et des huit entrées du registre hybride.
+Preuve runtime : tests de conservation du pointeur TLS et des 0x780 octets
+d'une pile sentinelle après allocation, push, pop et libération répétée.
+Les tests vérifient aussi les huit frontières du registre selon la cible.
+Modification : définition CMake U2_STANDALONE pour le natif, registre mémoire
+conditionnel, stockage exclusivement thread_local, libération du bloc hôte.
+Les trampolines mémoire de test sont installés uniquement dans la sandbox.
+Fichiers modifiés : gpu/CMakeLists.txt, alloc_stack.cpp, u2_engine_registry.cpp,
+u2_engine_tests.cpp, ADR.md, UNCHARTED_NATIVE_PLAN.md et ce rapport.
+Tests ajoutés : huit contrôles de registre et quatre contrôles TLS hybrides.
+Build : deux exécutables compilés avec succès.
+Test 6 secondes : un essai réussi, 903 SelfTest, 831 full-body et 199/199
+assertions moteur ; STOPPED_AFTER_TIMEOUT sans faute.
+Test prolongé : 20 s réussies, mêmes tests, sans Fault/Guest fault/Trap,
+assertion nouvelle ni échec d'allocation ; journal diag_memory_after_20s.log.
+Test natif : 195/195 assertions, fermeture à 10 s, code de sortie 0.
+Un premier test TLS ajouté tentait aussi de créer un TCB dans le standalone
+après l'initialisation graphique (échec de slot Windows <64) : corrigé en
+réservant l'expérience de TLS invité à la cible hybride.
+Conditions machine : certains essais, avant et après modification, échouent
+avec l'erreur Windows 1450 sur une réservation de 6080 MiB puis fautent en
+B309DB. Ils ne valident pas le boot ; aucun réglage système ni application
+utilisateur n'a été modifié. Un contrôle 3d5dded de 20 s a réussi ensuite.
+Régression observée : aucune faute dans le test prolongé, mais écran noir
+confirmé par l'utilisateur. Fermeture finale provoquée par le timeout du test.
+Conclusion : frontière mémoire isolée et vérifiée ; restauration du menu sur
+HEAD non acquise. Les logs « Mounted » du montage réécrit ne prouvent pas le
+montage effectif des archives et restent le prochain point à isoler.
+Commit : correction mémoire atomique, indépendante du montage.
+Prochaine hypothèse : le détour B783F0 omet le monteur original B72F00 ;
+tester son exclusion seule avant toute autre correction de production.
+
+Expérience complémentaire réalisée : exclure seulement
+GameLoading_MountInitialArchives sur la branche corrigée ne restaure pas le
+menu (écran noir confirmé par l'utilisateur), malgré 25 s sans faute et 905
+détours. Le contrôle du filtre, sans exclusion effective, tient aussi 20 s
+sans faute, avec 906 détours. Journaux :
+diag_compare_memory_mount_original.log et diag_compare_memory_filter_control.log.
+Conclusion limitée : rétablir B783F0 seul est insuffisant. Ne pas annoncer un
+correctif du menu et ne pas remplacer une deuxième routine sans nouvelle
+expérience. Prochaine recherche : progression du boot et créations de tâches
+avec les autres ajouts natifs, comparées à la trace saine de 3d5dded.
