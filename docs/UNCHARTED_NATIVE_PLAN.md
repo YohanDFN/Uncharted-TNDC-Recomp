@@ -162,7 +162,8 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > `menu` et `menu-temple` via un registre C++23 natif, déduplique les demandes par
 > `StringId` et résout réellement `pak22/ps4/menu.pak` et
 > `pak22/ps4/menu-temple.pak` par le VFS. Leur état reste volontairement
-> `resolved`, et non `ready` : la lecture des en-têtes, les relocations et
+> `resolved`, et non `ready` : le préfixe et la table des pages sont lus et
+> contrôlés (voir `NATIVE_PAK_HEADER.md`), mais les relocations et
 > l'enregistrement des pages PAK ne sont pas encore implémentés. Le détour ELF
 > `PackageMgr::RequestPackage` (`0x0056C0E0`) reste inchangé dans `bb-probe`.
 

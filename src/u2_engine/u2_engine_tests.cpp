@@ -913,6 +913,25 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        "PackageMgr::RequestPackage resolves menu-temple.pak");
         U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 2u,
                        "PackageMgr registers both native menu packages");
+        const auto *temple = u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
+        U2_TEST_ASSERT(temple && temple->header_inspected && temple->page_count == 2 &&
+                       temple->page_table_offset == 0x2Cu,
+                       "PackageMgr reads real menu-temple header and page table");
+        uint8_t prefix[0x18] = {};
+        prefix[0x10] = 2;
+        prefix[0x14] = 0x2C;
+        uint32_t count = 0, offset = 0;
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_InspectHeader(prefix, sizeof(prefix), 0x44, &count, &offset),
+                       "PAK header accepts table ending exactly at EOF");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectHeader(prefix, sizeof(prefix), 0x43, &count, &offset),
+                       "PAK header rejects truncated table");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectHeader(prefix, 0x17, 0x44, &count, &offset),
+                       "PAK header rejects truncated prefix");
+        prefix[0x17] = 0x80;
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectHeader(prefix, sizeof(prefix), UINT64_MAX, &count, &offset),
+                       "PAK header rejects negative signed table offset");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectHeader(nullptr, 0, 0, &count, &offset),
+                       "PAK header rejects NULL prefix");
     }
 
     // 10. Test Main Menu & 2D GUI Subsystems (main_menu.cpp)

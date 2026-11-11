@@ -21,6 +21,9 @@ struct NativePackageRequest {
     uint32_t string_id{0};
     U2NativePackageState state{U2NativePackageState::Missing};
     uint64_t file_size{0};
+    bool header_inspected{false};
+    uint32_t page_count{0};
+    uint32_t page_table_offset{0};
     U2NativePackageInfo view{};
 };
 
@@ -51,6 +54,9 @@ void refresh_view(NativePackageRequest &request) {
         request.string_id,
         request.state,
         request.file_size,
+        request.header_inspected,
+        request.page_count,
+        request.page_table_offset,
     };
 }
 
@@ -60,15 +66,54 @@ bool resolve_package_file(NativePackageRequest &request) {
     if (fd < 0) return false;
 
     const int64_t size = runtime_file_lseek(fd, 0, 2);
+    std::array<uint8_t, 0x18> prefix{};
+    const int64_t bytes = runtime_file_pread(fd, prefix.data(), prefix.size(), 0);
+    bool inspected = size >= 0 && bytes == static_cast<int64_t>(prefix.size()) &&
+        u2_cpp_PackageMgr_InspectHeader(prefix.data(), prefix.size(),
+            static_cast<uint64_t>(size), &request.page_count, &request.page_table_offset);
+    // Read every table entry without following its embedded values. Bound the
+    // work by the file extent, avoiding allocations based on untrusted counts.
+    std::array<uint8_t, 12> entry{};
+    for (uint32_t i = 0; inspected && i < request.page_count; ++i) {
+        const uint64_t offset = request.page_table_offset + uint64_t{i} * entry.size();
+        inspected = runtime_file_pread(fd, entry.data(), entry.size(), offset) ==
+                    static_cast<int64_t>(entry.size());
+    }
     runtime_file_close(fd);
     if (size < 0) return false;
 
     request.file_size = static_cast<uint64_t>(size);
     request.state = U2NativePackageState::Resolved;
+    request.header_inspected = inspected;
+    std::printf("[U2 Native PackageMgr] '%s' header=%s pages=%u table=0x%X\n",
+                request.name.c_str(), inspected ? "inspected" : "rejected",
+                request.page_count, request.page_table_offset);
     return true;
 }
 
 } // namespace
+
+// Proven by 0x00B6DE33..0x00B6DE7C: count at +0x10, signed
+// table offset at +0x14, and a 12-byte entry stride. Other fields are unknown.
+extern "C" bool u2_cpp_PackageMgr_InspectHeader(const uint8_t *prefix, size_t prefix_size,
+                                               uint64_t file_size, uint32_t *page_count,
+                                               uint32_t *page_table_offset) {
+    if (!page_count || !page_table_offset) return false;
+    *page_count = 0;
+    *page_table_offset = 0;
+    if (!prefix || prefix_size < 0x18 || file_size < prefix_size) return false;
+    auto read_le32 = [](const uint8_t *p) {
+        return uint32_t{p[0]} | (uint32_t{p[1]} << 8) |
+               (uint32_t{p[2]} << 16) | (uint32_t{p[3]} << 24);
+    };
+    const uint32_t count = read_le32(prefix + 0x10);
+    const uint32_t offset = read_le32(prefix + 0x14);
+    if (offset > 0x7FFFFFFFu || offset < 0x18 || offset > file_size ||
+        uint64_t{count} > (file_size - offset) / 12) return false;
+    *page_count = count;
+    *page_table_offset = offset;
+    return true;
+}
 
 extern "C" bool ABI u2_cpp_PackageMgr_RequestPackage(void *mgr, const char *name) {
     (void)mgr;
