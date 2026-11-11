@@ -275,6 +275,8 @@ if (WIN32)
 endif()
 
 # Explicit test targets; neither launches the game nor needs a Vulkan device.
+add_executable(u2-detour-filter-test EXCLUDE_FROM_ALL ../tests/test_u2_detour_filter.c)
+target_compile_options(u2-detour-filter-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
 add_executable(motion-history-test EXCLUDE_FROM_ALL ../tests/test_motion_history.cpp)
 target_compile_options(motion-history-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
 target_include_directories(motion-history-test PRIVATE ..)

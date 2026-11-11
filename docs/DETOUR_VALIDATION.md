@@ -77,6 +77,14 @@ powershell -File scratch/run_test.ps1 10
 * **Critère de succès** : Le jeu conserve la même stabilité que le Palier 0. Si un crash apparaît, le sous-système défaillant est identifié immédiatement.
 
 ### Palier 2 : Diagnostic par Dichotomie (Isolation Chirurgicale)
+`BB_U2_DETOUR_ALLOW` accepte une liste de noms complets séparés par des
+virgules. La sélection compare chaque nom exactement : inclure
+`ScriptManager_LookupPointerInModule` n'active pas
+`ScriptManager_LookupPointer`. Toujours vérifier le nombre de détours installés
+dans le journal avant d'interpréter une exclusion. Régression couverte par
+`ninja -C out/gpu u2-detour-filter-test` puis
+`out/gpu/u2-detour-filter-test.exe` (12 assertions, sans lancement du jeu).
+
 Lorsqu'un module provoque une anomalie :
 1. Diviser les adresses virtuelles du module en deux moitiés (`0x00A00000 - 0x00B00000` et `0x00B00000 - 0x00D00000`).
 2. Appliquer le filtre via `BB_U2_DETOUR_RANGE=min-max`.

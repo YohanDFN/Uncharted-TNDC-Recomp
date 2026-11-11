@@ -6,6 +6,7 @@
  *   - ScriptManager::Initialize        (guest offset 0x00A173A0)
  */
 #include "runtime_u2_common.h"
+#include "runtime_u2_detour_filter.h"
 
 /* Global guest ELF image base address */
 uint8_t *g_u2_image_base = NULL;
@@ -1132,7 +1133,7 @@ void runtime_u2_install_detours(uint8_t *image, uint64_t image_size) {
             for (size_t i = 0; i < count; ++i) {
                 uintptr_t off = mod_detours[i].offset;
                 if (off < range_min || off > range_max) continue;
-                if (allow_env && *allow_env && strstr(allow_env, mod_detours[i].name) == NULL) continue;
+                if (!u2_detour_name_allowed(allow_env, mod_detours[i].name)) continue;
                 if (off > 0 && off + 14 <= image_size) {
                     write_detour_jmp64(image + off, mod_detours[i].host_fn);
                     ++installed;

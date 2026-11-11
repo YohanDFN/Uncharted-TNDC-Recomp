@@ -14,7 +14,7 @@ import re
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def child(probe, excluded):
+def child(probe, excluded, hooks):
     sys.path.insert(0, str(ROOT))
     sys.path.insert(0, str(ROOT / "launcher"))
     from uncharted_launcher import game_environment, CONFIG_FILE, load_json, APP_DEFAULTS
@@ -25,6 +25,8 @@ def child(probe, excluded):
     for key in ("BB_U2_MODULES", "BB_U2_DISABLE_DETOURS", "BB_U2_DETOUR_ALLOW",
                 "BB_U2_DETOUR_RANGE", "BB_GUEST_HOOKS", "BB_HOOK_DUMP"):
         os.environ.pop(key, None)
+    if hooks:
+        os.environ["BB_GUEST_HOOKS"] = hooks
     if excluded:
         tree = probe.parents[2]
         files = [tree / "src/u2_engine/u2_engine_registry.cpp"]
@@ -45,10 +47,11 @@ def main():
     parser.add_argument("--seconds", type=int, default=20)
     parser.add_argument("--child", action="store_true")
     parser.add_argument("--exclude", action="append", default=[])
+    parser.add_argument("--hooks", default="", help="explicit BB_GUEST_HOOKS specification")
     args = parser.parse_args()
     probe = args.probe.resolve(strict=True)
     if args.child:
-        child(probe, args.exclude)
+        child(probe, args.exclude, args.hooks)
         return
     if not args.label.replace("_", "").replace("-", "").isalnum():
         parser.error("label must contain letters, digits, hyphens or underscores")
@@ -58,6 +61,8 @@ def main():
         command = [sys.executable, str(Path(__file__).resolve()), "--probe", str(probe), "--child"]
         for name in args.exclude:
             command += ["--exclude", name]
+        if args.hooks:
+            command += ["--hooks", args.hooks]
         proc = subprocess.Popen(command,
                                 cwd=ROOT, stdout=output, stderr=subprocess.STDOUT,
                                 stdin=subprocess.DEVNULL)
@@ -76,7 +81,7 @@ def main():
               ("Fault:", "Guest fault", "[U2 Trap]", "FATAL", "cannot create"))]
     print(f"{args.label}: {outcome}, {time.monotonic()-started:.1f}s, log={log}")
     for line in lines:
-        if any(word in line for word in ("PASSED", "Installed ", "State Transition")):
+        if any(word in line for word in ("PASSED", "Installed ", "State Transition", "Hook 0x")):
             print(line)
     print("Fault/assertion/allocation-error lines:", len(faults))
     for line in faults[:12]:
