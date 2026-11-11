@@ -30,9 +30,14 @@ struct U2NativePackageInfo {
     bool first_page_verified;
     uint32_t first_page_offset;
     uint32_t first_page_size;
+    uint32_t local_fixups;
+    uint32_t pending_fixups;
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_AuditFixups(const uint8_t *header, size_t header_size,
+                                 const uint8_t *page, size_t page_size,
+                                 uint32_t *local, uint32_t *pending);
 bool u2_cpp_PackageMgr_CheckPage(const uint8_t *entry, size_t entry_size,
                                uint64_t file_size, const uint8_t *page, size_t page_size);
 bool u2_cpp_PackageMgr_InspectHeader(const uint8_t *prefix, size_t prefix_size,

@@ -29,6 +29,8 @@ struct NativePackageRequest {
     bool first_page_verified{false};
     uint32_t first_page_offset{0};
     std::vector<uint8_t> first_page;
+    uint32_t local_fixups{0};
+    uint32_t pending_fixups{0};
     U2NativePackageInfo view{};
 };
 
@@ -65,6 +67,8 @@ void refresh_view(NativePackageRequest &request) {
         request.first_page_verified,
         request.first_page_offset,
         static_cast<uint32_t>(request.first_page.size()),
+        request.local_fixups,
+        request.pending_fixups,
     };
 }
 
@@ -102,7 +106,8 @@ bool resolve_package_file(NativePackageRequest &request) {
         const uint32_t page_size = read_le32(first_entry.data() + 4);
         constexpr uint32_t kInspectionBudget = 4 * 1024 * 1024;
         if (read_le32(first_entry.data() + 8) == 0 && page_size >= 16 &&
-            page_size <= kInspectionBudget && offset <= static_cast<uint64_t>(size) &&
+            page_size <= kInspectionBudget && offset <= kInspectionBudget &&
+            offset <= static_cast<uint64_t>(size) &&
             page_size <= static_cast<uint64_t>(size) - offset) {
             try {
                 std::vector<uint8_t> page(page_size);
@@ -112,6 +117,14 @@ bool resolve_package_file(NativePackageRequest &request) {
                     request.first_page = std::move(page);
                     request.first_page_offset = offset;
                     request.first_page_verified = true;
+                    std::vector<uint8_t> header(offset);
+                    if (runtime_file_pread(fd, header.data(), header.size(), 0) == offset &&
+                        u2_cpp_PackageMgr_AuditFixups(header.data(), header.size(),
+                            request.first_page.data(), request.first_page.size(),
+                            &request.local_fixups, &request.pending_fixups)) {
+                        std::printf("[U2 Native PackageMgr] fixups audited local=%u pending=%u (no writes)\n",
+                                    request.local_fixups, request.pending_fixups);
+                    }
                 }
             } catch (const std::bad_alloc &) {
                 std::fprintf(stderr, "[U2 Native PackageMgr] page inspection allocation failed\n");
@@ -134,6 +147,46 @@ bool resolve_package_file(NativePackageRequest &request) {
 }
 
 } // namespace
+
+// Read-only preflight of the eight groups consumed by FixUpPakPointers
+// (0xB6E800). Only destination/base page 0 is available in this milestone.
+extern "C" bool u2_cpp_PackageMgr_AuditFixups(const uint8_t *header, size_t header_size,
+                                             const uint8_t *page, size_t page_size,
+                                             uint32_t *local, uint32_t *pending) {
+    if (!local || !pending) return false;
+    *local = *pending = 0;
+    if (!header || header_size < 0x20 || !page || read_le32(header + 0x18) != 8) return false;
+    const uint32_t table = read_le32(header + 0x1C);
+    if (table > 0x7FFFFFFFu || table > header_size || 96 > header_size - table) return false;
+    uint64_t local_count = 0, pending_count = 0;
+    for (size_t group = 0; group < 8; ++group) {
+        const auto *desc = header + table + group * 12;
+        const uint32_t count = read_le32(desc + 8);
+        if (count > 0x7FFFFFFFu) return false;
+        if (!count) continue;
+        // Nonzero source-page groups need additional loaded pages.
+        if (read_le32(desc) != 0) return false;
+        const uint32_t offset = read_le32(desc + 4);
+        if (offset > 0x7FFFFFFFu || offset > header_size || count > (header_size - offset) / 8) return false;
+        for (size_t i = 0; i < count; ++i) {
+            const auto *record = header + offset + i * 8;
+            const uint32_t indices = read_le32(record);
+            const uint32_t destination = indices & 0x7FFF;
+            if ((indices & 0x8000) || (indices >> 16) != 0 || destination > 1) return false;
+            if (destination == 1) { ++pending_count; continue; }
+            const uint32_t slot = read_le32(record + 4);
+            if (slot > 0x7FFFFFFFu || slot % 8 || slot > page_size || 8 > page_size - slot) return false;
+            uint64_t target = 0;
+            for (unsigned byte = 0; byte < 8; ++byte) target |= uint64_t{page[slot + byte]} << (byte * 8);
+            if (target >= page_size) return false;
+            ++local_count;
+        }
+    }
+    if (local_count > UINT32_MAX || pending_count > UINT32_MAX) return false;
+    *local = static_cast<uint32_t>(local_count);
+    *pending = static_cast<uint32_t>(pending_count);
+    return true;
+}
 
 extern "C" bool u2_cpp_PackageMgr_CheckPage(const uint8_t *entry, size_t entry_size,
                                             uint64_t file_size, const uint8_t *page, size_t page_size) {

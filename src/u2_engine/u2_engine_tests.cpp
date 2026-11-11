@@ -914,6 +914,26 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 2u,
                        "PackageMgr registers both native menu packages");
         const auto *temple = u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
+        U2_TEST_ASSERT(temple && temple->local_fixups == 4088 && temple->pending_fixups == 60,
+                       "PAK fixup audit validates real page 0 and counts missing page 1 slots");
+        uint8_t fix_header[136] = {};
+        fix_header[0x18] = 8;
+        fix_header[0x1C] = 32;
+        fix_header[36] = 128;
+        fix_header[40] = 1;
+        uint8_t fix_page[16] = {};
+        uint32_t local = 0, pending = 0;
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_AuditFixups(fix_header, sizeof(fix_header), fix_page, 16, &local, &pending) && local == 1,
+                       "PAK fixup preflight accepts bounded local pointer");
+        fix_header[132] = 16;
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_AuditFixups(fix_header, sizeof(fix_header), fix_page, 16, &local, &pending),
+                       "PAK fixup rejects out-of-page write slot");
+        fix_header[132] = 0;
+        fix_page[0] = 16;
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_AuditFixups(fix_header, sizeof(fix_header), fix_page, 16, &local, &pending),
+                       "PAK fixup rejects out-of-page target");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_AuditFixups(fix_header, 135, fix_page, 16, &local, &pending),
+                       "PAK fixup rejects truncated record table");
         U2_TEST_ASSERT(temple && temple->first_page_verified &&
                        temple->first_page_offset == 0x8280 && temple->first_page_size == 0x1E8174,
                        "PackageMgr retains verified menu-temple page 0");
