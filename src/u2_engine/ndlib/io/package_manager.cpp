@@ -35,6 +35,7 @@ struct NativePackageRequest {
     std::vector<uint8_t> second_page;
     bool pointers_relocated{false};
     std::vector<std::string> resource_types;
+    std::vector<std::string> login_types;
     U2NativePackageInfo view{};
 };
 
@@ -76,6 +77,7 @@ void refresh_view(NativePackageRequest &request) {
         static_cast<uint32_t>(request.second_page.size()),
         request.pointers_relocated,
         static_cast<uint32_t>(request.resource_types.size()),
+        static_cast<uint32_t>(request.login_types.size()),
     };
 }
 
@@ -145,6 +147,9 @@ bool resolve_package_file(NativePackageRequest &request) {
                                         static_cast<uint64_t>(size), request.second_page.data(), size1) &&
                                     u2_cpp_PackageMgr_ReadResourceTypes(request.first_page.data(),
                                         request.first_page.size(), &request.resource_types) &&
+                                    u2_cpp_PackageMgr_ReadLoginTypes(header.data(), header.size(),
+                                        request.first_page.data(), request.first_page.size(),
+                                        request.second_page.data(), size1, &request.login_types) &&
                                     u2_cpp_PackageMgr_RelocatePages(header.data(), header.size(),
                                         request.first_page.data(), request.first_page.size(),
                                         request.second_page.data(), size1, &request.pointers_relocated)) {
@@ -152,9 +157,12 @@ bool resolve_package_file(NativePackageRequest &request) {
                                                 size1, request.local_fixups + request.pending_fixups);
                                     std::printf("[U2 Native PackageMgr] resource catalog entries=%zu (login pending)\n",
                                                 request.resource_types.size());
+                                    for (size_t i = 0; i < request.login_types.size(); ++i)
+                                        std::printf("[U2 Native PackageMgr] login[%zu]=%s (pending)\n", i, request.login_types[i].c_str());
                                 } else {
                                     request.second_page.clear();
                                     request.resource_types.clear();
+                                    request.login_types.clear();
                                     std::fprintf(stderr, "[U2 Native PackageMgr] page1/relocation rejected\n");
                                 }
                             }
@@ -182,6 +190,49 @@ bool resolve_package_file(NativePackageRequest &request) {
 }
 
 } // namespace
+
+// DoLogin 0xB6B9F2..0xB6BA49: root page/offset at PakHdr+8/+12,
+// count at root+0x20 and signed (page, metadata offset) pairs at root+0x28.
+// Input is raw pages, before metadata name/type normalization.
+extern "C" bool u2_cpp_PackageMgr_ReadLoginTypes(const uint8_t *header, size_t header_size,
+                                                const uint8_t *page0, size_t size0,
+                                                const uint8_t *page1, size_t size1,
+                                                std::vector<std::string> *types) {
+    if (!header || header_size < 16 || !page0 || !page1 || !types) return false;
+    const uint8_t *pages[] = {page0, page1};
+    const size_t sizes[] = {size0, size1};
+    const uint32_t root_page = read_le32(header + 8), root = read_le32(header + 12);
+    if (root_page > 1 || root > 0x7FFFFFFFu || root > sizes[root_page] ||
+        0x28 > sizes[root_page] - root) return false;
+    const auto *data = pages[root_page] + root;
+    const uint32_t count = read_le32(data + 0x20);
+    if (count > 0x7FFFFFFFu || count > (sizes[root_page] - root - 0x28) / 8) return false;
+    try {
+        std::vector<std::string> result;
+        for (size_t i = 0; i < count; ++i) {
+            const auto *entry = data + 0x28 + i * 8;
+            const uint32_t index = read_le32(entry), offset = read_le32(entry + 4);
+            if (index > 1 || offset > 0x7FFFFFFFu || offset > sizes[index] ||
+                32 > sizes[index] - offset) return false;
+            uint64_t type_offset = 0;
+            for (unsigned b = 0; b < 8; ++b) type_offset |= uint64_t{pages[index][offset + 8 + b]} << (b * 8);
+            if (type_offset >= sizes[index]) return false;
+            const auto *start = pages[index] + type_offset;
+            const auto *end = static_cast<const uint8_t *>(std::memchr(start, 0, sizes[index] - type_offset));
+            if (!end) return false;
+            result.emplace_back(reinterpret_cast<const char *>(start), end - start);
+        }
+        *types = std::move(result);
+        return true;
+    } catch (const std::bad_alloc &) { return false; }
+}
+
+extern "C" const char *u2_cpp_PackageMgr_GetLoginType(const char *package, size_t index) {
+    if (!package || !*package) return nullptr;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request = find_request(string_id(package));
+    return request && index < request->login_types.size() ? request->login_types[index].c_str() : nullptr;
+}
 
 // LoadingPages 0xB69FB0..0xB6A026: uint16 count at +0x12,
 // 16-byte descriptors at +0x14, metadata offset at descriptor+8.

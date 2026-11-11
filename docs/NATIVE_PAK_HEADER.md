@@ -236,3 +236,44 @@ Commit : feat(native), atomique avec ce rapport.
 Prochaine hypothèse : identifier la liste de login et la résolution du callback
 BigPackageLoginResItem ; choisir un type dont l'initialisation est entièrement
 établie avant d'enregistrer une ressource comme utilisable par le moteur.
+
+## Itération : liste ordonnée de login
+
+Sous-système : ndlib/io, préparation du login moteur.
+Symptôme : catalogue de 538 types sans liste des callbacks réellement demandés.
+Dernier point fonctionnel : catalogue et pages relogées.
+Premier point incorrect : absence de résolution de la racine et de sa liste.
+Hypothèse : la boucle DoLogin décrit une liste ordonnée distincte du catalogue.
+
+Offsets étudiés / preuve statique : 0xB6B9F2..0xB6BA49. La racine est résolue
+par le couple signé page/offset (Package+0x240/+0x244, soit PakHdr+8/+12).
+Le nombre signé est à racine+0x20, les couples page/offset de métadonnées
+à racine+0x28, stride 8. Le callback global 0x12441C0 reçoit en SysV
+rdi=package, rsi=métadonnées, rdx=base de la page référencée.
+0x48D920 (BigPackageLoginResItem, data-loading.cpp) lit le type à metadata+8,
+calcule son StringId puis choisit une branche. Les routines par type ne sont
+pas encore suffisamment établies pour leur initialisation native.
+
+Preuve runtime : header racine page1+0x30, liste de 10 couples, tous vers page0.
+Ordre observé : LEVEL_INFO_1, DEBUG_INFO_1, LEVEL_PATS_1, EFFECT_TABLE,
+TEXTURE_TABLE, LEVEL_OFFSET_1, GEOMETRY_1, CAMERA_TABLE_1, LIGHT_TABLE_1,
+COLLISION_DATA_HAVOK_BG. Ces dix entrées sont lues par le natif et consultables
+par index. Les logs de cette liste sont bornés par son compte validé.
+
+Conclusion : les 538 descripteurs ne sont pas 538 appels de login. Liste
+préparée, callbacks encore pending ; aucune ressource moteur initialisée.
+Modification : lecture des couples et des chaînes de type avant relocation,
+indices et offsets signés contrôlés, limites des pages et chaînes vérifiées.
+La sortie est publiée seulement après succès ; elle est effacée si relocation
+échoue. Les chaînes copiées vivent avec la requête (reset de tests les détruit).
+Fichiers modifiés : package_manager.cpp/.h, u2_engine_tests.cpp, ce rapport.
+Tests ajoutés : nombre réel 10 et ordre premier/dernier, index hors limites,
+couple synthétique, page absente avec sortie préservée, table tronquée.
+Build : réussi.
+Test 6 secondes : SelfTest/EngineTest passent, 181/181 assertions et timeout.
+Test natif : sortie 0, liste ordonnée confirmée.
+Test prolongé : non nécessaire pour cette lecture synchrone.
+Régression observée : aucune dans ces scénarios.
+Commit : feat(native), atomique avec ce rapport.
+Prochaine hypothèse : suivre spécifiquement la branche LEVEL_INFO_1 dans
+BigPackageLoginResItem et établir ses dépendances avant son implémentation.

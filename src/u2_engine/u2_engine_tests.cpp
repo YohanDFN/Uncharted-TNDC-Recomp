@@ -914,6 +914,29 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 2u,
                        "PackageMgr registers both native menu packages");
         const auto *temple = u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
+        U2_TEST_ASSERT(temple && temple->login_resources == 10,
+                       "PAK login list has ten resources, distinct from catalog");
+        const char *login_first = u2_cpp_PackageMgr_GetLoginType("menu-temple", 0);
+        const char *login_last = u2_cpp_PackageMgr_GetLoginType("menu-temple", 9);
+        U2_TEST_ASSERT(login_first && std::strcmp(login_first, "LEVEL_INFO_1") == 0 &&
+                       login_last && std::strcmp(login_last, "COLLISION_DATA_HAVOK_BG") == 0,
+                       "PAK login preserves original resource order");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetLoginType("menu-temple", 10),
+                       "PAK login lookup rejects out of range index");
+        {
+            uint8_t header[16] = {}, root[64] = {}, page[48] = {};
+            header[8] = 1; root[0x20] = 1;
+            page[8] = 40; page[40] = 'X';
+            std::vector<std::string> types;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_ReadLoginTypes(header, 16, page, 48, root, 64, &types) &&
+                           types.size() == 1 && types[0] == "X", "PAK login decodes page reference");
+            root[0x28] = 2;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_ReadLoginTypes(header, 16, page, 48, root, 64, &types) && types[0] == "X",
+                           "PAK login rejects missing page with output preserved");
+            root[0x28] = 0;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_ReadLoginTypes(header, 16, page, 48, root, 47, &types),
+                           "PAK login rejects truncated pair table");
+        }
         U2_TEST_ASSERT(temple && temple->catalog_resources == 538,
                        "PAK catalog registers 538 real page-0 metadata descriptors");
         U2_TEST_ASSERT(u2_cpp_PackageMgr_CountResourceType("menu-temple", "CAMERA_TABLE_1") == 1,

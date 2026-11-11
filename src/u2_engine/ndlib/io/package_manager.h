@@ -37,9 +37,15 @@ struct U2NativePackageInfo {
     uint32_t second_page_size;
     bool pointers_relocated;
     uint32_t catalog_resources;
+    uint32_t login_resources;
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_ReadLoginTypes(const uint8_t *header, size_t header_size,
+                                    const uint8_t *page0, size_t size0,
+                                    const uint8_t *page1, size_t size1,
+                                    std::vector<std::string> *types);
+const char *u2_cpp_PackageMgr_GetLoginType(const char *package, size_t index);
 bool u2_cpp_PackageMgr_ReadResourceTypes(const uint8_t *page, size_t size,
                                        std::vector<std::string> *types);
 size_t u2_cpp_PackageMgr_CountResourceType(const char *package, const char *type);
