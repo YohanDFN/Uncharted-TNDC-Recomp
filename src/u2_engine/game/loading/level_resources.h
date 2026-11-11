@@ -20,6 +20,13 @@ bool u2_native_LoginLevelInfo(U2NativeLevelInfo *level, const uint8_t *page,
 struct U2NativeCameraDefinition {
     std::string name;
     std::array<float, 3> position{};
+    // Stored vectors at +20 and +14, before CameraManager normalization and
+    // quaternion conversion. Axis handedness/view direction is not inferred.
+    std::array<float, 3> orientation_axis_a{};
+    std::array<float, 3> orientation_axis_b{};
+    // A non-null +40 selects an external transform instead of these vectors.
+    // Keep only its presence: the native reader never follows this pointer.
+    bool uses_external_transform{false};
     bool is_start{false};
 };
 

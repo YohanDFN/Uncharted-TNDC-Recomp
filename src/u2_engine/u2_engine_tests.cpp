@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <bit>
 #include <vector>
 
 #ifdef _WIN32
@@ -989,6 +990,14 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        std::abs(actual_camera.position[1] - 26.8985996f) < 0.0001f &&
                        std::abs(actual_camera.position[2] + 29.6289997f) < 0.0001f,
                        "Real camera position decoded from PAK payload");
+        U2_TEST_ASSERT(std::abs(actual_camera.orientation_axis_a[0] + 0.195780724f) < 0.000001f &&
+                       std::abs(actual_camera.orientation_axis_a[1] - 0.903568625f) < 0.000001f &&
+                       std::abs(actual_camera.orientation_axis_a[2] + 0.381095320f) < 0.000001f &&
+                       std::abs(actual_camera.orientation_axis_b[0] - 0.412893116f) < 0.000001f &&
+                       std::abs(actual_camera.orientation_axis_b[1] - 0.428443372f) < 0.000001f &&
+                       std::abs(actual_camera.orientation_axis_b[2] - 0.803713620f) < 0.000001f &&
+                       !actual_camera.uses_external_transform,
+                       "Real camera preserves both stored orientation vectors without external transform");
         U2_TEST_ASSERT(temple && temple->state == U2NativePackageState::Resolved && temple->login_resources == 10,
                        "Camera decoding does not declare the package ready or complete engine login");
         const auto saved_camera_name = actual_camera.name;
@@ -1016,20 +1025,51 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             put32(72, 0x3F800000); // 1
             put32(76, 0xC0000000); // -2
             put32(80, 0x40600000); // 3.5
+            const std::array<float, 3> expected_a{2, -3, 4};
+            const std::array<float, 3> expected_b{-5, 6, -7};
+            const std::array<float, 3> zero_vector{};
+            for (size_t axis = 0; axis < 3; ++axis) {
+                put32(64 + 0x20 + axis * 4, std::bit_cast<uint32_t>(expected_a[axis]));
+                put32(64 + 0x14 + axis * 4, std::bit_cast<uint32_t>(expected_b[axis]));
+            }
             std::vector<U2NativeCameraDefinition> cameras;
             const std::array<float, 3> expected_position{1, -2, 3.5f};
             U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
                            cameras.size() == 1 && cameras[0].position == expected_position,
                            "Camera decoder reads signed little-endian position");
+            U2_TEST_ASSERT(cameras[0].orientation_axis_a == expected_a &&
+                           cameras[0].orientation_axis_b == expected_b && !cameras[0].uses_external_transform,
+                           "Camera vectors retain signs, components and magnitude without normalization");
+            put64(64 + 0x40, UINT64_MAX);
+            U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
+                           cameras[0].uses_external_transform,
+                           "Camera decoder records external-transform presence without dereferencing it");
+            put64(64 + 0x40, 0);
             put32(32, 2);
             put64(64 + 0x48, reinterpret_cast<uintptr_t>(page + 264));
             std::memcpy(page + 264, "overview", sizeof("overview"));
             put32(64 + 0x48 + 8, 0x40A00000); // 5
             U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
                            cameras.size() == 2 && cameras[1].name == "overview" && !cameras[1].is_start &&
-                           cameras[1].position[0] == 5,
+                           cameras[1].position[0] == 5 && cameras[1].orientation_axis_a == zero_vector &&
+                           cameras[1].orientation_axis_b == zero_vector && !cameras[1].uses_external_transform,
                            "Camera decoder uses proven 0x48 stride across adjacent records");
             put32(32, 1);
+            bool rejected_nonfinite_axes = true;
+            for (size_t axis = 0; axis < 3; ++axis) {
+                for (size_t offset : {size_t{0x14}, size_t{0x20}}) {
+                    for (uint32_t invalid : {uint32_t{0x7FC00000}, uint32_t{0x7F800000}, uint32_t{0xFF800000}}) {
+                        const float saved = offset == 0x14 ? expected_b[axis] : expected_a[axis];
+                        put32(64 + offset + axis * 4, invalid);
+                        rejected_nonfinite_axes &= !u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
+                            cameras.size() == 2 && cameras[0].orientation_axis_a == expected_a &&
+                            cameras[0].orientation_axis_b == expected_b;
+                        put32(64 + offset + axis * 4, std::bit_cast<uint32_t>(saved));
+                    }
+                }
+            }
+            U2_TEST_ASSERT(rejected_nonfinite_axes,
+                           "Camera decoder rejects NaN and both infinities in every orientation component atomically");
             U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) && cameras.size() == 1,
                            "Camera decoder replaces a previously decoded table atomically");
             put32(32, UINT32_MAX);
@@ -1063,7 +1103,8 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            !u2_native_ReadCameraDefinitions(&cameras, nullptr, sizeof(page), 0),
                            "Camera decoder rejects absent or truncated inputs and overflowing metadata");
             std::memset(page, 0, sizeof(page));
-            U2_TEST_ASSERT(cameras[0].name == "_cam_start_test" && cameras[0].position[2] == 3.5f,
+            U2_TEST_ASSERT(cameras[0].name == "_cam_start_test" && cameras[0].position[2] == 3.5f &&
+                           cameras[0].orientation_axis_a == expected_a && cameras[0].orientation_axis_b == expected_b,
                            "Camera snapshot remains valid after source data is overwritten");
         }
         {

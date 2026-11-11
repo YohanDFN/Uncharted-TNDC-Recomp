@@ -188,9 +188,14 @@ bool resolve_package_file(NativePackageRequest &request) {
                                         std::printf("[U2 Native Camera] CAMERA_TABLE_1 decoded=%u definitions=%zu (engine login pending)\n",
                                                     request.cameras_decoded, request.cameras.size());
                                         for (const auto &camera : request.cameras) {
-                                            if (camera.is_start)
+                                            if (camera.is_start) {
                                                 std::printf("[U2 Native Camera] start='%s' position=(%.6f, %.6f, %.6f)\n",
                                                     camera.name.c_str(), camera.position[0], camera.position[1], camera.position[2]);
+                                                std::printf("[U2 Native Camera] stored orientation A=(%.6f, %.6f, %.6f) B=(%.6f, %.6f, %.6f) external-transform=%u\n",
+                                                    camera.orientation_axis_a[0], camera.orientation_axis_a[1], camera.orientation_axis_a[2],
+                                                    camera.orientation_axis_b[0], camera.orientation_axis_b[1], camera.orientation_axis_b[2],
+                                                    camera.uses_external_transform);
+                                            }
                                         }
                                     }
                                 } else {

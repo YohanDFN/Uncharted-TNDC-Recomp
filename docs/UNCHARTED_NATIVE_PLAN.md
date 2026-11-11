@@ -182,8 +182,9 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > `resolved`, et non `ready` : les deux pages de menu-temple, leurs 4148
 > relocations, le catalogue et la liste de dix logins sont contrôlés
 > (voir `NATIVE_PAK_HEADER.md`). LEVEL_INFO_1 est copié dans une propriété
-> hôte. Le nom et la position stockée de la caméra de départ sont maintenant
-> décodés dans une copie possédée (voir `NATIVE_CAMERA_DEFINITIONS.md`) ;
+> hôte. Le nom, la position et les deux vecteurs d'orientation stockés de la
+> caméra de départ sont décodés dans une copie possédée (voir
+> `NATIVE_CAMERA_DEFINITIONS.md` et `NATIVE_CAMERA_ORIENTATION.md`) ;
 > l'objet caméra, son login moteur et son utilisation pour le rendu restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
 > Son attribution historique à `PackageMgr::RequestPackage` est à corriger :

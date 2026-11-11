@@ -28,7 +28,8 @@ bool u2_native_LoginLevelInfo(U2NativeLevelInfo *level, const uint8_t *page,
 
 // CameraManager message F2ACC8EC: 43535C/43536B read count/records,
 // 435376/43538C use the record name, 435A21..435A2C use position +8/+C/+10,
-// and 435B28 advances by 0x48. Other camera fields are intentionally opaque.
+// 4355E6..435629 read orientation vectors +20/+14 on the null +40 branch,
+// and 435B28 advances by 0x48. Projection fields remain opaque.
 bool u2_native_ReadCameraDefinitions(std::vector<U2NativeCameraDefinition> *out,
                                      const uint8_t *page, size_t page_size,
                                      size_t metadata_offset) {
@@ -74,9 +75,14 @@ bool u2_native_ReadCameraDefinitions(std::vector<U2NativeCameraDefinition> *out,
             U2NativeCameraDefinition camera;
             camera.name.assign(reinterpret_cast<const char *>(start), end - start);
             camera.is_start = camera.name.find("_cam_start_") != std::string::npos;
+            camera.uses_external_transform = le64(record + 0x40) != 0;
             for (size_t axis = 0; axis < 3; ++axis) {
                 camera.position[axis] = std::bit_cast<float>(le32(record + 8 + axis * 4));
-                if (!std::isfinite(camera.position[axis])) return false;
+                camera.orientation_axis_a[axis] = std::bit_cast<float>(le32(record + 0x20 + axis * 4));
+                camera.orientation_axis_b[axis] = std::bit_cast<float>(le32(record + 0x14 + axis * 4));
+                if (!std::isfinite(camera.position[axis]) ||
+                    !std::isfinite(camera.orientation_axis_a[axis]) ||
+                    !std::isfinite(camera.orientation_axis_b[axis])) return false;
             }
             result.push_back(std::move(camera));
         }
