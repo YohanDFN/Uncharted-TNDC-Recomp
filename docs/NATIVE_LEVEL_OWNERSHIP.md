@@ -154,3 +154,19 @@ Prochaine expérience : obtenir un scénario original qui décharge effectivemen
 un niveau (transition de niveau ou fermeture moteur propre), instrumenter
 0x5704C0, 0x5708A0, 0x56AC30 et le traitement des packages avant le retour du
 slot. Ne pas forcer le compteur ou la phase pour fabriquer cette transition.
+
+## Expérience de fermeture : piste réfutée par le code hôte
+
+La fermeture de fenêtre n'est pas un scénario de shutdown guest dans ce port :
+gpu/shim/bbgpu.cpp, dans la gestion should_close, journalise Window closed puis
+appelle std::_Exit(0). Il n'y a aucun appel de déchargement moteur dans ce chemin.
+src/probe.c ignore aussi timeout_seconds sous Windows (commentaire explicite
+no watchdog on Windows). Une fermeture par WM_CLOSE/Alt+F4 ou un timeout du
+harnais ne peut donc pas établir le cycle de destruction Level.
+
+Cette vérification statique invalide l'expérience proposée : aucun lancement
+supplémentaire ni modification comportementale nécessaire. Ce résultat réduit
+le prochain scénario utile à une vraie transition guest de niveau, et non une
+fermeture de fenêtre. La transition doit être observée sans forcer d'état ni
+appeler directement une routine de déchargement hors de son contexte.
+Fichier modifié : ce rapport. Build/tests non relancés, documentation uniquement.
