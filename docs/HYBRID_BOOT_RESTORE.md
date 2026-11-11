@@ -98,3 +98,55 @@ Conclusion : frontière du registre vérifiée indépendamment des patchs.
 Commit : correction atomique du registre par cible.
 Prochaine hypothèse : retirer les deux patchs StateTask restaurera la
 progression constatée dans le contrôle, avec les autotests complets actifs.
+
+## Itération 2 — retour aux contrôles StateTask originaux
+
+Sous-système : patchs automatiques du code de tâches Data-Core.
+Symptôme : avec le registre hybride isolé, le premier login se produit mais
+la boucle d'états et le thread vidéo ne démarrent pas.
+Dernier point fonctionnel : registre hybride de 55 méthodes / 889 détours.
+Premier point incorrect : les deux substitutions automatiques A5301B et
+A5A4C0 restent appliquées avant les filtres, malgré l'exclusion des prototypes.
+Hypothèse : conserver les instructions ELF de ces deux plages suffit à
+retrouver la progression saine une fois le registre séparé.
+Preuve statique : les patchs remplacent des lectures/branches internes par
+des trampolines ajoutant des chemins NULL, avec des effets sur R11 absents
+des instructions originales. Le champ +88 appartient au login original.
+L'expérience ne départage pas l'effet propre de chacun des deux patchs :
+la causalité démontrée porte sur cette famille de substitutions, sans
+attribuer tout le blocage à un registre ou à une branche particuliers.
+Preuve runtime : contrôle A/B identique à 889 détours, puis tests complets
+sans filtre ; second login, vidéo, chargement menu/menu-temple et rendu repris.
+Modification : suppression des deux trampolines et de leurs installations
+(94 lignes), sans nouvelle garde, état forcé ni appel direct ajouté.
+Fichiers modifiés : runtime_u2_script.c, u2_engine_tests.cpp, ce rapport,
+ADR.md, DETOUR_VALIDATION.md et capture_hybrid_window.ps1.
+Tests ajoutés : vérification des 14 et 18 octets originaux dans l'image
+hybride réelle aux deux adresses, avant la création de la sandbox.
+Build : deux exécutables réussis ; copie déployée dans out/ et dist/bin
+lorsque le répertoire de distribution existe.
+Test 6 secondes : SelfTest 886, full-body 831, moteur 218/218,
+STOPPED_AFTER_TIMEOUT ; aucun crash, Guest fault, trap ou assertion nouvelle.
+Tests prolongés : 25, 45 puis 60 secondes, mêmes tests, aucun défaut relevé ;
+journaux diag_restored_final_25s.log, diag_restored_final_45s.log et
+diag_restored_final_60s.log. Les fichiers effect1 facultatifs absents et les
+avertissements SanitizeCopyLayers existaient dans la trace de référence ;
+ils ne sont pas utilisés comme critère de panne.
+Test natif : 80 méthodes moteur, 212/212 assertions, fermeture à 10 s, code 0.
+Résultat visuel : vérifié par capture PrintWindow du bb-probe du workspace,
+examinée par l'agent pendant le test de 60 s. Écran titre original Uncharted 2,
+temple 3D et « Appuyer sur X pour commencer » visibles. La capture ne lit
+aucune autre fenêtre et ne change pas le premier plan (Apex reste ouvert).
+Preuve conservée : [capture du titre](../user/diag_hybrid_menu_restored.png).
+Le script peut aussi capturer le rectangle du jeu s'il est au premier plan ;
+PrintWindow n'est pas fiable pour tous les renderers, mais l'image obtenue
+ici contient effectivement la scène 3D et le texte lisible.
+Régression observée : aucune dans les scénarios testés. La navigation après
+« commencer » et le gameplay ne font pas partie de cette validation.
+Conclusion : référence hybride restaurée jusqu'à l'écran titre original.
+Ce résultat ne signifie pas que le standalone affiche le menu original.
+Commit : retrait atomique des patchs StateTask compensatoires.
+Nettoyage : instrumentation C++ et commutateur temporaire retirés ; worktree
+isolé remis sur 3d5dded et recompilé. Modifications utilisateur préservées.
+Prochaine hypothèse : reprendre le port natif en comparant chaque nouveau
+contrat au login et au streaming originaux, sans l'installer dans bb-probe.

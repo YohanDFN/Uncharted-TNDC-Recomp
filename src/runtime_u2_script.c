@@ -922,47 +922,6 @@ static void write_detour_jmp64(uint8_t *dst, uintptr_t target) {
     dst[11] = 0xE0;
 }
 
-static void *s_state_field88_continue = NULL;
-static void *s_state_field88_skip     = NULL;
-
-__attribute__((naked)) static void u2_patch_state_field88_check(void) {
-    __asm__ volatile (
-        "movq 0x88(%%rbx), %%rax\n\t"
-        "testq %%rax, %%rax\n\t"
-        "jz 1f\n\t"
-        "cmpq $0, 0x10(%%rax)\n\t"
-        "jz 1f\n\t"
-        "movq %0, %%r11\n\t"
-        "jmpq *%%r11\n\t"
-        "1:\n\t"
-        "movq %1, %%r11\n\t"
-        "jmpq *%%r11\n\t"
-        :
-        : "m"(s_state_field88_continue), "m"(s_state_field88_skip)
-    );
-}
-
-static void *s_state_field88_2_continue = NULL;
-static void *s_state_field88_2_skip     = NULL;
-
-__attribute__((naked)) static void u2_patch_state_field88_2_check(void) {
-    __asm__ volatile (
-        "movq 0x88(%%r15), %%rax\n\t"
-        "testq %%rax, %%rax\n\t"
-        "jz 1f\n\t"
-        "movl 0x28(%%rax), %%edi\n\t"
-        "testl %%edi, %%edi\n\t"
-        "jz 1f\n\t"
-        "movq %0, %%r11\n\t"
-        "jmpq *%%r11\n\t"
-        "1:\n\t"
-        "movq %1, %%r11\n\t"
-        "jmpq *%%r11\n\t"
-        :
-        : "m"(s_state_field88_2_continue), "m"(s_state_field88_2_skip)
-    );
-}
-
 static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size) {
     /* 
      * Fix GetSubMeshInstance assertion trap in mesh rendering (ndlib/render/ngen/mesh.h:1361):
@@ -990,59 +949,6 @@ static void runtime_u2_apply_engine_patches(uint8_t *image, uint64_t image_size)
             };
             memcpy(image + 0x00C47DE2, patch_submesh_check, sizeof(patch_submesh_check));
             printf("[U2 Engine] Patched GetSubMeshInstance bounds check at 0x00C47DE2 -> skip out-of-bounds submeshes\n");
-            fflush(stdout);
-        }
-    }
-
-    /*
-     * Fix StateTask NULL dereference at 0x00A53022:
-     * When rbx->field88 is NULL, the original code attempts to read 0x10(rax) without check,
-     * triggering a read access violation at 0x00000010.
-     * Original at 0x00A5301B (14 bytes):
-     *   48 8B 83 88 00 00 00   movq 0x88(%rbx), %rax
-     *   48 83 78 10 00         cmpq $0x0, 0x10(%rax)
-     *   74 19                  je 0x00A53042
-     */
-    if (image && image_size >= 0x00A54000ULL) {
-        static const uint8_t orig_field88_check[14] = {
-            0x48, 0x8B, 0x83, 0x88, 0x00, 0x00, 0x00,
-            0x48, 0x83, 0x78, 0x10, 0x00, 0x74, 0x19
-        };
-        if (memcmp(image + 0x00A5301B, orig_field88_check, sizeof(orig_field88_check)) == 0) {
-            s_state_field88_continue = image + 0x00A53029;
-            s_state_field88_skip     = image + 0x00A53042;
-            write_detour_jmp64(image + 0x00A5301B, (uintptr_t)&u2_patch_state_field88_check);
-            image[0x00A5301B + 12] = 0x90;
-            image[0x00A5301B + 13] = 0x90;
-            printf("[U2 Engine] Patched StateTask NULL check at 0x00A5301B -> safe skip on null field88\n");
-            fflush(stdout);
-        }
-    }
-
-    /*
-     * Fix StateTask NULL dereference at 0x00A5A4C7:
-     * When r15->field88 is NULL, the original code attempts to read 0x28(rax) without check,
-     * triggering a read access violation at 0x00000028.
-     * Original at 0x00A5A4C0 (18 bytes):
-     *   49 8B 87 88 00 00 00   movq 0x88(%r15), %rax
-     *   8B 78 28               movl 0x28(%rax), %edi
-     *   85 FF                  testl %edi, %edi
-     *   0F 84 84 00 00 00      je 0x00A5A556
-     */
-    if (image && image_size >= 0x00A5B000ULL) {
-        static const uint8_t orig_field88_2_check[18] = {
-            0x49, 0x8B, 0x87, 0x88, 0x00, 0x00, 0x00,
-            0x8B, 0x78, 0x28, 0x85, 0xFF,
-            0x0F, 0x84, 0x84, 0x00, 0x00, 0x00
-        };
-        if (memcmp(image + 0x00A5A4C0, orig_field88_2_check, sizeof(orig_field88_2_check)) == 0) {
-            s_state_field88_2_continue = image + 0x00A5A4D2;
-            s_state_field88_2_skip     = image + 0x00A5A556;
-            write_detour_jmp64(image + 0x00A5A4C0, (uintptr_t)&u2_patch_state_field88_2_check);
-            for (size_t i = 12; i < 18; ++i) {
-                image[0x00A5A4C0 + i] = 0x90; // NOP
-            }
-            printf("[U2 Engine] Patched StateTask NULL check at 0x00A5A4C0 -> safe skip on null field88\n");
             fflush(stdout);
         }
     }

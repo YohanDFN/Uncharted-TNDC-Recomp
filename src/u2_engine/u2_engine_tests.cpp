@@ -153,6 +153,24 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
     s_failed_assertions = 0;
     s_passed_assertions = 0;
 
+#if !defined(U2_STANDALONE)
+    // These mid-function checks belong to the original DC task lifecycle.
+    // A registry filter cannot detect or disable compensating text patches.
+    const uint8_t state_check[] = {
+        0x48, 0x8B, 0x83, 0x88, 0x00, 0x00, 0x00,
+        0x48, 0x83, 0x78, 0x10, 0x00, 0x74, 0x19
+    };
+    const uint8_t graph_check[] = {
+        0x49, 0x8B, 0x87, 0x88, 0x00, 0x00, 0x00,
+        0x8B, 0x78, 0x28, 0x85, 0xFF,
+        0x0F, 0x84, 0x84, 0x00, 0x00, 0x00
+    };
+    U2_TEST_ASSERT(std::memcmp(real_image + 0x00A5301B, state_check, sizeof(state_check)) == 0,
+                   "Hybrid preserves original StateTask check at A5301B");
+    U2_TEST_ASSERT(std::memcmp(real_image + 0x00A5A4C0, graph_check, sizeof(graph_check)) == 0,
+                   "Hybrid preserves original task graph check at A5A4C0");
+#endif
+
     ExecutableMockImage mock_img;
     if (!mock_img.base) return 0;
     uint8_t *image = mock_img.base;

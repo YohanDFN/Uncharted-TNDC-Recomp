@@ -125,6 +125,11 @@ explicitement dans leur sandbox, sans modifier leur admissibilité hybride.
 Les tests de prototypes prouvent leurs attentes locales, pas leur conformité
 aux objets vivants de l'ELF. Voir `docs/HYBRID_BOOT_RESTORE.md`.
 
+Les substitutions StateTask ajoutées après la baseline aux offsets A5301B et
+A5A4C0 sont retirées. Le contrôle A/B à 889 détours, puis la capture du build
+sans filtre, établissent le retour de l'écran titre original. Deux assertions
+vérifient désormais que ces plages conservent les instructions ELF attendues.
+
 ### Décision
 * Création de la branche dédiée `dev-native` clonée depuis `dev` (`3d5dded`) pour développer en parallèle un second exécutable autonome : **`uncharted2-native.exe`**.
 * **`uncharted2-native.exe`** contient uniquement le code C++23 réécrit (`src/u2_engine/*.cpp`, `src/u2_standalone/*.cpp`), les 832 bindings `Dc*` et les couches PC (`bbgpu` Vulkan/SDL3/WASAPI/ATRAC9), sans exécuter le moindre octet de code machine PS4 (`eboot.elf`).

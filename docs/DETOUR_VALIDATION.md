@@ -41,6 +41,12 @@ flowchart TD
 ```
 
 ### Couche 1 : L'Infrastructure Vitale (Toujours Active)
+État vérifié du 11 novembre 2026 : la référence hybride utilise les 889 détours
+de `3d5dded`. Les prototypes standalone et les deux substitutions StateTask
+postérieures à cette base ne font pas partie de l'infrastructure validée.
+Ces substitutions ont été retirées après un contrôle A/B et vérification de
+l'écran titre original. Voir [la restauration](HYBRID_BOOT_RESTORE.md).
+
 Ne doit **jamais** être désactivée par un commutateur global :
 * **State Machine & Boot** : `detour_UCCApp_StateMachineUpdate` (`0x00D59A50`), `detour_IntroState_Update` (`0x00A551B0`).
 * **Synchronisation GPU / CPU** : `detour_GfxWaitEopFence` (`0x00B29F10`), `detour_Job2` (`0x003F68C0`), `hook_JobDispatch` (`0x00B3DB04`).
