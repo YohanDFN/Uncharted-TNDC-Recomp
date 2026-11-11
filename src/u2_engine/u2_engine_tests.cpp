@@ -188,27 +188,20 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         std::memcpy(image + off, real_image + off, 12);
     }
 
-    // Host memory routines remain testable through sandbox trampolines even
-    // when they are deliberately absent from the hybrid production registry.
-    const U2NativeDetour host_stack_tests[] = {
-        { "AllocateAllocStack", 0x00B36D40, reinterpret_cast<uintptr_t>(&u2_cpp_AllocateAllocStack) },
-        { "FreeThreadAllocStack", 0x00B35D30, reinterpret_cast<uintptr_t>(&u2_cpp_FreeThreadAllocStack) },
-        { "PushAllocator", 0x00B360D0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator) },
-        { "PushAllocator_Tag", 0x00B35EA0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator_Tag) },
-        { "PushAllocator_Ext", 0x00B371A0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator_Ext) },
-        { "PopAllocator", 0x00B361C0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator) },
-        { "PopAllocator_Expected", 0x00B377B0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator_Expected) },
-        { "GetAllocatorStackDepth", 0x00B362A0, reinterpret_cast<uintptr_t>(&u2_cpp_GetAllocatorStackDepth) },
-    };
-    for (const auto &entry : host_stack_tests) {
+    // Exercise prototypes through sandbox trampolines without admitting them
+    // to the hybrid production registry. Functional tests are not ELF parity.
+    const U2NativeDetour *native_only = nullptr;
+    size_t native_count = u2_get_engine_native_only_detours(&native_only);
+    for (size_t n = 0; n < native_count; ++n) {
+        const auto &entry = native_only[n];
         bool registered = false;
         for (size_t i = 0; i < engine_count; ++i) {
             if (engine_detours[i].offset == entry.offset) registered = true;
         }
 #if defined(U2_STANDALONE)
-        U2_TEST_ASSERT(registered, "Native registry includes host AllocStack family");
+        U2_TEST_ASSERT(registered, "Standalone registry includes native prototype");
 #else
-        U2_TEST_ASSERT(!registered, "Hybrid registry preserves original ELF AllocStack family");
+        U2_TEST_ASSERT(!registered, "Hybrid registry excludes standalone prototype");
 #endif
         write_temp_jmp64(image + entry.offset, entry.host_fn);
     }

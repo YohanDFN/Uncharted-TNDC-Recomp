@@ -39,6 +39,12 @@ flowchart TD
 
 ### Garanties d'Isolation de `uncharted2-native.exe`
 
+Le registre distingue désormais 55 méthodes hybrides validées et 25 prototypes
+standalone. Ces derniers restent testés via trampolines de sandbox ; seuls
+les builds `U2_STANDALONE` les installent en production. Cela inclut mémoire,
+boot et les résolveurs DC privés : ils ne doivent pas remplacer les contrats
+de durée de vie et d'initialisation de l'ELF hybride.
+
 La famille AllocStack hôte est enregistrée uniquement pour cette cible
 (`U2_STANDALONE=1`), avec un TLS C++ indépendant. Dans `bb-probe`, les huit
 routines correspondantes restent à l'ELF ; les autotests mémoire utilisent

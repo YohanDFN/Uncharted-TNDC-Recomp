@@ -7,6 +7,9 @@
 #include <cstddef>
 #include <cstring>
 
+// Descriptors for standalone installation and isolated sandbox tests only.
+extern "C" size_t u2_get_engine_native_only_detours(const U2NativeDetour **out);
+
 // Subsystem Headers: ndlib/ (Core Engine)
 #include "ndlib/memory/alloc_stack.h"
 #include "ndlib/io/streaming.h"

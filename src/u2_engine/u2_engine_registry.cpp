@@ -3,8 +3,12 @@
  * separate from the DC script runtime modules (player, npc, scene, event, audio).
  */
 #include "u2_engine.h"
+#include <algorithm>
+#include <array>
+#include <iterator>
 
-static const U2NativeDetour s_engine_detours[] = {
+// Validated hybrid reference registry from 3d5dded.
+static const U2NativeDetour s_hybrid_engine_detours[] = {
     /* catmull_rom.cpp */
     { "CatmullRomSpline_GetName",                        0x00468260, reinterpret_cast<uintptr_t>(&u2_cpp_CatmullRomSpline_GetName) },
     { "CatmullRomSpline_IsLooped",                       0x004684C0, reinterpret_cast<uintptr_t>(&u2_cpp_CatmullRomSpline_IsLooped) },
@@ -69,10 +73,13 @@ static const U2NativeDetour s_engine_detours[] = {
     { "Settings_FreeSetting",                            0x00A1D600, reinterpret_cast<uintptr_t>(&u2_cpp_Settings_FreeSetting) },
     { "GameLoading_IsChunkSetEntirelyWithin",            0x00B77AA0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_IsChunkSetEntirelyWithin) },
     { "GameLoading_GetPlayGoSpeed",                      0x00B770D0, reinterpret_cast<uintptr_t>(&u2_cpp_GameLoading_GetPlayGoSpeed) },
+};
 
+// Standalone prototypes have different ownership/boot contracts. Sandbox tests
+// do not establish compatibility with the original ELF's live objects.
+static const U2NativeDetour s_native_only_detours[] = {
     /* Host AllocStack ownership is incompatible with the ELF pool/bitmap.
      * Keep the complete allocation/stack/release family on the native side. */
-#if defined(U2_STANDALONE)
     { "AllocateAllocStack",                              0x00B36D40, reinterpret_cast<uintptr_t>(&u2_cpp_AllocateAllocStack) },
     { "FreeThreadAllocStack",                            0x00B35D30, reinterpret_cast<uintptr_t>(&u2_cpp_FreeThreadAllocStack) },
     { "PushAllocator",                                   0x00B360D0, reinterpret_cast<uintptr_t>(&u2_cpp_PushAllocator) },
@@ -81,7 +88,6 @@ static const U2NativeDetour s_engine_detours[] = {
     { "PopAllocator",                                    0x00B361C0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator) },
     { "PopAllocator_Expected",                           0x00B377B0, reinterpret_cast<uintptr_t>(&u2_cpp_PopAllocator_Expected) },
     { "GetAllocatorStackDepth",                          0x00B362A0, reinterpret_cast<uintptr_t>(&u2_cpp_GetAllocatorStackDepth) },
-#endif
     { "ProcessHeap_ScanForProcessDroppings",             0x009B7770, reinterpret_cast<uintptr_t>(&u2_cpp_ProcessHeap_ScanForProcessDroppings) },
 
     /* boot_state_machine.cpp (Boot & State Machine) */
@@ -114,6 +120,24 @@ static const U2NativeDetour s_engine_detours[] = {
 };
 
 extern "C" size_t u2_get_engine_detours(const U2NativeDetour **out) {
-    if (out) *out = s_engine_detours;
-    return sizeof(s_engine_detours) / sizeof(s_engine_detours[0]);
+#if defined(U2_STANDALONE)
+    static const auto all_detours = [] {
+        std::array<U2NativeDetour, std::size(s_hybrid_engine_detours) +
+                                  std::size(s_native_only_detours)> entries{};
+        auto next = std::copy(std::begin(s_hybrid_engine_detours),
+                              std::end(s_hybrid_engine_detours), entries.begin());
+        std::copy(std::begin(s_native_only_detours), std::end(s_native_only_detours), next);
+        return entries;
+    }();
+    if (out) *out = all_detours.data();
+    return all_detours.size();
+#else
+    if (out) *out = s_hybrid_engine_detours;
+    return std::size(s_hybrid_engine_detours);
+#endif
+}
+
+extern "C" size_t u2_get_engine_native_only_detours(const U2NativeDetour **out) {
+    if (out) *out = s_native_only_detours;
+    return std::size(s_native_only_detours);
 }

@@ -116,6 +116,15 @@ d'une pile invitée sentinelle. Voir [les preuves et limites](docs/HYBRID_REGRES
 ### Statut
 Accepté & Planifié sur `dev-native`.
 
+### Registres par cible (11 novembre 2026)
+
+Le registre hybride conserve les 55 méthodes moteur validées de `3d5dded`.
+Les 25 descriptions de prototypes standalone sont séparées : seule la cible
+`U2_STANDALONE` les ajoute au registre installé. Les tests les installent
+explicitement dans leur sandbox, sans modifier leur admissibilité hybride.
+Les tests de prototypes prouvent leurs attentes locales, pas leur conformité
+aux objets vivants de l'ELF. Voir `docs/HYBRID_BOOT_RESTORE.md`.
+
 ### Décision
 * Création de la branche dédiée `dev-native` clonée depuis `dev` (`3d5dded`) pour développer en parallèle un second exécutable autonome : **`uncharted2-native.exe`**.
 * **`uncharted2-native.exe`** contient uniquement le code C++23 réécrit (`src/u2_engine/*.cpp`, `src/u2_standalone/*.cpp`), les 832 bindings `Dc*` et les couches PC (`bbgpu` Vulkan/SDL3/WASAPI/ATRAC9), sans exécuter le moindre octet de code machine PS4 (`eboot.elf`).
