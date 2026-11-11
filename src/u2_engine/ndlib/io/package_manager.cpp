@@ -1,7 +1,7 @@
 // Uncharted 2: Among Thieves — Native package request registry
-// This implements only the proven request/deduplication stage of
-// PackageMgr::RequestPackage (0x0056C0E0). PAK parsing and readiness are later
-// stages and are deliberately not claimed here.
+// Host-only PAK request registry. This is not a reimplementation of
+// 0x0056C0E0: that historical attribution conflated LevelMgr and PackageMgr.
+// The original Level loading path requests packages through 0x00B6CD10.
 
 #include "u2_engine.h"
 

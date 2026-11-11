@@ -165,7 +165,10 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > `resolved`, et non `ready` : le préfixe et la table des pages sont lus et
 > contrôlés (voir `NATIVE_PAK_HEADER.md`), mais les relocations et
 > l'enregistrement des pages PAK ne sont pas encore implémentés. Le détour ELF
-> `PackageMgr::RequestPackage` (`0x0056C0E0`) reste inchangé dans `bb-probe`.
+> La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
+> Son attribution historique à `PackageMgr::RequestPackage` est à corriger :
+> les appelants et la trace établissent ici une frontière LevelMgr/Level,
+> distincte de la demande des packages à `0x00B6CD10` (voir le rapport PAK).
 
 1. **Intégration du flux audio SDL3 & Décodeur ATRAC9** :
    * Initialisation du sous-système audio SDL3 (`SDL_InitSubSystem(SDL_INIT_AUDIO)`).
