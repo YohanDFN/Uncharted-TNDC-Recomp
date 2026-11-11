@@ -89,3 +89,68 @@ sans preuve d'identité menu-temple. La trace retrouve 26 Init et 84 logins.
 Prochaine expérience : suivre la libération des références à +0x938 et celle
 des slots LevelMgr avant d'implémenter un propriétaire natif. Le harnais doit
 aussi être surveillé : il a laissé des processus bb-probe actifs après timeout.
+
+## Investigation de la libération différée
+
+Sous-système : Level / LevelMgr / durée de vie des packages.
+Symptôme : destruction et retour du slot non établis pour le propriétaire natif.
+Dernier point fonctionnel : association Package+0x28 -> Level prouvée.
+Premier point incorrect : absence de preuve du moment où les pages cessent
+d'être référencées par les consommateurs de rendu/scripts.
+Hypothèse : référence nulle programme un déchargement différé ; elle ne rend
+pas directement le slot au pool.
+
+Preuve statique, plages ciblées :
+
+- 0x570490..0x5704B7 : si Level flags +0x18 bit 0x40 est présent, retour.
+  Sinon le int16 à +0x938 est décrémenté puis borné à zéro ; la valeur nulle
+  provoque un tail-call à 0x5704C0. Variante via recherche à 0x56E752..0x56E76D.
+- 0x5704C0..0x570899 : interactions avec la géométrie +0x958 et les flags de
+  frame ; phase à +0x30 mise à 8 ; frame courante et échéance conservées à
+  +0x91C/+0x930. Appels complémentaires dont 0x573100 et 0x570D30.
+  Le label automatique GetMutableFlags est une attribution issue d'un appel
+  inliné, pas un nom établi pour le corps complet de cette routine.
+- 0x5708A0..0x570A28 : nettoyage différé, notamment vérification d'un delta
+  de 0x1A frames, interaction avec des objets de processus, puis packages.
+  0x5709A9..0x5709CD sélectionne Level+0x88 ou +0x80 et appelle 0xB6CC30.
+  0x5709F0..0x570A02 boucle sur 0x571110. Cette dernière dépend elle-même
+  d'autres structures moteur ; la traiter comme un simple free serait faux.
+- 0x56AC30..0x56AD5F : deux arguments, rdi=gestionnaire, rsi=slot Level.
+  L'index est calculé depuis le pointeur de pool, puis borné à 179 inclus.
+  Le bit dans le bitmap à manager+0x80 est effacé à 0x56AC80 ; l'entrée
+  correspondant au StringId Level+0x74 est ensuite retirée de la table.
+  C'est une étape de retour au pool, distincte des routines précédentes.
+
+Les offsets +0x938 sont trouvés par recherche ciblée des opérandes mémoire
+dans la plage LevelMgr/Level, puis confirmés par désassemblage des routines
+et de leurs appelants. Aucun offset n'est attribué par seule proximité.
+
+Preuve runtime :
+
+```powershell
+$env:BB_GUEST_HOOKS='0x56ea40:10,0x5704c0:13,0x5708a0:11'
+powershell -ExecutionPolicy Bypass -File scratch/run_test.ps1 20
+```
+
+Le scénario observe 26 appels Init ; aucun appel des deux routines de
+déchargement n'est rapporté. Le compteur imprime tout changement depuis zéro.
+Cela prouve leur absence dans cette fenêtre de boot seulement, pas leur
+inutilité. SelfTest/EngineTest passent (187/187), timeout, aucune faute ou
+assertion relevée. Le processus résiduel PID 4924 est arrêté après inspection.
+
+Conclusion : l'hypothèse du déchargement différé est soutenue statiquement,
+mais aucune transition dynamique de déchargement n'a été observée. Le lien
+entre fin de nettoyage, fin des références GPU et retour du slot doit encore
+être prouvé. Aucun propriétaire guest, destructeur ou fonction native ajouté.
+Modification : documentation uniquement.
+Fichiers modifiés : ce rapport.
+Tests ajoutés : aucun, pas de comportement modifié.
+Build : non relancé, aucun code modifié.
+Test 6 secondes : non relancé, diagnostic ciblé de 20 secondes à la place.
+Test prolongé : ci-dessus, observation négative bornée et exploitable.
+Régression observée : aucune dans le scénario diagnostique.
+Commit : documentation atomique de l'investigation.
+Prochaine expérience : obtenir un scénario original qui décharge effectivement
+un niveau (transition de niveau ou fermeture moteur propre), instrumenter
+0x5704C0, 0x5708A0, 0x56AC30 et le traitement des packages avant le retour du
+slot. Ne pas forcer le compteur ou la phase pour fabriquer cette transition.
