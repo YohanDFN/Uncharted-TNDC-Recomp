@@ -914,6 +914,24 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 2u,
                        "PackageMgr registers both native menu packages");
         const auto *temple = u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
+        U2_TEST_ASSERT(temple && temple->first_page_verified &&
+                       temple->first_page_offset == 0x8280 && temple->first_page_size == 0x1E8174,
+                       "PackageMgr retains verified menu-temple page 0");
+        uint8_t page_entry[12] = {0x20, 0, 0, 0, 16, 0, 0, 0};
+        uint8_t page_bytes[16] = {};
+        page_bytes[12] = 16;
+        U2_TEST_ASSERT(u2_cpp_PackageMgr_CheckPage(page_entry, 12, 0x30, page_bytes, 16),
+                       "PAK page accepts exact EOF and matching page header");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_CheckPage(page_entry, 12, 0x2F, page_bytes, 16),
+                       "PAK page rejects extent beyond EOF");
+        page_bytes[12] = 15;
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_CheckPage(page_entry, 12, 0x30, page_bytes, 16),
+                       "PAK page rejects inconsistent header size");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_CheckPage(page_entry, 12, 0x30, page_bytes, 15),
+                       "PAK page rejects short payload");
+        page_entry[8] = 1;
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_CheckPage(page_entry, 12, 0x30, page_bytes, 16),
+                       "PAK page rejects unsupported entry kind");
         U2_TEST_ASSERT(temple && temple->header_inspected && temple->page_count == 2 &&
                        temple->page_table_offset == 0x2Cu,
                        "PackageMgr reads real menu-temple header and page table");

@@ -10,6 +10,8 @@
 #include <cstring>
 #include <mutex>
 #include <string>
+#include <vector>
+#include <new>
 
 namespace {
 
@@ -24,6 +26,9 @@ struct NativePackageRequest {
     bool header_inspected{false};
     uint32_t page_count{0};
     uint32_t page_table_offset{0};
+    bool first_page_verified{false};
+    uint32_t first_page_offset{0};
+    std::vector<uint8_t> first_page;
     U2NativePackageInfo view{};
 };
 
@@ -57,7 +62,15 @@ void refresh_view(NativePackageRequest &request) {
         request.header_inspected,
         request.page_count,
         request.page_table_offset,
+        request.first_page_verified,
+        request.first_page_offset,
+        static_cast<uint32_t>(request.first_page.size()),
     };
+}
+
+uint32_t read_le32(const uint8_t *p) {
+    return uint32_t{p[0]} | (uint32_t{p[1]} << 8) |
+           (uint32_t{p[2]} << 16) | (uint32_t{p[3]} << 24);
 }
 
 bool resolve_package_file(NativePackageRequest &request) {
@@ -74,10 +87,39 @@ bool resolve_package_file(NativePackageRequest &request) {
     // Read every table entry without following its embedded values. Bound the
     // work by the file extent, avoiding allocations based on untrusted counts.
     std::array<uint8_t, 12> entry{};
+    std::array<uint8_t, 12> first_entry{};
     for (uint32_t i = 0; inspected && i < request.page_count; ++i) {
         const uint64_t offset = request.page_table_offset + uint64_t{i} * entry.size();
         inspected = runtime_file_pread(fd, entry.data(), entry.size(), offset) ==
                     static_cast<int64_t>(entry.size());
+        if (i == 0 && inspected) first_entry = entry;
+    }
+    // First incremental payload: only menu-temple page 0, raw kind 0.
+    // Keep the host-owned bytes alive with the request; no guest pointers are
+    // patched and no executable memory is allocated.
+    if (inspected && request.page_count && request.name == "menu-temple") {
+        const uint32_t offset = read_le32(first_entry.data());
+        const uint32_t page_size = read_le32(first_entry.data() + 4);
+        constexpr uint32_t kInspectionBudget = 4 * 1024 * 1024;
+        if (read_le32(first_entry.data() + 8) == 0 && page_size >= 16 &&
+            page_size <= kInspectionBudget && offset <= static_cast<uint64_t>(size) &&
+            page_size <= static_cast<uint64_t>(size) - offset) {
+            try {
+                std::vector<uint8_t> page(page_size);
+                if (runtime_file_pread(fd, page.data(), page.size(), offset) == page_size &&
+                    u2_cpp_PackageMgr_CheckPage(first_entry.data(), first_entry.size(),
+                        static_cast<uint64_t>(size), page.data(), page.size())) {
+                    request.first_page = std::move(page);
+                    request.first_page_offset = offset;
+                    request.first_page_verified = true;
+                }
+            } catch (const std::bad_alloc &) {
+                std::fprintf(stderr, "[U2 Native PackageMgr] page inspection allocation failed\n");
+            }
+        }
+        std::printf("[U2 Native PackageMgr] '%s' page0=%s offset=0x%X bytes=%zu\n",
+                    request.name.c_str(), request.first_page_verified ? "verified" : "rejected",
+                    offset, request.first_page.size());
     }
     runtime_file_close(fd);
     if (size < 0) return false;
@@ -92,6 +134,16 @@ bool resolve_package_file(NativePackageRequest &request) {
 }
 
 } // namespace
+
+extern "C" bool u2_cpp_PackageMgr_CheckPage(const uint8_t *entry, size_t entry_size,
+                                            uint64_t file_size, const uint8_t *page, size_t page_size) {
+    if (!entry || entry_size < 12 || !page || page_size < 16) return false;
+    const uint32_t offset = read_le32(entry);
+    const uint32_t size = read_le32(entry + 4);
+    return read_le32(entry + 8) == 0 && offset <= file_size &&
+           size <= file_size - offset && page_size == size &&
+           read_le32(page + 0x0C) == size;
+}
 
 // Proven by 0x00B6DE33..0x00B6DE7C: count at +0x10, signed
 // table offset at +0x14, and a 12-byte entry stride. Other fields are unknown.
