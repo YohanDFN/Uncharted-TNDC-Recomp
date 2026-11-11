@@ -15,6 +15,7 @@
 #include "../src/runtime.h"
 #include "../src/u2_engine/u2_engine.h"
 #include "png_loader.h"
+#include "temple_preview.h"
 
 namespace u2::standalone {
 
@@ -109,6 +110,12 @@ public:
     }
 
     void run_loop(int timeout_seconds = 0) {
+        if (m_temple_preview.load()) {
+            native_log("[U2 Native] Previewing real temple mesh positions from the start camera.\n");
+            if (m_renderer) SDL_SetRenderLogicalPresentation(m_renderer,1920,1080,SDL_LOGICAL_PRESENTATION_LETTERBOX);
+        } else {
+            native_log("[U2 Native] Temple position preview unavailable; see resource diagnostics.\n");
+        }
         if (!m_window || !m_renderer) {
             native_log("[U2 Native] Headless loop running...\n");
             if (timeout_seconds > 0) {
@@ -117,7 +124,9 @@ public:
             return;
         }
 
-        native_log("[U2 Native] Native C++23 engine loop active. Presenting interactive Main Menu...\n");
+        native_log(m_temple_preview.ready()
+            ? "[U2 Native] Native loop active: temple asset-position preview.\n"
+            : "[U2 Native] Native loop active: prototype menu.\n");
         uint64_t start_ticks = SDL_GetTicks();
         int last_remaining = -1;
         bool running = true;
@@ -125,6 +134,10 @@ public:
 
         while (running) {
             while (SDL_PollEvent(&ev)) {
+                if (m_temple_preview.ready()) {
+                    if (ev.type==SDL_EVENT_QUIT || (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_ESCAPE)) running=false;
+                    continue;
+                }
                 if (ev.type == SDL_EVENT_QUIT) {
                     running = false;
                 } else if (ev.type == SDL_EVENT_KEY_DOWN) {
@@ -194,7 +207,9 @@ public:
 
                 if (remaining != last_remaining) {
                     last_remaining = remaining;
-                    std::string title = "Uncharted 2: Among Thieves (Pure C++23 Standalone) — Menu Principal [Fermeture auto dans "
+                    std::string title = "Uncharted 2: Among Thieves (Pure C++23 Standalone) - "
+                                        + std::string(m_temple_preview.ready() ? "Temple : apercu natif des sommets" : "Menu prototype")
+                                        + " [Fermeture auto dans "
                                         + std::to_string(remaining) + "s - ECHAP pour quitter]";
                     SDL_SetWindowTitle(m_window, title.c_str());
                     native_log("[U2 Native] Temps restant avant fermeture: " + std::to_string(remaining) + "s\n");
@@ -705,6 +720,21 @@ private:
     }
 
     void render_frame() {
+        if (m_temple_preview.ready()) {
+            m_temple_preview.draw(m_renderer);
+            if (!m_capture_attempted) {
+                m_capture_attempted=true;
+                const char *path=std::getenv("BB_NATIVE_CAPTURE");
+                if (path && *path) {
+                    SDL_Surface *surface=SDL_RenderReadPixels(m_renderer,nullptr);
+                    const bool saved=surface && SDL_SaveBMP(surface,path);
+                    if (surface) SDL_DestroySurface(surface);
+                    native_log(std::string("[U2 Native Preview] framebuffer capture ")+(saved ? "saved: " : "failed: ")+path+"\n");
+                }
+            }
+            SDL_RenderPresent(m_renderer);
+            return;
+        }
         SDL_SetRenderDrawColor(m_renderer, 10, 10, 15, 255);
         SDL_RenderClear(m_renderer);
 
@@ -734,6 +764,8 @@ private:
         {"QUITTER", "Quitter vers le bureau Windows"}
     };
 
+    TemplePreview m_temple_preview;
+    bool m_capture_attempted{false};
     int m_menu_selected_item{0};
     std::string m_last_action_msg{""};
     uint64_t m_last_action_time{0};
