@@ -8,6 +8,7 @@
 #include "game/loading/level_resources.h"
 #include "game/camera/camera_orientation.h"
 #include "game/camera/camera_position.h"
+#include "game/rendercamera.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -983,6 +984,60 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
+        {
+            // Coherent perspective sample 307 from the original RenderCamera
+            // dump (25 s menu test), object bytes +250..+25C and +90..+C0.
+            const U2NativePerspectiveParams captured{0.5625f, 1.3032253980636597f, 0.23999999463558197f, 5000};
+            const std::array<uint32_t, 16> original_bits{
+                0xBFA6D017,0,0,0, 0,0x40144731,0,0, 0x80000000,0,0x3F800193,0x3F800000,
+                0,0,0xBE75C595,0};
+            std::array<float, 16> matrix{};
+            bool matches = u2_native_BuildCenteredPerspective(captured, &matrix);
+            for (size_t i = 0; i < 16; ++i) matches &= std::bit_cast<uint32_t>(matrix[i]) == original_bits[i];
+            U2_TEST_ASSERT(matches, "Native centered perspective matches all 16 original RenderCamera float bit patterns");
+            const U2NativePerspectiveParams simple{0.5f, 2, 1, 11};
+            U2_TEST_ASSERT(u2_native_BuildCenteredPerspective(simple, &matrix), "Native perspective accepts explicit finite parameters");
+            // Transform independent clip-space points: w = z, near -> 0, far -> 1.
+            auto depth = [&matrix](float z) { return (matrix[10]*z + matrix[14]) / (matrix[11]*z + matrix[15]); };
+            U2_TEST_ASSERT(std::abs(depth(1)) < 0.000001f && std::abs(depth(11)-1) < 0.000001f,
+                           "Original perspective convention maps positive-Z near and far to depth zero and one");
+            U2_TEST_ASSERT(std::abs(matrix[0]*(-1)/2 - 1) < 0.000001f &&
+                           std::abs(matrix[5]*0.5f/2 - 1) < 0.000001f,
+                           "Original perspective retains negative X scale and height-over-width aspect convention");
+            U2_TEST_ASSERT(u2_native_BuildCenteredPerspective({2,2,1,11}, &matrix) && matrix[0] == -2 && matrix[5] == 1,
+                           "Portrait aspect changes vertical scale without inverting horizontal FOV");
+            U2_TEST_ASSERT(u2_native_PerspectiveFromHorizontalFov(1.57079632679f, 1, 1, 11, &matrix) &&
+                           std::abs(matrix[0]+1) < 0.000001f && std::abs(matrix[5]-1) < 0.000001f,
+                           "Horizontal FOV is in radians and uses cotangent of its half angle");
+            U2_TEST_ASSERT(u2_native_PerspectiveFromHorizontalFov(1.30899692f, captured.height_over_width,
+                           captured.near_plane, captured.far_plane, &matrix) &&
+                           std::abs(matrix[0]+captured.horizontal_zoom) < 0.000002f,
+                           "Captured menu zoom agrees with its inferred horizontal field of view");
+            matrix.fill(42);
+            const auto sentinel = matrix;
+            bool invalid_rejected = true;
+            const U2NativePerspectiveParams invalid[] = {{0,2,1,11}, {-1,2,1,11}, {1,0,1,11}, {1,-1,1,11},
+                {1,2,0,11}, {1,2,-1,11}, {1,2,1,1}, {1,2,11,1}, {1e-30f,3e38f,1,11}, {1,2,2e38f,3e38f}};
+            for (const auto &p : invalid)
+                invalid_rejected &= !u2_native_BuildCenteredPerspective(p, &matrix) && matrix == sentinel;
+            U2_TEST_ASSERT(invalid_rejected, "Perspective rejects invalid ranges and overflowing coefficients atomically");
+            bool nonfinite_rejected = true;
+            for (size_t i = 0; i < 4; ++i) {
+                for (uint32_t bits : {uint32_t{0x7FC00000}, uint32_t{0x7F800000}, uint32_t{0xFF800000}}) {
+                    auto p = simple;
+                    float *fields[] = {&p.height_over_width, &p.horizontal_zoom, &p.near_plane, &p.far_plane};
+                    *fields[i] = std::bit_cast<float>(bits);
+                    nonfinite_rejected &= !u2_native_BuildCenteredPerspective(p, &matrix) && matrix == sentinel;
+                }
+            }
+            U2_TEST_ASSERT(nonfinite_rejected, "Perspective rejects nonfinite values in every input without partial publication");
+            bool invalid_fov = true;
+            for (float fov : {0.0f, -1.0f, 3.14159265359f, 4.0f, std::bit_cast<float>(uint32_t{0x7FC00000})})
+                invalid_fov &= !u2_native_PerspectiveFromHorizontalFov(fov, 1, 1, 11, &matrix) && matrix == sentinel;
+            U2_TEST_ASSERT(invalid_fov && !u2_native_BuildCenteredPerspective(simple, nullptr) &&
+                           !u2_native_PerspectiveFromHorizontalFov(1,1,1,11,nullptr),
+                           "Perspective validates FOV domain and missing output");
+        }
         U2NativeLevelOffset actual_offset;
         const std::array<float, 3> no_translation{};
         U2_TEST_ASSERT(temple && temple->level_offset_decoded &&

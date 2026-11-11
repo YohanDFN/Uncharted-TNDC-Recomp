@@ -14,7 +14,7 @@ import re
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def child(probe, excluded, hooks):
+def child(probe, excluded, hooks, dump):
     sys.path.insert(0, str(ROOT))
     sys.path.insert(0, str(ROOT / "launcher"))
     from uncharted_launcher import game_environment, CONFIG_FILE, load_json, APP_DEFAULTS
@@ -23,10 +23,12 @@ def child(probe, excluded, hooks):
     os.environ["BB_U2_SELFTEST"] = "1"
     os.environ["BB_PROBE"] = str(probe)
     for key in ("BB_U2_MODULES", "BB_U2_DISABLE_DETOURS", "BB_U2_DETOUR_ALLOW",
-                "BB_U2_DETOUR_RANGE", "BB_GUEST_HOOKS", "BB_HOOK_DUMP"):
+                "BB_U2_DETOUR_RANGE", "BB_GUEST_HOOKS", "BB_HOOK_DUMP", "BB_HOOK_DUMP_BEFORE"):
         os.environ.pop(key, None)
     if hooks:
         os.environ["BB_GUEST_HOOKS"] = hooks
+    if dump:
+        os.environ["BB_HOOK_DUMP"] = dump
     if excluded:
         tree = probe.parents[2]
         files = [tree / "src/u2_engine/u2_engine_registry.cpp"]
@@ -48,10 +50,11 @@ def main():
     parser.add_argument("--child", action="store_true")
     parser.add_argument("--exclude", action="append", default=[])
     parser.add_argument("--hooks", default="", help="explicit BB_GUEST_HOOKS specification")
+    parser.add_argument("--dump", default="", help="explicit BB_HOOK_DUMP offset:bytes:file specification")
     args = parser.parse_args()
     probe = args.probe.resolve(strict=True)
     if args.child:
-        child(probe, args.exclude, args.hooks)
+        child(probe, args.exclude, args.hooks, args.dump)
         return
     if not args.label.replace("_", "").replace("-", "").isalnum():
         parser.error("label must contain letters, digits, hyphens or underscores")
@@ -63,6 +66,8 @@ def main():
             command += ["--exclude", name]
         if args.hooks:
             command += ["--hooks", args.hooks]
+        if args.dump:
+            command += ["--dump", args.dump]
         proc = subprocess.Popen(command,
                                 cwd=ROOT, stdout=output, stderr=subprocess.STDOUT,
                                 stdin=subprocess.DEVNULL)

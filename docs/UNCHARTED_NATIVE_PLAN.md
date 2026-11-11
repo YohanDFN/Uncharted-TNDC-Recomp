@@ -188,7 +188,9 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > le quaternion natif est calculé et comparé à une capture du calcul ELF original
 > (voir `NATIVE_CAMERA_QUATERNION.md`). La translation LEVEL_OFFSET_1 est lue
 > et ajoutée à la position caméra, comparée à une capture originale (voir
-> `NATIVE_CAMERA_LEVEL_OFFSET.md`). Les paramètres de projection,
+> `NATIVE_CAMERA_LEVEL_OFFSET.md`). Le calcul de perspective centrée est porté
+> et comparé aux 16 floats de RenderCamera (`NATIVE_CAMERA_PROJECTION.md`).
+> Le producteur actif des paramètres de projection,
 > l'objet caméra, son login moteur et son utilisation pour le rendu restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
 > Son attribution historique à `PackageMgr::RequestPackage` est à corriger :
