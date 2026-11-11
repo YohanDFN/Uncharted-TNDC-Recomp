@@ -995,6 +995,12 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             size_t total=0;
             for (const auto &mesh : meshes) total+=mesh.positions.size();
             U2_TEST_ASSERT(total==12383, "All 13 temple mesh position streams decoded with their 0x88 descriptor stride");
+            size_t triangle_count=0;
+            for (const auto &mesh : meshes) triangle_count+=mesh.triangles.size();
+            const std::array<uint16_t,3> first_triangle{0,1,2};
+            U2_TEST_ASSERT(meshes.size()==13 && meshes[0].triangles.size()==224 &&
+                           meshes[0].triangles[0]==first_triangle && triangle_count==13680,
+                           "Real temple index buffers decode 13680 triangles with the topology observed in original draws");
             U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetNativeGeometryPreview("missing", &meshes) &&
                            !u2_cpp_PackageMgr_GetNativeGeometryPreview(nullptr, &meshes) &&
                            !u2_cpp_PackageMgr_GetNativeGeometryPreview("menu-temple", nullptr) && meshes.size()==13,
@@ -1007,12 +1013,34 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             put32(40,1);ptr(48,128); // payload mesh count +8 and table +10
             ptr(128+8,544);std::memcpy(page+544,"test-mesh",sizeof("test-mesh"));
             put32(128+32,3);put32(128+40,1);ptr(128+48,416);
+            put32(128+36,3);ptr(128+64,512);page[514]=1;page[516]=2;
             page[416]=1;page[418]=12;put32(420,36);ptr(424,448);ptr(432,464);put32(448,0x060C0000);
             const std::array<float,3> first{-1,2,3.5f};
             for (size_t i=0;i<3;++i) put32(464+i*4,std::bit_cast<uint32_t>(first[i]));
             U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==1 &&
                            meshes[0].positions.size()==3 && meshes[0].positions[0]==first,
                            "Geometry preview decodes signed nonzero float3 positions");
+            U2_TEST_ASSERT(meshes[0].triangles.size()==1 && meshes[0].triangles[0]==first_triangle,
+                           "Geometry decoder preserves little-endian uint16 triangle indices");
+            page[514]=3;
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].triangles[0]==first_triangle,
+                           "Geometry rejects an index equal to vertex count without changing output");
+            page[514]=1;page[515]=1;
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Geometry uses both bytes of each index when checking vertex bounds");
+            page[515]=0;put32(128+36,4);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Geometry refuses incomplete triangle triples");
+            put32(128+36,UINT32_MAX-3);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Geometry bounds index count before allocation and size multiplication");
+            put32(128+36,3);ptr(128+64,764);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Geometry rejects truncated index data at the end of its page");
+            put64(128+64,UINT64_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Geometry rejects foreign index-buffer pointers");
+            ptr(128+64,512);
             std::memcpy(page+128+0x88,page+128,0x88);put32(40,2);
             U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==2 &&
                            meshes[1].positions[0]==first, "Geometry preview uses established adjacent mesh descriptor stride");
@@ -1045,7 +1073,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            !u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),SIZE_MAX) &&
                            !u2_native_ReadGeometryPreview(&meshes,page,0x77,0), "Geometry preview rejects null, overflowing and truncated metadata");
             std::memset(page,0,sizeof(page));
-            U2_TEST_ASSERT(meshes[0].name=="test-mesh" && meshes[0].positions[0]==first,
+            U2_TEST_ASSERT(meshes[0].name=="test-mesh" && meshes[0].positions[0]==first && meshes[0].triangles[0]==first_triangle,
                            "Geometry positions and names survive destruction of source page data");
         }
         {

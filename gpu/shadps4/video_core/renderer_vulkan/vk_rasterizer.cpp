@@ -2565,6 +2565,36 @@ void Rasterizer::ResolveIndexBuffer(u32 index_offset) {
 
     // Bind index buffer.
     const u32 index_buffer_size = regs.num_indices * index_size;
+    // Bounded read-only evidence for native mesh reconstruction: match the
+    // original draw's complete index bytes against a PAK stream fingerprint.
+    static const std::vector<u32> trace_index_counts = [] {
+        std::vector<u32> counts;
+        const char* env = std::getenv("BB_U2_MESH_INDEX_COUNT");
+        while (env && *env) {
+            char* end = nullptr;
+            const auto count = std::strtoul(env, &end, 0);
+            if (end == env || (*end && *end != ',') || !count) break;
+            counts.push_back(static_cast<u32>(count));
+            env = *end ? end + 1 : end;
+        }
+        return counts;
+    }();
+    static std::array<u64, 32> traced_index_hashes{};
+    static u32 traced_indices = 0;
+    if (traced_indices < traced_index_hashes.size() &&
+        std::find(trace_index_counts.begin(), trace_index_counts.end(), regs.num_indices) != trace_index_counts.end() &&
+        memory->IsValidGpuMapping(index_address, 0) &&
+        memory->ClampRangeSize(index_address, index_buffer_size) == index_buffer_size) {
+        const u64 fingerprint = XXH3_64bits(reinterpret_cast<const void*>(index_address), index_buffer_size);
+        if (std::find(traced_index_hashes.begin(), traced_index_hashes.begin() + traced_indices, fingerprint) ==
+            traced_index_hashes.begin() + traced_indices) {
+            std::printf("[U2 MeshDraw] count=%u index_bytes=%u primitive=%u restart=%u hash=%016llx\n",
+                        regs.num_indices, index_size, static_cast<u32>(regs.primitive_type),
+                        static_cast<u32>(regs.enable_primitive_restart), static_cast<unsigned long long>(fingerprint));
+            std::fflush(stdout);
+            traced_index_hashes[traced_indices++] = fingerprint;
+        }
+    }
     static const bool force_ib_upload = std::getenv("BB_FORCE_VB_UPLOAD") != nullptr;
     if (force_ib_upload || (ForceUploadVs(true) && ForceUploadVs(true) == current_vs_hash)) {
         buffer_cache.ForceUpload(index_address, index_buffer_size);

@@ -35,9 +35,18 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
         std::vector<U2NativeMeshPreview> result;
         result.reserve(count);
         size_t remaining_positions=size/12;
+        size_t remaining_indices=size/2;
         for (size_t i=0;i<count;++i) {
             const auto *record=page+records+i*0x88;
             const uint32_t vertices=u32(record+0x20), streams=u32(record+0x28);
+            // C36E27/C36E71: index count +24, index data +40, 16-bit format 39 hex.
+            // The temple's complete buffers are matched to original GPU draws:
+            // index_bytes=2, primitive=4 (TriangleList), primitive restart off.
+            const uint32_t indices=u32(record+0x24);
+            size_t index_data=0;
+            if (!indices || indices%3 || indices>remaining_indices ||
+                !range(u64(record+0x40),size_t(indices)*2,index_data)) return false;
+            remaining_indices-=indices;
             size_t stream=0,attribute=0,data=0,name=0;
             if (!vertices || vertices>65536 || vertices>remaining_positions || !streams ||
                 !range(u64(record+0x30),0,stream) || streams>(size-stream)/24 ||
@@ -54,6 +63,14 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
             U2NativeMeshPreview mesh;
             mesh.name.assign(reinterpret_cast<const char *>(page+name),end-(page+name));
             mesh.positions.resize(vertices);
+            mesh.triangles.resize(indices/3);
+            for (size_t triangle=0;triangle<mesh.triangles.size();++triangle) {
+                for (size_t corner=0;corner<3;++corner) {
+                    const uint16_t index=u16(page+index_data+(triangle*3+corner)*2);
+                    if (index>=vertices) return false;
+                    mesh.triangles[triangle][corner]=index;
+                }
+            }
             for (size_t v=0;v<vertices;++v) {
                 for (size_t axis=0;axis<3;++axis) {
                     const float value=std::bit_cast<float>(u32(page+data+v*12+axis*4));

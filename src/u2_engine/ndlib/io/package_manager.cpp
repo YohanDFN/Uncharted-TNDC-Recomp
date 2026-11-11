@@ -227,10 +227,12 @@ bool resolve_package_file(NativePackageRequest &request) {
                                         const uint32_t metadata=read_le32(root+0x2C+i*8);
                                         request.geometry_preview_decoded=u2_native_ReadGeometryPreview(&request.geometry_preview,
                                             pages[page_index],sizes[page_index],metadata);
-                                        size_t vertices=0;
-                                        for (const auto &mesh : request.geometry_preview) vertices+=mesh.positions.size();
-                                        std::printf("[U2 Native Geometry] decoded=%u meshes=%zu positions=%zu (position-only preview; engine login pending)\n",
-                                            request.geometry_preview_decoded,request.geometry_preview.size(),vertices);
+                                        size_t vertices=0,triangles=0;
+                                        for (const auto &mesh : request.geometry_preview) {
+                                            vertices+=mesh.positions.size();triangles+=mesh.triangles.size();
+                                        }
+                                        std::printf("[U2 Native Geometry] decoded=%u meshes=%zu positions=%zu triangles=%zu (preview geometry; engine login pending)\n",
+                                            request.geometry_preview_decoded,request.geometry_preview.size(),vertices,triangles);
                                     }
                                 } else {
                                     request.second_page.clear();

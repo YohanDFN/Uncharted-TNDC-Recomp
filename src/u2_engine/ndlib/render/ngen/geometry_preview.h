@@ -5,10 +5,11 @@
 #include <string>
 #include <vector>
 
-// Owned position-only snapshot; not a guest Mesh or a completed geometry login.
+// Owned preview geometry; not a guest Mesh or a completed geometry login.
 struct U2NativeMeshPreview {
     std::string name;
     std::vector<std::array<float, 3>> positions;
+    std::vector<std::array<uint16_t, 3>> triangles;
 };
 
 // Supports the established first position stream: one attribute, ID/offset 0,
