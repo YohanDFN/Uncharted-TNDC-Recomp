@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "game/loading/level_resources.h"
 
 #ifndef ABI
 #if defined(_WIN32)
@@ -40,9 +41,13 @@ struct U2NativePackageInfo {
     uint32_t login_resources;
     bool level_info_loaded;
     uint32_t level_info_value;
+    bool camera_definitions_decoded;
+    uint32_t camera_definitions;
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,
+                                     U2NativeCameraDefinition *out);
 bool u2_cpp_PackageMgr_ReadLoginTypes(const uint8_t *header, size_t header_size,
                                     const uint8_t *page0, size_t size0,
                                     const uint8_t *page1, size_t size1,

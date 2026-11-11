@@ -3,6 +3,11 @@
 > **Branche dédiée** : `dev-native` (clonée depuis `dev` à l'état `3d5dded` avec 889 détours validés).
 > **Objectif** : Construire un exécutable PC autonome (**`uncharted2-native.exe`**) contenant **exclusivement du code C++23 natif réécrit** (`src/u2_engine/`, `src/u2_standalone/`) et les couches d'abstraction matérielle PC (Vulkan, SDL3, WASAPI, ATRAC9, AvPlayer), sans exécuter le moindre octet de code machine PS4 (`eboot.elf`).
 
+> Les étapes historiques marquées « COMPLÉTÉ » ci-dessous décrivent des
+> prototypes ; elles ne prouvent pas une réimplémentation fidèle du boot ou
+> du menu. La référence hybride a été restaurée et validée visuellement.
+> Le standalone progresse encore dans le décodage et le login des ressources.
+
 ---
 
 ## 1. Vue d'Ensemble & Découplage CMake
@@ -174,9 +179,12 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > `menu` et `menu-temple` via un registre C++23 natif, déduplique les demandes par
 > `StringId` et résout réellement `pak22/ps4/menu.pak` et
 > `pak22/ps4/menu-temple.pak` par le VFS. Leur état reste volontairement
-> `resolved`, et non `ready` : le préfixe et la table des pages sont lus et
-> contrôlés (voir `NATIVE_PAK_HEADER.md`), mais les relocations et
-> l'enregistrement des pages PAK ne sont pas encore implémentés. Le détour ELF
+> `resolved`, et non `ready` : les deux pages de menu-temple, leurs 4148
+> relocations, le catalogue et la liste de dix logins sont contrôlés
+> (voir `NATIVE_PAK_HEADER.md`). LEVEL_INFO_1 est copié dans une propriété
+> hôte. Le nom et la position stockée de la caméra de départ sont maintenant
+> décodés dans une copie possédée (voir `NATIVE_CAMERA_DEFINITIONS.md`) ;
+> l'objet caméra, son login moteur et son utilisation pour le rendu restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
 > Son attribution historique à `PackageMgr::RequestPackage` est à corriger :
 > les appelants et la trace établissent ici une frontière LevelMgr/Level,

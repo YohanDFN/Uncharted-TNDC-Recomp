@@ -979,6 +979,93 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         const auto *temple = u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
         U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
                        "Real LEVEL_INFO_1 payload transferred to native level property");
+        U2NativeCameraDefinition actual_camera;
+        U2_TEST_ASSERT(temple && temple->camera_definitions_decoded && temple->camera_definitions == 1 &&
+                       u2_cpp_PackageMgr_GetNativeCamera("menu-temple", 0, &actual_camera),
+                       "Real CAMERA_TABLE_1 yields one owned camera definition");
+        U2_TEST_ASSERT(actual_camera.name == "|_cam_start_1|_cam_start_Shape1" && actual_camera.is_start,
+                       "Real camera preserves original name and start-camera selection");
+        U2_TEST_ASSERT(std::abs(actual_camera.position[0] + 78.3848038f) < 0.0001f &&
+                       std::abs(actual_camera.position[1] - 26.8985996f) < 0.0001f &&
+                       std::abs(actual_camera.position[2] + 29.6289997f) < 0.0001f,
+                       "Real camera position decoded from PAK payload");
+        U2_TEST_ASSERT(temple && temple->state == U2NativePackageState::Resolved && temple->login_resources == 10,
+                       "Camera decoding does not declare the package ready or complete engine login");
+        const auto saved_camera_name = actual_camera.name;
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetNativeCamera("menu-temple", 1, &actual_camera) &&
+                       actual_camera.name == saved_camera_name,
+                       "Camera lookup rejects invalid index without modifying output");
+        U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetNativeCamera(nullptr, 0, &actual_camera) &&
+                       !u2_cpp_PackageMgr_GetNativeCamera("missing", 0, &actual_camera) &&
+                       !u2_cpp_PackageMgr_GetNativeCamera("menu-temple", 0, nullptr),
+                       "Camera lookup rejects absent package or destination");
+        {
+            uint8_t page[320] = {};
+            auto put32 = [&page](size_t off, uint32_t value) {
+                for (unsigned i = 0; i < 4; ++i) page[off + i] = static_cast<uint8_t>(value >> (8 * i));
+            };
+            auto put64 = [&page](size_t off, uint64_t value) {
+                for (unsigned i = 0; i < 8; ++i) page[off + i] = static_cast<uint8_t>(value >> (8 * i));
+            };
+            put64(8, 224);
+            std::memcpy(page + 224, "CAMERA_TABLE_1", sizeof("CAMERA_TABLE_1"));
+            put32(32, 1);
+            put64(40, reinterpret_cast<uintptr_t>(page + 64));
+            put64(64, reinterpret_cast<uintptr_t>(page + 240));
+            std::memcpy(page + 240, "_cam_start_test", sizeof("_cam_start_test"));
+            put32(72, 0x3F800000); // 1
+            put32(76, 0xC0000000); // -2
+            put32(80, 0x40600000); // 3.5
+            std::vector<U2NativeCameraDefinition> cameras;
+            const std::array<float, 3> expected_position{1, -2, 3.5f};
+            U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
+                           cameras.size() == 1 && cameras[0].position == expected_position,
+                           "Camera decoder reads signed little-endian position");
+            put32(32, 2);
+            put64(64 + 0x48, reinterpret_cast<uintptr_t>(page + 264));
+            std::memcpy(page + 264, "overview", sizeof("overview"));
+            put32(64 + 0x48 + 8, 0x40A00000); // 5
+            U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
+                           cameras.size() == 2 && cameras[1].name == "overview" && !cameras[1].is_start &&
+                           cameras[1].position[0] == 5,
+                           "Camera decoder uses proven 0x48 stride across adjacent records");
+            put32(32, 1);
+            U2_TEST_ASSERT(u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) && cameras.size() == 1,
+                           "Camera decoder replaces a previously decoded table atomically");
+            put32(32, UINT32_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) && cameras.size() == 1,
+                           "Camera decoder bounds record count and preserves prior output");
+            put32(32, 1);
+            put64(40, reinterpret_cast<uintptr_t>(page + 312));
+            U2_TEST_ASSERT(!u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0),
+                           "Camera decoder rejects truncated record extent");
+            put64(40, reinterpret_cast<uintptr_t>(page + 64));
+            put64(64, reinterpret_cast<uintptr_t>(page) - 1);
+            U2_TEST_ASSERT(!u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0),
+                           "Camera decoder rejects foreign name pointer");
+            put64(64, reinterpret_cast<uintptr_t>(page + 240));
+            std::memset(page + 240, 'X', 80);
+            U2_TEST_ASSERT(!u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) &&
+                           cameras[0].name == "_cam_start_test",
+                           "Camera decoder rejects unterminated name without partial publication");
+            page[319] = 0;
+            put32(72, 0x7FC00000);
+            U2_TEST_ASSERT(!u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0) && cameras[0].position[0] == 1,
+                           "Camera decoder rejects nonfinite positions without poisoning output");
+            put32(72, 0x3F800000);
+            page[224] = 'X';
+            U2_TEST_ASSERT(!u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), 0),
+                           "Camera decoder verifies resource type");
+            page[224] = 'C';
+            U2_TEST_ASSERT(!u2_native_ReadCameraDefinitions(&cameras, page, 47, 0) &&
+                           !u2_native_ReadCameraDefinitions(&cameras, page, sizeof(page), SIZE_MAX) &&
+                           !u2_native_ReadCameraDefinitions(nullptr, page, sizeof(page), 0) &&
+                           !u2_native_ReadCameraDefinitions(&cameras, nullptr, sizeof(page), 0),
+                           "Camera decoder rejects absent or truncated inputs and overflowing metadata");
+            std::memset(page, 0, sizeof(page));
+            U2_TEST_ASSERT(cameras[0].name == "_cam_start_test" && cameras[0].position[2] == 3.5f,
+                           "Camera snapshot remains valid after source data is overwritten");
+        }
         {
             uint8_t page[64] = {};
             page[8] = 40;

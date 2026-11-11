@@ -38,6 +38,8 @@ struct NativePackageRequest {
     std::vector<std::string> resource_types;
     std::vector<std::string> login_types;
     U2NativeLevelInfo level_info;
+    bool cameras_decoded{false};
+    std::vector<U2NativeCameraDefinition> cameras;
     U2NativePackageInfo view{};
 };
 
@@ -82,6 +84,8 @@ void refresh_view(NativePackageRequest &request) {
         static_cast<uint32_t>(request.login_types.size()),
         request.level_info.loaded,
         request.level_info.value,
+        request.cameras_decoded,
+        static_cast<uint32_t>(request.cameras.size()),
     };
 }
 
@@ -175,6 +179,20 @@ bool resolve_package_file(NativePackageRequest &request) {
                                         if (u2_native_LoginLevelInfo(&request.level_info, pages[page_index], sizes[page_index], metadata))
                                             std::printf("[U2 Native Level] LEVEL_INFO_1 loaded value=0x%08X; remaining login=9\n", request.level_info.value);
                                     }
+                                    for (size_t i = 0; i < request.login_types.size(); ++i) {
+                                        if (request.login_types[i] != "CAMERA_TABLE_1") continue;
+                                        const uint32_t page_index = read_le32(root + 0x28 + i * 8);
+                                        const uint32_t metadata = read_le32(root + 0x2C + i * 8);
+                                        request.cameras_decoded = u2_native_ReadCameraDefinitions(&request.cameras,
+                                            pages[page_index], sizes[page_index], metadata);
+                                        std::printf("[U2 Native Camera] CAMERA_TABLE_1 decoded=%u definitions=%zu (engine login pending)\n",
+                                                    request.cameras_decoded, request.cameras.size());
+                                        for (const auto &camera : request.cameras) {
+                                            if (camera.is_start)
+                                                std::printf("[U2 Native Camera] start='%s' position=(%.6f, %.6f, %.6f)\n",
+                                                    camera.name.c_str(), camera.position[0], camera.position[1], camera.position[2]);
+                                        }
+                                    }
                                 } else {
                                     request.second_page.clear();
                                     request.resource_types.clear();
@@ -248,6 +266,19 @@ extern "C" const char *u2_cpp_PackageMgr_GetLoginType(const char *package, size_
     std::lock_guard lock(s_request_mutex);
     const auto *request = find_request(string_id(package));
     return request && index < request->login_types.size() ? request->login_types[index].c_str() : nullptr;
+}
+
+extern "C" bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,
+                                                 U2NativeCameraDefinition *out) {
+    if (!package || !*package || !out) return false;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request = find_request(string_id(package));
+    if (!request || !request->cameras_decoded || index >= request->cameras.size()) return false;
+    try {
+        auto camera = request->cameras[index];
+        *out = std::move(camera);
+        return true;
+    } catch (const std::bad_alloc &) { return false; }
 }
 
 // LoadingPages 0xB69FB0..0xB6A026: uint16 count at +0x12,
