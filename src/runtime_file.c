@@ -212,6 +212,22 @@ static int64_t do_open(const char *guest,int flags,int mode) {
     char path[1024];
     int e=translate(guest,path,sizeof(path));
     if (e) return -e;
+    /* U2 asks for the platform-neutral bank manifest, while the retail PS4 layout
+       stores the real manifest in config/ps4. Keep the guest path unchanged so
+       diagnostics and all subsequent bank paths retain their original semantics. */
+    if (game_path(guest) && !strcmp(guest,"/app0/u2data/build/main/sound1/config/banks.txt")) {
+        HostStat manifest;
+        const size_t name_len=strlen("banks.txt"), path_len=strlen(path);
+        char ps4_path[sizeof(path)];
+        if (path_len>=name_len && path_len-name_len+strlen("ps4/banks.txt")<sizeof(ps4_path)) {
+            memcpy(ps4_path,path,path_len-name_len);
+            memcpy(ps4_path+path_len-name_len,"ps4/banks.txt",sizeof("ps4/banks.txt"));
+            if (host_stat(path,&manifest) && !host_stat(ps4_path,&manifest)) {
+                memcpy(path,ps4_path,strlen(ps4_path)+1);
+                printf("Runtime: sound bank manifest uses PS4 path %s\n",guest);
+            }
+        }
+    }
     /* O_CREAT on a read-only mount opens an existing file for reading, as FreeBSD does (U1
        reads its sound configuration this way); only creating a new file fails. */
     if (game_path(guest) && (flags & 0x200)) {
