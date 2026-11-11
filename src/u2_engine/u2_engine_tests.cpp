@@ -5,6 +5,7 @@
 // every return value (%rax / %xmm0) and memory/struct mutation.
 
 #include "u2_engine.h"
+#include "game/loading/level_resources.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -914,6 +915,25 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeRequestCount() == 2u,
                        "PackageMgr registers both native menu packages");
         const auto *temple = u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
+        U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
+                       "Real LEVEL_INFO_1 payload transferred to native level property");
+        {
+            uint8_t page[64] = {};
+            page[8] = 40;
+            std::memcpy(page + 40, "LEVEL_INFO_1", 13);
+            page[32] = 0x78; page[33] = 0x56; page[34] = 0x34; page[35] = 0x12;
+            U2NativeLevelInfo level;
+            U2_TEST_ASSERT(u2_native_LoginLevelInfo(&level, page, 64, 0) && level.loaded && level.value == 0x12345678,
+                           "LEVEL_INFO login copies nonzero uint32 payload");
+            U2_TEST_ASSERT(!u2_native_LoginLevelInfo(&level, page, 64, 0), "LEVEL_INFO duplicate login rejected");
+            level = {};
+            U2_TEST_ASSERT(!u2_native_LoginLevelInfo(&level, page, 35, 0) && !level.loaded,
+                           "LEVEL_INFO truncated payload leaves destination unchanged");
+            page[40] = 'X';
+            U2_TEST_ASSERT(!u2_native_LoginLevelInfo(&level, page, 64, 0) && !level.loaded,
+                           "LEVEL_INFO wrong type rejected");
+            U2_TEST_ASSERT(!u2_native_LoginLevelInfo(nullptr, page, 64, 0), "LEVEL_INFO absent level handled");
+        }
         U2_TEST_ASSERT(temple && temple->login_resources == 10,
                        "PAK login list has ten resources, distinct from catalog");
         const char *login_first = u2_cpp_PackageMgr_GetLoginType("menu-temple", 0);

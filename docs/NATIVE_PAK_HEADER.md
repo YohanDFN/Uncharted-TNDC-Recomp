@@ -277,3 +277,48 @@ Régression observée : aucune dans ces scénarios.
 Commit : feat(native), atomique avec ce rapport.
 Prochaine hypothèse : suivre spécifiquement la branche LEVEL_INFO_1 dans
 BigPackageLoginResItem et établir ses dépendances avant son implémentation.
+
+## Itération : première propriété de niveau native
+
+Sous-système : game/loading (data-loading.cpp).
+Symptôme : les dix logins étaient tous en attente.
+Dernier point fonctionnel : liste ordonnée validée.
+Premier point incorrect : aucun payload transféré vers un état de niveau natif.
+Hypothèse : la branche LEVEL_INFO_1 ne fait qu'une copie de quatre octets,
+donc elle peut être reproduite sans initialiser les autres sous-systèmes.
+
+Offsets étudiés / preuve statique : 0x48EF3B..0x48EF61, au sein de
+BigPackageLoginResItem identifié par les assertions data-loading.cpp dans
+u2_engine_map.json. Hash CRC du type avec la table originale : 0xDD7F3F25.
+L'original lit package+0x28 (Level*), ignore le cas NULL, lit uint32 metadata+0x20
+et écrit uint32 Level+0xA50. Aucun autre effet dans cette branche.
+
+Preuve runtime : login[0] référence page0+0x3CB80 ; type LEVEL_INFO_1,
+payload de quatre octets nul. Le standalone journalise le transfert de 0
+vers U2NativeLevelInfo.value et loaded=true. Un test non nul 0x12345678
+vérifie que cette implémentation ne force pas arbitrairement zéro.
+
+Conclusion : une propriété issue du payload est maintenant initialisée dans
+un état hôte possédé par la requête. Cet état représente uniquement le champ
+établi ; ce n'est pas un objet Level guest construit, ni un niveau complet.
+Aucun consommateur de rendu n'est encore relié à cette propriété.
+
+Modification : helper game/loading/level_resources.cpp/.h, validation du type
+exact et du payload, copie little-endian. Aucun offset n'est écrit dans un
+objet guest, aucune adresse ELF n'est appelée, aucun détour ajouté. La liste
+validée fournit la page et l'offset ; les neuf autres logins restent en attente.
+Durée de vie : propriété possédée par la requête, détruite à son reset.
+Fichiers modifiés : level_resources.cpp/.h, package_manager.cpp/.h,
+u2_engine_tests.cpp et ce rapport.
+Tests ajoutés : vraie propriété nulle, payload non nul, double application,
+payload tronqué, mauvais type, niveau absent.
+Build : réussi.
+Test 6 secondes : SelfTest/EngineTest passent, 187/187 assertions, timeout propre.
+Test natif : sortie 0 et LEVEL_INFO_1 loaded.
+Test prolongé : inutile pour ce transfert synchrone.
+Régression observée : aucune dans ces scénarios.
+Commit : feat(native), atomique avec ce rapport.
+Prochaine hypothèse : établir le constructeur et la durée de vie du niveau
+natif, puis relier un type effectivement consommé (caméras/géométrie) ;
+la branche CAMERA_TABLE_1 (0x48DEAB..0x48DECA) référence Level+0x988 et
+requiert donc un propriétaire Level cohérent, pas seulement cette propriété.

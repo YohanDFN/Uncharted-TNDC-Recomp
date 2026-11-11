@@ -38,6 +38,8 @@ struct U2NativePackageInfo {
     bool pointers_relocated;
     uint32_t catalog_resources;
     uint32_t login_resources;
+    bool level_info_loaded;
+    uint32_t level_info_value;
 };
 
 extern "C" {

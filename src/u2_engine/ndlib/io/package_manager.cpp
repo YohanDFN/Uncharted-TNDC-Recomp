@@ -13,6 +13,7 @@
 #include <vector>
 #include <new>
 #include <algorithm>
+#include "game/loading/level_resources.h"
 
 namespace {
 
@@ -36,6 +37,7 @@ struct NativePackageRequest {
     bool pointers_relocated{false};
     std::vector<std::string> resource_types;
     std::vector<std::string> login_types;
+    U2NativeLevelInfo level_info;
     U2NativePackageInfo view{};
 };
 
@@ -78,6 +80,8 @@ void refresh_view(NativePackageRequest &request) {
         request.pointers_relocated,
         static_cast<uint32_t>(request.resource_types.size()),
         static_cast<uint32_t>(request.login_types.size()),
+        request.level_info.loaded,
+        request.level_info.value,
     };
 }
 
@@ -159,6 +163,18 @@ bool resolve_package_file(NativePackageRequest &request) {
                                                 request.resource_types.size());
                                     for (size_t i = 0; i < request.login_types.size(); ++i)
                                         std::printf("[U2 Native PackageMgr] login[%zu]=%s (pending)\n", i, request.login_types[i].c_str());
+                                    // The first login item is established as LEVEL_INFO_1.
+                                    // Metadata name/type pointers are still page-relative.
+                                    const uint8_t *pages[] = {request.first_page.data(), request.second_page.data()};
+                                    const size_t sizes[] = {request.first_page.size(), request.second_page.size()};
+                                    const uint32_t root_index = read_le32(header.data() + 8);
+                                    const auto *root = pages[root_index] + read_le32(header.data() + 12);
+                                    if (!request.login_types.empty() && request.login_types[0] == "LEVEL_INFO_1") {
+                                        const uint32_t page_index = read_le32(root + 0x28);
+                                        const uint32_t metadata = read_le32(root + 0x2C);
+                                        if (u2_native_LoginLevelInfo(&request.level_info, pages[page_index], sizes[page_index], metadata))
+                                            std::printf("[U2 Native Level] LEVEL_INFO_1 loaded value=0x%08X; remaining login=9\n", request.level_info.value);
+                                    }
                                 } else {
                                     request.second_page.clear();
                                     request.resource_types.clear();
