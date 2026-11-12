@@ -123,6 +123,108 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 
 ---
 
+<a id="strategie-globale-port-natif"></a>
+
+## Stratégie globale : porter des chaînes fonctionnelles réutilisables [PLANIFIÉ]
+
+Cette stratégie guide les priorités des jalons détaillés ci-dessous. Elle
+vise à faire bénéficier plusieurs contenus et sous-systèmes de chaque capacité
+portée, plutôt qu'à accumuler des traitements particuliers par fonction, mesh
+ou décor. L'objectif global reste le jeu natif complet ; les changements
+restent petits, reproductibles et fondés sur le comportement original.
+Cette section décrit une méthode à mettre en œuvre, pas une couverture déjà
+acquise ni une autorisation de remplacer des comportements encore inconnus.
+
+### Carte des dépendances et choix des priorités
+
+Construire progressivement une carte des dépendances réellement observées :
+archives et VFS, ressources et logins, scènes et instances, objets et scripts,
+animation, rendu et audio. Pour chaque capacité visée, identifier ses appelants,
+ses données productrices, ses consommateurs et les durées de vie partagées.
+Une relation supposée reste explicitement à vérifier ; le nom d'un symbole ne
+suffit pas à établir une dépendance.
+
+Prioriser les dépendances communes qui bloquent un résultat observable et
+débloqueraient plusieurs usages. Par exemple, un lecteur de ressources commun
+peut servir plusieurs décors ; une famille de matériaux peut couvrir plusieurs
+surfaces. Justifier cette portée par l'inventaire des usages, sans annoncer de
+gain global à partir du seul nombre de fonctions réécrites. Garder une seule
+hypothèse comportementale par itération, même si la capacité sera réutilisée.
+
+### Contrats, familles et validation commune
+
+| Élément à maintenir | Contenu et critère utile |
+| --- | --- |
+| Carte des dépendances | Producteurs, consommateurs, prérequis prouvés et blocage précis de chaque chaîne. |
+| Contrats vérifiés | Entrées, sorties, mutations, erreurs, états, ABI et durées de vie observés dans l'original, avec références de preuves. |
+| Implémentations par familles | Préconditions établies dans les données et le comportement ; variantes prises en charge ou rejetées explicitement, sans sélection par nom de contenu. |
+| Scénarios de référence reproductibles | Ressources et actions identifiées, observations attendues, tolérances justifiées, assertions et traces bornées ; captures réelles lorsqu'un résultat est visible. |
+| Bilan de couverture | Pour chaque scénario et famille : ressources inspectées, chargées, utilisées et validées, cas non pris en charge et motif ; aucune assimilation entre fonction présente et comportement porté. |
+
+Documenter ces éléments dans les rapports concernés et les relier depuis ce
+plan ; éviter de recopier des preuves inchangées ou de créer plusieurs bilans
+concurrents. Un contrat commun doit être éprouvé sur des cas distincts et sur
+les erreurs pertinentes avant extension à une famille. Une variante non
+expliquée n'hérite pas automatiquement du succès d'un cas voisin.
+
+Les comparaisons utilisent `bb-probe` et l'ELF original comme référence.
+L'intégration native appelle les capacités portées sans exécuter de code PS4.
+Ne pas ajouter un détour pour la seule commodité de comparaison : tout nouveau
+détour conserve ses exigences de preuve d'appel, d'ABI et de mutations utiles.
+Un snapshot lisible, un aperçu affiché et une ressource réellement utilisable
+par le moteur sont des niveaux distincts ; les statuts et logins ne sont jamais
+avancés artificiellement pour compléter une chaîne.
+
+### Première chaîne : package → ressources → scène statique → matériaux → rendu
+
+1. **Établir le périmètre observé.** Partir de `menu-temple`, inventorier les
+   ressources et dépendances requises pour une scène statique, puis distinguer
+   les snapshots déjà disponibles des logins et instances encore manquants.
+   Choisir un second package de décor seulement après vérification de sa
+   disponibilité, de son contenu et du scénario de référence original.
+2. **Porter les contrats communs manquants.** Suivre la résolution des packages,
+   la construction des ressources et instances, leurs associations et leur
+   libération. Vérifier les transformations effectivement nécessaires à la
+   scène, sans traiter un assemblage d'assets du viewer comme une scène moteur
+   complète. Les erreurs et dépendances absentes doivent rester observables.
+3. **Généraliser les familles de rendu établies.** Appliquer le
+   [jalon d'attribution automatique des matériaux](#attribution-automatique-materiaux)
+   aux surfaces admissibles. Documenter séparément les conventions du viewer,
+   l'équivalence au rendu original et la disponibilité des mips détaillés.
+4. **Valider la chaîne et sa réutilisation.** Rejouer le premier scénario puis
+   le second avec le même chemin natif, sans branche ni index propres au décor.
+   Comparer les résultats attendus à l'original et expliquer chaque ressource
+   ou famille exclue. Une extension de format justifiée et commune reste
+   possible ; elle doit être validée avant de revendiquer la prise en charge.
+
+**Critère de réussite** : une première chaîne de scène statique fonctionne sur
+deux décors disponibles avec les mêmes composants et contrats natifs, pour un
+périmètre de ressources et de familles déclaré. Les cas non pris en charge sont
+comptés et expliqués, les durées de vie sont respectées, et le scénario ne
+dépend d'aucune exécution de code PS4. Cela ne signifie pas que les scripts,
+l'animation, l'audio ou le gameplay de ces décors sont déjà portés.
+
+### Extension au reste du projet
+
+Étendre ensuite la carte et les contrats aux chaînes objets/scripts/événements,
+animation et audio, en choisissant leur ordre selon les dépendances prouvées
+et les résultats observables débloqués. Chaque chaîne doit traverser ses
+composants jusqu'à un effet vérifiable ; une liste de fonctions implémentées
+ne suffit pas. Réutiliser les composants déjà validés, puis démontrer leur
+fonctionnement sur un autre contenu sans exception propre au scénario.
+
+À chaque implémentation : assertions fonctionnelles pertinentes, build,
+test hybride de 30 secondes et test natif si concerné ; vérifier SelfTest,
+EngineTest, sortie attendue et absence de crash, Guest fault ou nouvelle
+assertion. Conserver les captures réelles des évolutions visibles et leur
+provenance. Le contrôle de l'affichage HTML reste exclu à la demande de
+l'utilisateur. Mettre à jour le bilan du périmètre testé, les limites et la
+prochaine expérience ; ne pas extrapoler un pourcentage d'avancement du jeu.
+
+Ajout du 12 novembre 2026 : stratégie documentaire proposée puis acceptée.
+Contenu, liens et diff à vérifier ; aucun comportement runtime modifié par
+cet ajout, aucun build du jeu nécessaire.
+
 ## 4. Plan d'Exécution Séquentiel (Étape par Étape)
 
 ### Étape 1 : Cible CMake `uncharted2-native.exe`, Mémoire C++23 & Splash Screen Vulkan [COMPLÉTÉ]
