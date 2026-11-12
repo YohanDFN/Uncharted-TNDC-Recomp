@@ -29,9 +29,20 @@
       ],
       "sha256": "0cd6f6a88b45649b07ccb884967586cabf240b0cc35d87e033cff1cbcd1d53ee",
       "legende": "13680 triangles; CPU depth image presented through SDL; static reference camera; flat per-mesh colors."
+    },
+    {
+      "fichier": "04-temple-eclairage.png",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "d9d97199357a8fa500561914fbf2a42549029b20b317a5bdf24a0c8eff334736",
+      "legende": "12383 decoded normals; viewer-only directional light, ambient 0.22, diffuse 0.78; perspective-correct Gouraud interpolation. No original materials, textures or cast shadows."
     }
   ],
   "executable_sha256": "82c0112ce464f14a04ac738d1a2e13e9c4bd5193ade43cc56e24eb69b05c597a",
   "version_capture_surfaces": "f25a5f91081187e9ea007bb0d407087676854a3f",
-  "executable_surfaces_sha256": "bb13e199fc95df7bf5320837cfc47c4f39d4a29f7e51719d5f6ee81d0780eeee"
+  "executable_surfaces_sha256": "bb13e199fc95df7bf5320837cfc47c4f39d4a29f7e51719d5f6ee81d0780eeee",
+  "version_capture_eclairage": "f7447a38ba712d1a147772c151766a2605191670",
+  "executable_eclairage_sha256": "003758845f5ee5d508825e4cc1814a05d76dbbb27f5a5e43afed8b84a3df2410"
 }
