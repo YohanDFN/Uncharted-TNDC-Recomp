@@ -34,6 +34,7 @@ Code : git diff --check, puis PowerShell -ExecutionPolicy Bypass -File scratch/b
 Vérifier SelfTest, EngineTest, timeout/sortie attendue, aucun crash, Guest fault ou nouvelle assertion, et le comportement visé. Test prolongé seulement si nécessaire. Examiner les erreurs dans leur contexte et les événements attendus.
 Nouvelles fonctions moteur : assertions fonctionnelles dans u2_engine_tests.cpp ; registre seulement si détour nécessaire et prouvé. Dc* : tester arguments absents/NULL/valides.
 Documentation seule : contenu, liens, diff ; pas de build du jeu.
+Évolution visuelle du natif : capturer le framebuffer réel du build validé, inspecter l'image et ajouter le PNG au dossier daté `docs/preuves_avancement/`. Mettre à jour son `preuves_avancement.html`, `provenance.json` et l'index `docs/PREUVES_AVANCEMENT.md` ; conserver les captures précédentes. Le HTML reste autonome avec images embarquées. Indiquer date, build/commit, scénario/mode, changement visible et limites ; distinguer capture du rendu et asset décodé. Vérifier que l'image apparaît dans le HTML. Ne pas remplacer une capture par une image générée ou retouchée. Si la capture échoue, le signaler et garder cette validation visuelle en attente.
 Outils : node scratch/u2_disasm.js <offset_hex> <taille> ; node scratch/status_report.js seulement si utile. Journal : user/last_run.log, à conserver avant écrasement.
 Baseline historique e80b482 ; une référence spécifique doit être justifiée. dev_archive_lots est non normative.
 
