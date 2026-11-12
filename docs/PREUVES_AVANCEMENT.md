@@ -85,6 +85,7 @@ La conversion BMP vers PNG ne comporte aucune retouche.
 - [Calcul et validation de l'éclairage de prévisualisation](NATIVE_TEMPLE_LIGHTING.md).
 - [Décodage des pixels BC1 et limites](NATIVE_TEMPLE_BC1_PIXELS.md).
 - [Chargement des 60 images résidentes par métadonnées](NATIVE_TEXTURE_TABLE_LOADING.md).
+- [Liaison des 100 références de matériaux aux images](NATIVE_MATERIAL_IMAGE_BINDINGS.md).
 
 Le pipeline GPU du jeu, l'application des textures au décor, l'éclairage original et les interactions du menu
 restent à porter. Les couleurs servent à distinguer

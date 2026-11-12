@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "texture_preview.h"
 
 // Owned material references, not decoded images or shader/sampler bindings.
 struct U2NativeTextureReferencePreview {
@@ -12,6 +13,7 @@ struct U2NativeTextureReferencePreview {
     std::string cooked_name;
     uint32_t cooked_name_hash{0};
     int32_t texture_index{-1}; // Geometry-local table, not a GPU texture index.
+    int32_t image_index{-1}; // Owned TEXTURE_TABLE snapshot, independent of texture_index.
 };
 
 // Owned preview geometry; not a guest Mesh or a completed geometry login.
@@ -40,3 +42,12 @@ struct U2NativeMeshPreview {
 bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
                                    const uint8_t *page, size_t page_size,
                                    size_t metadata_offset);
+
+// Observed descriptor filename = geometry cooked name + literal ".ndb".
+bool u2_native_TextureImageMatchesReference(const U2NativeTextureReferencePreview &reference,
+                                           const U2NativeTexturePreview &image);
+
+// Host preview association by cooked resource filename, not an engine shader binding.
+// Missing/ambiguous names fail without changing any prior image indices.
+bool u2_native_BindGeometryTexturePreviews(std::vector<U2NativeMeshPreview> *meshes,
+                                         const std::vector<U2NativeTexturePreview> &images);

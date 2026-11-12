@@ -989,6 +989,73 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
         {
+            std::vector<U2NativeMeshPreview> meshes;
+            const bool loaded=u2_cpp_PackageMgr_GetNativeGeometryPreview("menu-temple",&meshes);
+            size_t refs=0,decoded=0;bool valid=loaded;
+            for(size_t m=0;m<meshes.size();++m) for(size_t r=0;r<meshes[m].material_textures.size();++r) {
+                const auto &ref=meshes[m].material_textures[r];
+                U2NativeTexturePreview image,indexed;
+                const bool found=u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",m,r,&image);
+                const bool by_index=ref.image_index>=0 && u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",size_t(ref.image_index),&indexed);
+                valid &= found && by_index && image.cooked_name==ref.cooked_name+".ndb" && image.uid==indexed.uid &&
+                    image.resident_blocks==indexed.resident_blocks && image.pixels.rgba==indexed.pixels.rgba;
+                ++refs;decoded+=!image.pixels.rgba.empty();
+            }
+            U2_TEST_ASSERT(valid && refs==100 && decoded>0 && decoded<refs,
+                           "All 100 real material references resolve to owned images by cooked filename with literal .ndb suffix, including compressed-only images");
+            bool column=false;
+            if(meshes.size()>7) for(size_t r=0;r<meshes[7].material_textures.size();++r) {
+                if(meshes[7].material_textures[r].parameter_name!="g_tColorMap") continue;
+                U2NativeTexturePreview image;
+                column=u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",7,r,&image) &&
+                    image.format==72 && image.width==64 && image.height==64 && image.pixels.rgba.size()==4096 &&
+                    image.pixels.rgba[0]==0xFF8C8E94;
+            }
+            U2_TEST_ASSERT(column,"Column material color parameter retrieves the previously GPU-matched BC1 image");
+            U2NativeTexturePreview prior;prior.uid=123;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetNativeMaterialTexturePreview(nullptr,0,0,&prior) &&
+                           !u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("missing",0,0,&prior) &&
+                           !u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",SIZE_MAX,0,&prior) &&
+                           !u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",0,SIZE_MAX,&prior) &&
+                           !u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",0,0,nullptr) && prior.uid==123,
+                           "Material image API rejects invalid package and reference bounds without publishing output");
+        }
+        {
+            std::vector<U2NativeMeshPreview> meshes(1);
+            meshes[0].material_textures.resize(2);
+            auto &refs=meshes[0].material_textures;
+            refs[0].cooked_name="cook/a";refs[0].texture_index=49;
+            refs[1].cooked_name="cook/b";refs[1].texture_index=3;
+            std::vector<U2NativeTexturePreview> images(2);
+            images[0].cooked_name="cook/b.ndb";images[1].cooked_name="cook/a.ndb";
+            images[1].pixels.rgba={0xFF0000FF};
+            U2_TEST_ASSERT(u2_native_BindGeometryTexturePreviews(&meshes,images) && refs[0].image_index==1 && refs[1].image_index==0,
+                           "Material image association follows cooked names despite unrelated geometry indices and reversed image order");
+            refs[1].cooked_name="missing";
+            std::swap(images[0],images[1]);
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images) && refs[0].image_index==1 && refs[1].image_index==0,
+                           "Missing later material image preserves all previous bindings atomically");
+            refs[1].cooked_name="cook/b";images.push_back(images[0]);
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images) && refs[0].image_index==1,
+                           "Ambiguous duplicate cooked names reject association without choosing arbitrary image data");
+            images.pop_back();refs[1].cooked_name="COOK/B";
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images),"Material image names preserve case and require an exact match");
+            refs[1].cooked_name="cook/b";refs[1].texture_index=-1;
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images),"Unresolved geometry reference cannot receive an image binding");
+            refs[1].texture_index=3;refs[1].cooked_name.clear();
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images),"Empty cooked references cannot bind images");
+            refs[1].cooked_name="cook/b";
+            U2_TEST_ASSERT(u2_native_BindGeometryTexturePreviews(&meshes,images) && refs[0].image_index==0 && refs[1].image_index==1 &&
+                           images[1].pixels.rgba.empty(),"Association recovers after rejection and preserves compressed-only image status");
+            images[1].cooked_name="cook/b.NDB";
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images),"Descriptor suffix comparison is case sensitive");
+            images[1].cooked_name="cook/b.ndb.extra";
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images),"Descriptor suffix must terminate the exact filename");
+            images[1].cooked_name="cook/b";
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(&meshes,images),"Missing descriptor suffix is not silently accepted");
+            U2_TEST_ASSERT(!u2_native_BindGeometryTexturePreviews(nullptr,images),"Material image association rejects null geometry output");
+        }
+        {
             const auto *info=u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
             U2_TEST_ASSERT(info && info->texture_table_loaded && info->texture_images==60 && info->texture_images_decoded==44 &&
                            info->state==U2NativePackageState::Resolved && info->vram_bytes==8763392,

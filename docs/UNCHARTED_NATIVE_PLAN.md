@@ -218,8 +218,11 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > (`NATIVE_TEMPLE_BC1_PIXELS.md`). Les 60 images résidentes de TEXTURE_TABLE sont
 > maintenant copiées depuis les descripteurs et le bloc VRAM calculé, sans offset
 > fixe : 44 premiers mips BC1 sont décodés, 16 images restent compressées
-> (`NATIVE_TEXTURE_TABLE_LOADING.md`). La liaison aux matériaux, l'application
-> au viewer, les autres formats et les paramètres du sampler restent à porter.
+> (`NATIVE_TEXTURE_TABLE_LOADING.md`). Les cent références de matériaux sont
+> reliées aux images par leur nom cooked suivi de `.ndb`, sans confondre les
+> indices des deux tables ; 59 références disposent de pixels décodés
+> (`NATIVE_MATERIAL_IMAGE_BINDINGS.md`). L'application au viewer, les autres
+> formats et les paramètres du sampler restent à porter.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.

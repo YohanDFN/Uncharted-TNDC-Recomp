@@ -7,6 +7,35 @@
 #include <string_view>
 #include <utility>
 
+bool u2_native_TextureImageMatchesReference(const U2NativeTextureReferencePreview &reference,
+                                           const U2NativeTexturePreview &image) {
+    const std::string_view name=image.cooked_name,key=reference.cooked_name;
+    return !key.empty() && name.size()>=4 && name.ends_with(".ndb") && name.substr(0,name.size()-4)==key;
+}
+
+bool u2_native_BindGeometryTexturePreviews(std::vector<U2NativeMeshPreview> *meshes,
+                                         const std::vector<U2NativeTexturePreview> &images) {
+    if(!meshes || images.size()>INT32_MAX) return false;
+    try {
+        std::vector<int32_t> resolved;
+        for(const auto &mesh:*meshes) for(const auto &reference:mesh.material_textures) {
+            if(reference.texture_index<0 || reference.cooked_name.empty()) return false;
+            int32_t match=-1;
+            for(size_t i=0;i<images.size();++i) {
+                if(!u2_native_TextureImageMatchesReference(reference,images[i])) continue;
+                if(match>=0) return false; // No established rule for ambiguous snapshots.
+                match=static_cast<int32_t>(i);
+            }
+            if(match<0) return false;
+            resolved.push_back(match);
+        }
+        size_t at=0;
+        for(auto &mesh:*meshes) for(auto &reference:mesh.material_textures)
+            reference.image_index=resolved[at++];
+        return true;
+    } catch(const std::bad_alloc &) { return false; }
+}
+
 bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
                                    const uint8_t *page, size_t size, size_t metadata) {
     if (!out || !page || metadata > size || 0x78 > size - metadata) return false;

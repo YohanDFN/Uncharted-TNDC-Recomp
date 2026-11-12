@@ -45,6 +45,7 @@ struct NativePackageRequest {
     bool geometry_preview_decoded{false};
     std::vector<U2NativeMeshPreview> geometry_preview;
     bool texture_table_loaded{false};
+    bool material_images_bound{false};
     uint64_t vram_file_offset{0},vram_bytes{0};
     std::vector<U2NativeTexturePreview> texture_images;
     U2NativePackageInfo view{};
@@ -264,6 +265,16 @@ bool resolve_package_file(NativePackageRequest &request) {
                                             request.texture_table_loaded,request.texture_images.size(),decoded,request.texture_images.size()-decoded,
                                             static_cast<unsigned long long>(request.vram_file_offset),static_cast<unsigned long long>(request.vram_bytes));
                                     }
+                                    if(request.geometry_preview_decoded && request.texture_table_loaded) {
+                                        request.material_images_bound=u2_native_BindGeometryTexturePreviews(&request.geometry_preview,request.texture_images);
+                                        size_t bound=0,decoded=0;
+                                        for(const auto &mesh:request.geometry_preview) for(const auto &ref:mesh.material_textures) {
+                                            if(ref.image_index<0 || size_t(ref.image_index)>=request.texture_images.size()) continue;
+                                            ++bound;decoded+=!request.texture_images[size_t(ref.image_index)].pixels.rgba.empty();
+                                        }
+                                        std::printf("[U2 Native Material Images] linked=%u references=%zu decoded=%zu (owned preview; shader/sampler binding pending)\n",
+                                            request.material_images_bound,bound,decoded);
+                                    }
                                 } else {
                                     request.second_page.clear();
                                     request.resource_types.clear();
@@ -320,6 +331,20 @@ extern "C" bool u2_cpp_PackageMgr_GetNativeTexturePreview(const char *package,si
     const auto *request=find_request(string_id(package));
     if(!request || !request->texture_table_loaded || index>=request->texture_images.size()) return false;
     try { auto snapshot=request->texture_images[index];*out=std::move(snapshot);return true; }
+    catch(const std::bad_alloc &) { return false; }
+}
+
+extern "C" bool u2_cpp_PackageMgr_GetNativeMaterialTexturePreview(const char *package,size_t mesh,size_t reference,
+                                                                  U2NativeTexturePreview *out) {
+    if(!package || !*package || !out) return false;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request=find_request(string_id(package));
+    if(!request || !request->material_images_bound || mesh>=request->geometry_preview.size()) return false;
+    const auto &refs=request->geometry_preview[mesh].material_textures;
+    if(reference>=refs.size() || refs[reference].image_index<0 || size_t(refs[reference].image_index)>=request->texture_images.size()) return false;
+    const auto &image=request->texture_images[size_t(refs[reference].image_index)];
+    if(!u2_native_TextureImageMatchesReference(refs[reference],image)) return false;
+    try { auto snapshot=image;*out=std::move(snapshot);return true; }
     catch(const std::bad_alloc &) { return false; }
 }
 

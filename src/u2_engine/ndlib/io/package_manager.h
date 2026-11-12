@@ -55,6 +55,8 @@ extern "C" {
 bool u2_cpp_PackageMgr_InspectVramExtent(const uint8_t *header,size_t header_size,uint64_t file_size,
                                        uint64_t *offset,uint64_t *bytes);
 bool u2_cpp_PackageMgr_GetNativeTexturePreview(const char *package,size_t index,U2NativeTexturePreview *out);
+bool u2_cpp_PackageMgr_GetNativeMaterialTexturePreview(const char *package,size_t mesh,size_t reference,
+                                                      U2NativeTexturePreview *out);
 bool u2_cpp_PackageMgr_GetNativeGeometryPreview(const char *package, std::vector<U2NativeMeshPreview> *out);
 bool u2_cpp_PackageMgr_GetNativeLevelOffset(const char *package, U2NativeLevelOffset *out);
 bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,
