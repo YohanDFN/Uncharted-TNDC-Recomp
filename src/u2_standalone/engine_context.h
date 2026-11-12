@@ -111,7 +111,7 @@ public:
 
     void run_loop(int timeout_seconds = 0) {
         if (m_temple_preview.load()) {
-            native_log("[U2 Native] Previewing real temple triangle edges from the start camera.\n");
+            native_log("[U2 Native] Previewing real temple opaque surfaces with depth from the start camera.\n");
             if (m_renderer) SDL_SetRenderLogicalPresentation(m_renderer,1920,1080,SDL_LOGICAL_PRESENTATION_LETTERBOX);
         } else {
             native_log("[U2 Native] Temple position preview unavailable; see resource diagnostics.\n");
@@ -136,7 +136,9 @@ public:
             while (SDL_PollEvent(&ev)) {
                 if (m_temple_preview.ready()) {
                     if (ev.type==SDL_EVENT_QUIT || (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_ESCAPE)) running=false;
-                    if (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_SPACE && !ev.key.repeat) m_temple_preview.toggle_mode();
+                    if (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_SPACE && !ev.key.repeat) {
+                        m_temple_preview.toggle_mode();m_capture_attempted=false;
+                    }
                     continue;
                 }
                 if (ev.type == SDL_EVENT_QUIT) {
@@ -227,6 +229,7 @@ public:
     }
 
     void shutdown() {
+        m_temple_preview.release_texture();
         if (m_splash_texture) {
             SDL_DestroyTexture(m_splash_texture);
             m_splash_texture = nullptr;

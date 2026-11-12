@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include "preview_clip.h"
+#include "preview_depth.h"
 #include "ndlib/io/package_manager.h"
 #include "game/rendercamera.h"
 
@@ -14,11 +15,22 @@ namespace u2::standalone {
 // Asset-geometry viewer, not the Level/instance/render pipeline. The captured
 // reference lens is scoped to this preview, never used as an engine setting.
 class TemplePreview {
+    enum class Mode { Solid, Wireframe, Points };
     struct WireBatch { std::vector<SDL_Vertex> vertices;std::vector<int> indices; };
     static constexpr SDL_Color palette[]={{224,188,120,255},{120,189,235,255},{173,204,164,255},
         {236,154,121,255},{175,160,226,255},{117,209,196,255},{222,209,163,255}};
 public:
+    TemplePreview()=default;
+    TemplePreview(const TemplePreview &)=delete;
+    TemplePreview &operator=(const TemplePreview &)=delete;
+    ~TemplePreview() { release_texture(); }
+
+    void release_texture() {
+        if(m_solid_texture) SDL_DestroyTexture(m_solid_texture);
+        m_solid_texture=nullptr;
+    }
     bool load() {
+        const Uint64 started=SDL_GetTicks();
         U2NativeCameraDefinition camera;
         U2NativeLevelOffset offset;
         std::vector<U2NativeMeshPreview> meshes;
@@ -37,6 +49,9 @@ public:
             {2*(x*z+y*w),2*(y*z-x*w),1-2*(x*x+y*y)}}};
         std::vector<std::vector<SDL_FRect>> batches;
         std::vector<WireBatch> wire_batches;
+        PreviewDepthImage solid;
+        const bool solid_ready=solid.reset(1920,1080,0xFF130C08);
+        size_t depth_writes=0;
         size_t visible=0,total=0,visible_edges=0,triangles=0;
         for (const auto &mesh : meshes) {
             auto &points=batches.emplace_back();
@@ -61,6 +76,11 @@ public:
             }
             visible+=points.size();
             triangles+=mesh.triangles.size();
+            if(solid_ready) {
+                const uint32_t rgba=uint32_t(tint.r)|(uint32_t(tint.g)<<8)|(uint32_t(tint.b)<<16)|0xFF000000u;
+                for(const auto &triangle : mesh.triangles)
+                    depth_writes+=solid.triangle({clip_vertices[triangle[0]],clip_vertices[triangle[1]],clip_vertices[triangle[2]]},rgba);
+            }
             std::set<uint32_t> edges;
             for(const auto &triangle : mesh.triangles) for(size_t corner=0;corner<3;++corner) {
                 uint16_t lo=triangle[corner],hi=triangle[(corner+1)%3];
@@ -85,18 +105,40 @@ public:
         if (!visible) return false;
         m_batches=std::move(batches);m_visible=visible;m_total=total;
         m_wire_batches=std::move(wire_batches);m_visible_edges=visible_edges;m_triangles=triangles;
-        m_wireframe=visible_edges!=0;
+        m_covered_pixels=0;
+        for(float value : solid.depth) if(std::isfinite(value)) ++m_covered_pixels;
+        release_texture();m_solid_image=std::move(solid);
+        m_mode=m_covered_pixels ? Mode::Solid : Mode::Wireframe;
         std::printf("[U2 Native Preview] temple meshes=%zu positions=%zu visible=%zu triangles=%zu visible-edges=%zu camera='%s' reference-view zoom=1.303225398 near=0.24 far=5000\n",
             meshes.size(),total,visible,triangles,visible_edges,camera.name.c_str());
+        std::printf("[U2 Native Preview] solid covered-pixels=%zu depth-passing-samples=%zu cache-ms=%llu (CPU depth image; static reference view)\n",
+            m_covered_pixels,depth_writes,static_cast<unsigned long long>(SDL_GetTicks()-started));
         return true;
     }
     bool ready() const { return m_visible!=0; }
-    void toggle_mode() { m_wireframe=!m_wireframe; }
-    void draw(SDL_Renderer *renderer) const {
+    void toggle_mode() {
+        if(m_mode==Mode::Solid) m_mode=Mode::Wireframe;
+        else if(m_mode==Mode::Wireframe) m_mode=Mode::Points;
+        else m_mode=m_covered_pixels ? Mode::Solid : Mode::Wireframe;
+        std::printf("[U2 Native Preview] mode=%s\n",m_mode==Mode::Solid ? "solid" : m_mode==Mode::Wireframe ? "wireframe" : "points");
+        std::fflush(stdout);
+    }
+    void draw(SDL_Renderer *renderer) {
         if (!ready()) return;
         SDL_SetRenderDrawColor(renderer,8,12,19,255);SDL_RenderClear(renderer);
-        for(size_t i=0;i<m_batches.size();++i) {
-            if(m_wireframe) {
+        if(m_mode==Mode::Solid && !m_solid_texture) {
+            m_solid_texture=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STATIC,1920,1080);
+            if(!m_solid_texture || !SDL_UpdateTexture(m_solid_texture,nullptr,m_solid_image.pixels.data(),1920*int(sizeof(uint32_t)))) {
+                std::printf("[U2 Native Preview] solid texture upload failed: %s\n",SDL_GetError());
+                release_texture();m_mode=Mode::Wireframe;
+            } else {
+                SDL_SetTextureBlendMode(m_solid_texture,SDL_BLENDMODE_NONE);
+                std::printf("[U2 Native Preview] solid image uploaded to SDL texture\n");
+            }
+        }
+        if(m_mode==Mode::Solid) SDL_RenderTexture(renderer,m_solid_texture,nullptr,nullptr);
+        else for(size_t i=0;i<m_batches.size();++i) {
+            if(m_mode==Mode::Wireframe) {
                 const auto &wire=m_wire_batches[i];
                 if(!wire.indices.empty()) SDL_RenderGeometry(renderer,nullptr,wire.vertices.data(),static_cast<int>(wire.vertices.size()),
                     wire.indices.data(),static_cast<int>(wire.indices.size()));
@@ -110,8 +152,9 @@ public:
         const SDL_FRect bar{0,0,1920,56};SDL_RenderFillRect(renderer,&bar);
         SDL_SetRenderDrawColor(renderer,240,235,220,255);
         char caption[160];
-        if(m_wireframe) std::snprintf(caption,sizeof(caption),"TEMPLE - FIL DE FER NATIF   |   %zu triangles / %zu aretes visibles   |   ESPACE : sommets   |   ECHAP : quitter",m_triangles,m_visible_edges);
-        else std::snprintf(caption,sizeof(caption),"TEMPLE - SOMMETS   |   %zu / %zu points   |   ESPACE : fil de fer   |   ECHAP : quitter",m_visible,m_total);
+        if(m_mode==Mode::Solid) std::snprintf(caption,sizeof(caption),"TEMPLE - SURFACES PLEINES NATIVES   |   %zu triangles   |   ESPACE : fil de fer   |   ECHAP : quitter",m_triangles);
+        else if(m_mode==Mode::Wireframe) std::snprintf(caption,sizeof(caption),"TEMPLE - FIL DE FER NATIF   |   %zu triangles / %zu aretes visibles   |   ESPACE : sommets   |   ECHAP : quitter",m_triangles,m_visible_edges);
+        else std::snprintf(caption,sizeof(caption),"TEMPLE - SOMMETS   |   %zu / %zu points   |   ESPACE : surfaces   |   ECHAP : quitter",m_visible,m_total);
         SDL_RenderDebugText(renderer,24,24,caption);
     }
 private:
@@ -119,6 +162,9 @@ private:
     std::vector<WireBatch> m_wire_batches;
     size_t m_visible{0},m_total{0};
     size_t m_visible_edges{0},m_triangles{0};
-    bool m_wireframe{true};
+    PreviewDepthImage m_solid_image;
+    SDL_Texture *m_solid_texture{nullptr};
+    size_t m_covered_pixels{0};
+    Mode m_mode{Mode::Wireframe};
 };
 } // namespace u2::standalone
