@@ -3,7 +3,7 @@
 Dossier constitué le **12 novembre 2026**, fuseau Europe/Paris.
 
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
-Les six images sont intégrées dans ce fichier HTML, consultable hors ligne.
+Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
 ## Première étape : vrais sommets du temple
 
@@ -73,6 +73,24 @@ anisotropie ni sélection LOD. L'éclairage reste celui du viewer et le matéria
 original complet n'est pas reproduit. Les autres surfaces restent colorées.
 Voir [preuves et méthode](NATIVE_TEMPLE_COLOR_SAMPLING.md).
 
+## Septième étape : vraie texture de pierre 1024×1024
+
+La même carte de couleur existe dans `chunk-21-tstrm.pak` en **1024×1024**.
+Sa chaîne BC1 complète a été comparée octet pour octet à une image GPU
+originale. Le viewer charge cette seule ressource et retrouve les détails
+des moulures et du grain de pierre, sans agrandissement du 64×64.
+
+![Pierre texturée en 1024×1024 dans le framebuffer natif](preuves_avancement/2026-11-12/07-temple-pierre-1024.png)
+
+Capture réelle 1920×1080 du build basé sur `30aff7a` avec cette évolution,
+identifié par SHA-256 dans `provenance.json`. Natif **484/484**, sortie **0**
+après six secondes ; hybride **490/490**, timeout attendu de **30 secondes**.
+SelfTest et sandbox réussis, aucun crash ni nouvelle assertion.
+
+Le chargement est ponctuel et ciblé sur le même sous-mesh ; la politique de
+streaming originale n'est pas portée. Le filtrage reste bilinéaire au premier
+mip, sans choix LOD ni anisotropie. Voir [preuves et limites](NATIVE_TEMPLE_DETAILED_COLOR.md).
+
 ## Validation et provenance
 
 | Contrôle | Résultat | Scénario |
@@ -90,6 +108,7 @@ Les quatre premières images sont des captures réelles du framebuffer de
 produite par le décodeur C++ testé et inspectée visuellement.
 La sixième est une nouvelle capture réelle du framebuffer, avec la première
 carte de couleur appliquée à la géométrie.
+La septième montre cette même surface avec sa carte originale 1024×1024.
 La conversion BMP vers PNG ne comporte aucune retouche.
 
 - [Journal de la nouvelle capture](preuves_avancement/2026-11-12/validation-native.txt).
@@ -108,6 +127,7 @@ La conversion BMP vers PNG ne comporte aucune retouche.
 - [Chargement des 60 images résidentes par métadonnées](NATIVE_TEXTURE_TABLE_LOADING.md).
 - [Liaison des 100 références de matériaux aux images](NATIVE_MATERIAL_IMAGE_BINDINGS.md).
 - [Échantillonnage de la carte de couleur et trajet shader vérifié](NATIVE_TEMPLE_COLOR_SAMPLING.md).
+- [Carte détaillée 1024×1024 et comparaison à l'image GPU originale](NATIVE_TEMPLE_DETAILED_COLOR.md).
 
 Le pipeline GPU du jeu, les textures des autres surfaces, l'éclairage original
 et les interactions du menu restent à porter. Hors du sous-mesh de pierre

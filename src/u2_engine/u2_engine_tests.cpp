@@ -1222,6 +1222,80 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            "Real GPU-matched temple column BC1 data decodes to 4096 owned pixels with the expected first RGB565 endpoint");
         }
         {
+            std::vector<uint8_t> page(1024);
+            const auto put32=[&](size_t at,uint32_t value) { for(unsigned i=0;i<4;++i) page[at+i]=uint8_t(value>>(i*8)); };
+            const auto put64=[&](size_t at,uint64_t value) { for(unsigned i=0;i<8;++i) page[at+i]=uint8_t(value>>(i*8)); };
+            const auto text=[&](size_t at,const char *s) { std::memcpy(page.data()+at,s,std::strlen(s)+1); };
+            put64(8,768);text(768,"PAK_LOGIN_TABLE");put32(0x20,1);put32(0x2C,64);
+            put64(64+8,800);text(800,"TEXTURE_DICTIONARY");put32(64+0x20,1);
+            put64(64+0x28,128);put64(64+0x30,160);put64(64+0x38,192);
+            put32(128,123);put64(160,512);put64(192,256);text(512,"test.ndb");
+            put64(256+8,4096);put32(256+0x10,701440);put32(256+0x14,123);
+            put32(256+0x18,1);put32(256+0x1C,72);put32(256+0x20,0x010F0000);
+            put32(256+0x24,11);put32(256+0x28,1024);put32(256+0x2C,1024);put32(256+0x34,2);put64(256+0x38,512);
+            const auto valid=page;
+            U2NativeDictionaryTextureDescriptor descriptor;
+            U2_TEST_ASSERT(u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000) &&
+                           descriptor.image.uid==123 && descriptor.image.width==1024 && descriptor.image.mip_count==11 &&
+                           descriptor.stored_bytes==701440 && descriptor.image.resident_blocks.empty(),
+                           "Raw dictionary descriptor resolves the exact resource without allocating its VRAM bank");
+            text(544,"short-resource-label");put64(160,544);
+            U2_TEST_ASSERT(u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000) &&
+                           descriptor.image.resource_name=="short-resource-label" && descriptor.image.cooked_name=="test.ndb",
+                           "Dictionary resource labels and full cooked filenames are independent namespaces");
+            page=valid;
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"TEST.ndb",800000) && descriptor.image.uid==123 &&
+                           !u2_native_FindDictionaryTextureDescriptor(nullptr,page.data(),page.size(),0,"test.ndb",800000) &&
+                           !u2_native_FindDictionaryTextureDescriptor(&descriptor,nullptr,page.size(),0,"test.ndb",800000) &&
+                           !u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,nullptr,800000),
+                           "Dictionary lookup rejects missing inputs and case mismatches without changing output");
+            put32(64+0x20,2);put32(132,123);put64(168,512);put64(200,256);
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000) && descriptor.image.uid==123,
+                           "Ambiguous dictionary names fail atomically instead of picking the first texture");
+            page=valid;put64(160,1024);
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000),
+                           "Dictionary resource-name offsets are checked against the raw page extent");
+            page=valid;put64(192,1023);
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000),
+                           "Dictionary descriptor extent is validated before reading its fields");
+            page=valid;put32(128,124);
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000),
+                           "Dictionary key and descriptor UID must agree");
+            page=valid;
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",705535),
+                           "Dictionary texture chain cannot cross the declared VRAM extent");
+            put32(256+0x10,701439);
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000),
+                           "Dictionary BC1 chain must match the derived padded mip sizes exactly");
+            page=valid;put32(256+0x34,3);
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000),
+                           "Unestablished dictionary texture layouts remain unsupported");
+            page=valid;put32(0x28,1);
+            U2_TEST_ASSERT(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),0,"test.ndb",800000),
+                           "Single-page dictionary lookup rejects cross-page metadata references");
+            U2NativeTexturePreview low,high;
+            const bool resident=u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",37,&low);
+            const bool detailed=resident && u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm",low.cooked_name.c_str(),&high);
+            U2_TEST_ASSERT(detailed && high.uid==low.uid && high.cooked_name==low.cooked_name && high.width==1024 && high.height==1024 &&
+                           high.format==72 && high.mip_count==11 && high.resident_blocks.size()==701440 && high.pixels.rgba.size()==1048576 && high.pixels.srgb,
+                           "Real column dictionary resource supplies the GPU-matched 1024x1024 BC1 chain and owned pixels");
+            const size_t low_offset=524288+131072+32768+8192;
+            U2_TEST_ASSERT(detailed && low.resident_blocks.size()>=2048 && high.resident_blocks.size()>=low_offset+2048 &&
+                           std::equal(low.resident_blocks.begin(),low.resident_blocks.begin()+2048,high.resident_blocks.begin()+low_offset),
+                           "Streamed column mip4 equals the previously GPU-matched resident 64x64 mip, including its detiled block order");
+            high.uid=987;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview(nullptr,"x",&high) &&
+                           !u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("../chunk-21-tstrm","x",&high) &&
+                           !u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm",nullptr,&high) &&
+                           !u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm","not-a-resource",&high) && high.uid==987 &&
+                           !u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm","x",nullptr),
+                           "Dictionary preview API rejects missing inputs, path traversal and absent resources atomically");
+            U2NativeTexturePreview preserved;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",37,&preserved) && preserved.width==64 &&
+                           preserved.pixels.rgba==low.pixels.rgba,
+                           "On-demand detailed preview does not mutate the package's resident snapshot or streaming state");
+        }
+        {
             using u2::standalone::preview_light_intensity;
             float brightness=-1;
             U2_TEST_ASSERT(preview_light_intensity({0,1,0},{0,1,0},&brightness) && brightness==1,

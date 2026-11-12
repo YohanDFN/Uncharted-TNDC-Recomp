@@ -329,6 +329,11 @@ cet ajout, aucun build du jeu nécessaire.
 > (`NATIVE_TEMPLE_COLOR_SAMPLING.md`). Le viewer utilise le premier mip 64×64
 > avec répétition et filtre bilinéaire ; le sampler original primaire est
 > anisotrope/trilinéaire. Les autres surfaces et formats restent à porter.
+> Une étape unitaire supplémentaire retrouve la même carte en 1024×1024 dans
+> `chunk-21-tstrm.pak`, compare sa chaîne BC1 à l'image GPU originale et la
+> charge ponctuellement pour ce seul sous-mesh (`NATIVE_TEMPLE_DETAILED_COLOR.md`).
+> Le snapshot résident reste en 64×64 ; la politique de streaming et le choix
+> LOD ne sont pas portés. Natif 484/484 et hybride 490/490 validés.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.

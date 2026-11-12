@@ -79,6 +79,74 @@ bool u2_native_ReadTextureTablePreview(std::vector<U2NativeTexturePreview> *out,
     } catch(const std::bad_alloc &) { return false; }
 }
 
+bool u2_native_FindDictionaryTextureDescriptor(U2NativeDictionaryTextureDescriptor *out,
+    const uint8_t *page,size_t size,size_t root,const char *name,uint64_t vram_bytes) {
+    if(!out || !page || !name || !*name || root>size || size-root<0x28) return false;
+    const auto u32=[](const uint8_t *p) { uint32_t n=0;for(unsigned i=0;i<4;++i)n|=uint32_t(p[i])<<(8*i);return n; };
+    const auto u64=[](const uint8_t *p) { uint64_t n=0;for(unsigned i=0;i<8;++i)n|=uint64_t(p[i])<<(8*i);return n; };
+    const auto range=[&](uint64_t offset,size_t bytes) { return offset<=size && bytes<=size-offset; };
+    const auto text=[&](uint64_t offset,const char *&value) {
+        if(!range(offset,1) || !std::memchr(page+offset,0,size-offset)) return false;
+        value=reinterpret_cast<const char*>(page+offset);return true;
+    };
+    const char *type=nullptr;
+    if(!text(u64(page+root+8),type) || std::strcmp(type,"PAK_LOGIN_TABLE")) return false;
+    const uint32_t logins=u32(page+root+0x20);
+    if(logins>32 || logins>(size-root-0x28)/8) return false;
+    try {
+        U2NativeDictionaryTextureDescriptor result;
+        bool found=false,dictionary=false;
+        for(size_t item=0;item<logins;++item) {
+            const auto *entry=page+root+0x28+item*8;
+            const uint32_t metadata=u32(entry+4);
+            if(u32(entry)!=0 || !range(metadata,0x20) || !text(u64(page+metadata+8),type)) return false;
+            if(std::strcmp(type,"TEXTURE_DICTIONARY")) continue;
+            if(dictionary || !range(metadata,0x40)) return false;
+            dictionary=true;
+            const auto *m=page+metadata;
+            const uint32_t count=u32(m+0x20);
+            const uint64_t keys=u64(m+0x28),names=u64(m+0x30),descriptors=u64(m+0x38);
+            if(count>4096 || !range(keys,size_t(count)*4) || !range(names,size_t(count)*8) ||
+               !range(descriptors,size_t(count)*8)) return false;
+            size_t string_budget=size;
+            for(size_t i=0;i<count;++i) {
+                const char *resource=nullptr;
+                if(!text(u64(page+names+i*8),resource)) return false;
+                const size_t length=std::strlen(resource)+1;
+                if(length>string_budget) return false;
+                string_budget-=length;
+                const uint64_t offset=u64(page+descriptors+i*8);
+                if(!range(offset,64)) return false;
+                const auto *d=page+offset;
+                const char *cooked=nullptr;
+                if(!text(u64(d+0x38),cooked)) return false;
+                if(std::strcmp(cooked,name)) continue;
+                if(found) return false;
+                auto &image=result.image;
+                image.uid=u32(d+0x14);image.vram_offset=u64(d+8);result.stored_bytes=u32(d+0x10);
+                image.layers=u32(d+0x18);image.format=u32(d+0x1C);image.flags=u32(d+0x20);
+                image.mip_count=u32(d+0x24);image.width=u32(d+0x28);image.height=u32(d+0x2C);image.layout_tag=u32(d+0x34);
+                if(!image.uid || image.uid==UINT32_MAX ||
+                   image.uid!=u32(page+keys+i*4) || !result.stored_bytes || result.stored_bytes>16*1024*1024 ||
+                   image.vram_offset>vram_bytes || result.stored_bytes>vram_bytes-image.vram_offset ||
+                   image.layers!=1 || image.layout_tag!=2 || !image.width || !image.height ||
+                   image.width>1024 || image.height>1024 || !std::has_single_bit(image.width) || !std::has_single_bit(image.height) ||
+                   image.mip_count!=static_cast<uint32_t>(std::bit_width(std::max(image.width,image.height))) ||
+                   !((image.format==71 && image.flags==0x01000000) || (image.format==72 && image.flags==0x010F0000))) return false;
+                size_t required=0;
+                for(uint32_t mip=0;mip<image.mip_count;++mip) {
+                    const size_t w=std::max(1u,image.width>>mip),h=std::max(1u,image.height>>mip);
+                    required+=(((w+3)/4+7)&~size_t{7})*(((h+3)/4+7)&~size_t{7})*8;
+                }
+                if(required!=result.stored_bytes) return false;
+                image.resource_name=resource;image.cooked_name=cooked;found=true;
+            }
+        }
+        if(!found) return false;
+        *out=std::move(result);return true;
+    } catch(const std::bad_alloc &) { return false; }
+}
+
 bool u2_native_DecodeThinBc1Preview(U2NativeTexturePixels *out,const uint8_t *data,
                                     size_t bytes,uint32_t width,uint32_t height,bool srgb) {
     // Scope/budget of the viewer, not a limit of the original texture format.

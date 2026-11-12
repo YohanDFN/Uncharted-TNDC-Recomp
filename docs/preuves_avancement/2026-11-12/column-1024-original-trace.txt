@@ -1,0 +1,8 @@
+[U2 SelfTest] PASSED: 886 native C functions survived edge-case fuzzing without fault!
+[U2 EngineTest] PASSED: 831 DC detours survived full-body sandbox execution via ELF trampolines!
+[U2 EngineTest] PASSED: 475/475 functional C++23 engine assertions verified via ELF trampolines!
+Image 0x1c3a48d0: 1024x1024x1 Bc1RgbaSrgbBlock guest 0x11636ac000+0xab400 mips 11 layers 1 samples 1 tile Thin1DThin usage { TransferSrc | TransferDst | Sampled | Storage } host 0xab400 bytes
+GPU capture PID: 3616
+Captured candidates: 44
+Exact match: {"address": "0x11636ac000", "bytes": 701440, "sha256": "b13de58bb674b994997db6f48f2ede2afa2075ba81b1058be40c0af40f96d0d8", "matches_column": true}
+Original run: 45 seconds, STOPPED_AFTER_TIMEOUT (user/diag_column_mips_original_console.log)

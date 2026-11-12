@@ -19,6 +19,16 @@ struct U2NativeTexturePreview {
     U2NativeTexturePixels pixels; // Empty for formats/layouts not yet decoded.
 };
 
+struct U2NativeDictionaryTextureDescriptor {
+    U2NativeTexturePreview image;
+    uint32_t stored_bytes{0};
+};
+
+// Raw single-page dictionary snapshot: page-relative offsets, no relocations
+// or guest pointers. Select one exact cooked filename; never load the VRAM bank.
+bool u2_native_FindDictionaryTextureDescriptor(U2NativeDictionaryTextureDescriptor *out,
+    const uint8_t *page,size_t page_size,size_t root,const char *cooked_name,uint64_t vram_bytes);
+
 // Owned snapshots from relocated CPU page pointers and a bounded VRAM extent.
 // Metadata name/type offsets remain page-relative, as in the package reader.
 bool u2_native_ReadTextureTablePreview(std::vector<U2NativeTexturePreview> *out,

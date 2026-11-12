@@ -73,6 +73,26 @@ public:
                    column_image.format==72 && column_image.width==64 && column_image.height==64 &&
                    preview_texture_valid(column_image.pixels) &&
                    std::all_of(column_image.pixels.rgba.begin(),column_image.pixels.rgba.end(),[](uint32_t p) { return (p>>24)==255; })) {
+                    U2NativeTexturePreview detailed;
+                    // The exact cooked resource is also present in chunk-21's
+                    // dictionary. This on-demand preview is not engine streaming.
+                    if(u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm",column_image.cooked_name.c_str(),&detailed) &&
+                       detailed.uid==column_image.uid && detailed.format==column_image.format &&
+                       detailed.width==1024 && detailed.height==1024 && preview_texture_valid(detailed.pixels) &&
+                       std::all_of(detailed.pixels.rgba.begin(),detailed.pixels.rgba.end(),[](uint32_t p) { return (p>>24)==255; })) {
+                        size_t offset=0;uint32_t w=detailed.width,h=detailed.height;
+                        while(w>column_image.width || h>column_image.height) {
+                            offset+=size_t(((w+3)/4+7)&~7u)*(((h+3)/4+7)&~7u)*8;
+                            w=std::max(1u,w/2);h=std::max(1u,h/2);
+                        }
+                        const size_t bytes=size_t(((w+3)/4+7)&~7u)*(((h+3)/4+7)&~7u)*8;
+                        if(w==column_image.width && h==column_image.height && offset<=detailed.resident_blocks.size() &&
+                           bytes<=detailed.resident_blocks.size()-offset && bytes<=column_image.resident_blocks.size() &&
+                           std::equal(column_image.resident_blocks.begin(),column_image.resident_blocks.begin()+bytes,detailed.resident_blocks.begin()+offset)) {
+                            column_image=std::move(detailed);
+                            std::printf("[U2 Native Preview] dictionary color-map upgraded=1024x1024 resident-mip-match=64x64 (owned first-mip preview; no streaming state)\n");
+                        }
+                    }
                     color_map=&column_image.pixels;++textured_meshes;
                     std::printf("[U2 Native Preview] color-map mesh='%s' reference=%zu image=%d size=%ux%u (repeat bilinear first mip; linear-space lighting)\n",
                         mesh.name.c_str(),reference,mesh.material_textures[reference].image_index,column_image.width,column_image.height);

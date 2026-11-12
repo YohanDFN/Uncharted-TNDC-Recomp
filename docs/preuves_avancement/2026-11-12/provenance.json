@@ -74,6 +74,30 @@
         "hybrid_seconds": 30,
         "hybrid_exit": "STOPPED_AFTER_TIMEOUT"
       }
+    },
+    {
+      "fichier": "07-temple-pierre-1024.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "208fc7fef1deaaec75ed78bacfada5ff867889c214546d29cbe0ded69ad28408",
+      "build_base_commit": "30aff7ac6f51b1ddd5c87cc235b55f585dd451c0",
+      "build_changes": "targeted 1024 BC1 dictionary color-map preview; NATIVE_TEMPLE_DETAILED_COLOR.md",
+      "executable_sha256": "0ab848d5656ffb75a9c51de0e517d5448ccbeebafa8e7ac08f25b5ad67d00a50",
+      "scenario": "menu-temple, solid reference view, same Submesh21 color map as capture 06",
+      "legende": "Real SDL framebuffer using the original 1024x1024 BC1 stone color map, verified against an original GPU image. Bilinear first mip, viewer light; no original streaming policy, LOD or anisotropy.",
+      "conversion": "SDL_RenderReadPixels to BMP, System.Drawing BMP to PNG, no retouching",
+      "texture_compressed_sha256": "b13de58bb674b994997db6f48f2ede2afa2075ba81b1058be40c0af40f96d0d8",
+      "validation": {
+        "native_assertions": "484/484",
+        "native_seconds": 6,
+        "native_exit": 0,
+        "hybrid_assertions": "490/490",
+        "hybrid_seconds": 30,
+        "hybrid_exit": "STOPPED_AFTER_TIMEOUT"
+      }
     }
   ],
   "executable_sha256": "82c0112ce464f14a04ac738d1a2e13e9c4bd5193ade43cc56e24eb69b05c597a",

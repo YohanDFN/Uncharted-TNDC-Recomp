@@ -325,6 +325,45 @@ extern "C" bool u2_cpp_PackageMgr_InspectVramExtent(const uint8_t *header,size_t
     *offset=end;*bytes=length;return true;
 }
 
+extern "C" bool u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview(const char *dictionary,const char *name,
+                                                                    U2NativeTexturePreview *out) {
+    if(!dictionary || !*dictionary || !name || !*name || !out) return false;
+    size_t length=0;
+    for(const char *c=dictionary;*c;++c) {
+        if(++length>96 || !((*c>='a' && *c<='z') || (*c>='A' && *c<='Z') ||
+             (*c>='0' && *c<='9') || *c=='-' || *c=='_')) return false;
+    }
+    try {
+        const std::string path="/app0/u2data/build/main/texturedict1/ps4/"+std::string(dictionary)+".pak";
+        const int fd=runtime_file_open(path.c_str(),0,0);
+        if(fd<0) return false;
+        struct Close { int fd;~Close() { runtime_file_close(fd); } } close{fd};
+        const int64_t file_size=runtime_file_lseek(fd,0,2);
+        std::array<uint8_t,0x2C> header{};
+        if(file_size<int64_t(header.size()) || runtime_file_pread(fd,header.data(),header.size(),0)!=int64_t(header.size())) return false;
+        uint32_t count=0,table=0;
+        if(!u2_cpp_PackageMgr_InspectHeader(header.data(),header.size(),uint64_t(file_size),&count,&table) || count!=1 ||
+           read_le32(header.data()+8)!=0) return false;
+        std::array<uint8_t,12> entry{};
+        if(runtime_file_pread(fd,entry.data(),entry.size(),table)!=int64_t(entry.size())) return false;
+        const uint64_t begin=read_le32(entry.data()),bytes=read_le32(entry.data()+4);
+        if(read_le32(entry.data()+8)!=0 || begin<uint64_t(table)+entry.size() || !bytes || bytes>4*1024*1024 ||
+           begin>uint64_t(file_size) || bytes>uint64_t(file_size)-begin) return false;
+        const uint64_t vram_start=begin+bytes,vram_bytes=uint64_t(file_size)-vram_start;
+        if(read_le32(header.data()+0x20)!=vram_bytes) return false;
+        std::vector<uint8_t> page(static_cast<size_t>(bytes));
+        if(runtime_file_pread(fd,page.data(),page.size(),int64_t(begin))!=int64_t(page.size()) ||
+           !u2_cpp_PackageMgr_CheckPage(entry.data(),entry.size(),uint64_t(file_size),page.data(),page.size())) return false;
+        U2NativeDictionaryTextureDescriptor descriptor;
+        if(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),read_le32(header.data()+12),name,vram_bytes)) return false;
+        auto &image=descriptor.image;
+        image.resident_blocks.resize(descriptor.stored_bytes);
+        if(runtime_file_pread(fd,image.resident_blocks.data(),image.resident_blocks.size(),int64_t(vram_start+image.vram_offset))!=int64_t(image.resident_blocks.size()) ||
+           !u2_native_DecodeThinBc1Preview(&image.pixels,image.resident_blocks.data(),image.resident_blocks.size(),image.width,image.height,image.format==72)) return false;
+        *out=std::move(image);return true;
+    } catch(const std::bad_alloc &) { return false; }
+}
+
 extern "C" bool u2_cpp_PackageMgr_GetNativeTexturePreview(const char *package,size_t index,U2NativeTexturePreview *out) {
     if(!package || !*package || !out) return false;
     std::lock_guard lock(s_request_mutex);
