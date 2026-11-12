@@ -1,0 +1,27 @@
+[
+  {
+    "format": 70,
+    "entry": "23c0fa0001040000b1d41b0c00000000",
+    "name": "Bc1Unorm"
+  },
+  {
+    "format": 71,
+    "entry": "23c0fa0000040000b1d41b0c00000000",
+    "name": "Bc1Unorm"
+  },
+  {
+    "format": 72,
+    "entry": "23c9fa0000040000bad41b0c00000000",
+    "name": "Bc1UnormSrgb"
+  },
+  {
+    "format": 73,
+    "entry": "24c0fa0001080000c7d41b0c00000000",
+    "name": "Bc2Unorm"
+  },
+  {
+    "format": 74,
+    "entry": "24c0fa0000080000c7d41b0c00000000",
+    "name": "Bc2Unorm"
+  }
+]

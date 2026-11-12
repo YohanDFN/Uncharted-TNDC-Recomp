@@ -38,11 +38,27 @@
       ],
       "sha256": "d9d97199357a8fa500561914fbf2a42549029b20b317a5bdf24a0c8eff334736",
       "legende": "12383 decoded normals; viewer-only directional light, ambient 0.22, diffuse 0.78; perspective-correct Gouraud interpolation. No original materials, textures or cast shadows."
+    },
+    {
+      "fichier": "05-colonnes-texture-bc1.png",
+      "type": "decoded_texture_asset",
+      "dimensions": [
+        64,
+        64
+      ],
+      "sha256": "139d83d6381ffb8c8b1a1bf885412d8b1c1a8024c33dda8c7722591ed6ce9648",
+      "legende": "Geometry-local texture 37, column color map. Native BC1 Thin1DThin first-mip decode; encoded sRGB preserved. Asset image, not a textured menu framebuffer.",
+      "donnees_compressees_sha256": "4b9f0e9526ade0aab5edd273636e69236efc7b24b46b9e7d06dda2109829923f",
+      "offset_fichier": "0xA262B8",
+      "octets_residents": 5120
     }
   ],
   "executable_sha256": "82c0112ce464f14a04ac738d1a2e13e9c4bd5193ade43cc56e24eb69b05c597a",
   "version_capture_surfaces": "f25a5f91081187e9ea007bb0d407087676854a3f",
   "executable_surfaces_sha256": "bb13e199fc95df7bf5320837cfc47c4f39d4a29f7e51719d5f6ee81d0780eeee",
   "version_capture_eclairage": "f7447a38ba712d1a147772c151766a2605191670",
-  "executable_eclairage_sha256": "003758845f5ee5d508825e4cc1814a05d76dbbb27f5a5e43afed8b84a3df2410"
+  "executable_eclairage_sha256": "003758845f5ee5d508825e4cc1814a05d76dbbb27f5a5e43afed8b84a3df2410",
+  "version_decodage_bc1": "5273f81500eaf08f7c6207670f7d05ffc4cd14eb",
+  "executable_bc1_sha256": "a0500ced1dda431b9003bd3607f1f5f634d3066e16bc2ccd88adba2d6f323047",
+  "pilote_decodage_bc1_sha256": "9a2771f514b328e7e2a75f6765df305c561fa8f5dd0e86069d5561a9cf73b046"
 }

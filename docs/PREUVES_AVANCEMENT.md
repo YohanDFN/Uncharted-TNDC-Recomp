@@ -3,7 +3,7 @@
 Dossier constitué le **12 novembre 2026**, fuseau Europe/Paris.
 
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
-Les quatre images sont intégrées dans ce fichier HTML, consultable hors ligne.
+Les cinq images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
 ## Première étape : vrais sommets du temple
 
@@ -43,6 +43,17 @@ les textures et ombres portées ne sont pas encore présentes.
 
 ![Temple natif avec éclairage de prévisualisation](preuves_avancement/2026-11-12/04-temple-eclairage.png)
 
+## Cinquième étape : première texture réelle décodée
+
+La version `5273f81` décode le premier mip BC1 de la carte de couleur des
+colonnes : **64 × 64, 4 096 pixels RGBA**. Ses 5 120 octets compressés, mipmaps
+comprises, sont identiques à l'image GPU originale par SHA-256.
+Le décodeur réordonne les blocs Thin1DThin et conserve les valeurs sRGB encodées.
+Cette image est un asset décodé, pas une capture du menu texturé ; elle n'est
+pas encore appliquée aux meshes. Aucune haute résolution n'est reconstruite.
+
+![Texture de couleur des colonnes décodée en natif, mip résident 64×64](preuves_avancement/2026-11-12/05-colonnes-texture-bc1.png)
+
 ## Validation et provenance
 
 | Contrôle | Résultat | Scénario |
@@ -52,14 +63,19 @@ les textures et ombres portées ne sont pas encore présentes.
 | Stabilité des trois vues | 319/319 assertions, sortie 0 | 25 secondes, plusieurs cycles avec Espace |
 | Capture éclairée | 349/349 assertions, sortie 0 | Délai de 8 secondes atteint |
 | Validation hybride après éclairage | 355/355 assertions, sans faute signalée | Timeout de 6 secondes |
+| Décodage BC1 natif | 414/414 assertions, sortie 0 | 6 secondes, dont le vrai bloc des colonnes |
+| Validation hybride après BC1 | 420/420 assertions, sans faute signalée | Timeout de 6 secondes |
 
-Les captures sont des images réelles du framebuffer de `uncharted2-native.exe`,
-en 1920 × 1080. La conversion BMP vers PNG ne comporte aucune retouche.
-Les trois premières images sont conservées ; la quatrième vient du test final de l'éclairage.
+Les quatre premières images sont des captures réelles du framebuffer de
+`uncharted2-native.exe`, en 1920 × 1080. La cinquième est une texture 64 × 64
+produite par le décodeur C++ testé et inspectée visuellement.
+La conversion BMP vers PNG ne comporte aucune retouche.
 
 - [Journal de la nouvelle capture](preuves_avancement/2026-11-12/validation-native.txt).
 - [Journal des surfaces pleines et des trois modes](preuves_avancement/2026-11-12/validation-surfaces.txt).
 - [Journal de la capture éclairée](preuves_avancement/2026-11-12/validation-eclairage.txt).
+- [Journal natif du décodage BC1](preuves_avancement/2026-11-12/validation-bc1.txt).
+- [Comparaisons des octets compressés aux images GPU originales](preuves_avancement/2026-11-12/bc1-gpu-matches.json).
 - [Empreintes SHA-256 des images et de l'exécutable capturé](preuves_avancement/2026-11-12/provenance.json).
 - [Preuves du nuage de points](NATIVE_TEMPLE_POINT_PREVIEW.md).
 - [Validation des indices dans l'original](NATIVE_TEMPLE_TRIANGLE_INDICES.md).
@@ -67,8 +83,9 @@ Les trois premières images sont conservées ; la quatrième vient du test final
 - [Preuves des surfaces pleines et limites du viewer](NATIVE_TEMPLE_SOLID_PREVIEW.md).
 - [Normales réelles du temple](NATIVE_TEMPLE_NORMALS.md).
 - [Calcul et validation de l'éclairage de prévisualisation](NATIVE_TEMPLE_LIGHTING.md).
+- [Décodage des pixels BC1 et limites](NATIVE_TEMPLE_BC1_PIXELS.md).
 
-Le pipeline GPU du jeu, les textures, l'éclairage original et les interactions du menu
+Le pipeline GPU du jeu, l'application des textures au décor, l'éclairage original et les interactions du menu
 restent à porter. Les couleurs servent à distinguer
 les sous-meshes, sans reproduire leurs matériaux. Cet aperçu emploie la caméra
 de départ et une lentille de référence capturée ; son affichage n'exécute aucun
