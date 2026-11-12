@@ -8,6 +8,11 @@
 // Owned preview geometry; not a guest Mesh or a completed geometry login.
 struct U2NativeMeshPreview {
     std::string name;
+    // Original geometry-local material reference, resolved like PrepareBinary.
+    // This is not a shader instance or a texture binding. Missing lookup = -1.
+    std::string material_name;
+    uint32_t material_name_hash{0};
+    int32_t material_index{-1};
     std::vector<std::array<float, 3>> positions;
     // Optional attribute ID 2, R16G16B16A16Float. Preserve all four components;
     // no normalization or assumption about the original lighting model.

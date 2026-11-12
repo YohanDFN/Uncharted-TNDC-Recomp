@@ -1,8 +1,10 @@
 #include "geometry_preview.h"
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <cstring>
 #include <new>
+#include <string_view>
 #include <utility>
 
 bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
@@ -41,6 +43,42 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
     size_t records=0;
     if (count && (!range(u64(page+metadata+0x30),0,records) || count>(size-records)/0x88)) return false;
     try {
+        // PrepareBinary C2B06F..C2B1EA: geometry payload+48/+50,
+        // 72-byte material definitions, name pointer +0; MeshDesc name +48.
+        // B26FC0 hashes unsigned bytes with CRC polynomial 04C11DB7, seed 0,
+        // no final complement. Duplicate hashes retain the first table index.
+        const auto material_hash=[](std::string_view name) {
+            uint32_t hash=0;
+            for(unsigned char byte : name) {
+                hash^=uint32_t(byte)<<24;
+                for(unsigned bit=0;bit<8;++bit) hash=(hash<<1)^((hash&0x80000000u) ? 0x04C11DB7u : 0u);
+            }
+            return hash;
+        };
+        size_t remaining_name_bytes=size;
+        const auto material_text=[&](uint64_t address,std::string_view &text) {
+            text={};
+            if(!address) return true; // Original hash accepts NULL as empty (hash 0).
+            size_t at=0;
+            if(!range(address,1,at)) return false;
+            const auto *end=static_cast<const uint8_t *>(std::memchr(page+at,0,size-at));
+            if(!end || size_t(end-(page+at))+1>remaining_name_bytes) return false;
+            remaining_name_bytes-=size_t(end-(page+at))+1;
+            text=std::string_view(reinterpret_cast<const char *>(page+at),end-(page+at));
+            return true;
+        };
+        const uint32_t materials=u32(page+metadata+0x68);
+        size_t material_table=0;
+        if(materials>INT32_MAX || (materials && (!range(u64(page+metadata+0x70),0,material_table) ||
+            materials>(size-material_table)/72))) return false;
+        std::vector<std::pair<uint32_t,int32_t>> material_order;
+        material_order.reserve(materials);
+        for(uint32_t i=0;i<materials;++i) {
+            std::string_view name;
+            if(!material_text(u64(page+material_table+size_t(i)*72),name)) return false;
+            material_order.emplace_back(material_hash(name),int32_t(i));
+        }
+        std::sort(material_order.begin(),material_order.end());
         std::vector<U2NativeMeshPreview> result;
         result.reserve(count);
         size_t remaining_positions=size/12;
@@ -71,6 +109,14 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
             if (!end) return false;
             U2NativeMeshPreview mesh;
             mesh.name.assign(reinterpret_cast<const char *>(page+name),end-(page+name));
+            std::string_view material_name;
+            if(!material_text(u64(record+0x48),material_name)) return false;
+            mesh.material_name=material_name;
+            mesh.material_name_hash=material_hash(material_name);
+            const auto material=std::lower_bound(material_order.begin(),material_order.end(),
+                std::pair<uint32_t,int32_t>{mesh.material_name_hash,0});
+            if(material!=material_order.end() && material->first==mesh.material_name_hash)
+                mesh.material_index=material->second;
             // C4E4F0 copies four-byte attribute definitions; descriptors are
             // 24 bytes apart at C36F80. Identify by ID, never by stream order.
             for (size_t s=0;s<streams;++s) {

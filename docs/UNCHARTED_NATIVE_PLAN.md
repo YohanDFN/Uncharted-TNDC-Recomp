@@ -208,7 +208,10 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > reste à établir avant de revendiquer le rendu original.
 > Les 12 383 paires de coordonnées de l'attribut 1 R16G16Float sont possédées
 > par les snapshots, sans wrapping ni changement d'affichage (`NATIVE_TEMPLE_UV.md`).
-> La liaison mesh → matériau → textures et les paramètres du sampler restent à établir.
+> La résolution des treize références mesh → matériau local reproduit les indices
+> observés après PrepareBinary original, sans créer d'instances moteur
+> (`NATIVE_TEMPLE_MATERIAL_REFERENCES.md`). Les références matériau → textures,
+> le chargement des images et les paramètres du sampler restent à établir.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.

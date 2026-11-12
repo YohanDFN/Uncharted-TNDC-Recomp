@@ -1,0 +1,98 @@
+{
+  "payload": "0x1048bc5100",
+  "material_count": 13,
+  "hash_function_offset": "0xb26fc0",
+  "rows": [
+    {
+      "mesh": "menu-temple.Prototype0.Submesh0",
+      "requested": "levels/temple/walls/tmp-stone-crumpled-blend:redpaint-to-lrg-brick,f8906991-3ff7-4224-813f-2dc43d693c13,blend-color-bump-specular.fx",
+      "index": 0,
+      "material": "levels/temple/walls/tmp-stone-crumpled-blend:redpaint-to-lrg-brick,f8906991-3ff7-4224-813f-2dc43d693c13,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh1",
+      "requested": "levels/temple/outsourced/tmp-entry-statue-bag-of-kittens:01,64f493ad-e77a-4be1-989d-c923f5a18cba,blend-color-bump-specular.fx",
+      "index": 1,
+      "material": "levels/temple/outsourced/tmp-entry-statue-bag-of-kittens:01,64f493ad-e77a-4be1-989d-c923f5a18cba,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh2",
+      "requested": "levels/temple/outsourced/tmp-face-gold:03,8c22f309-4adb-4a4c-afdb-b31fd22ff08c,blend-color-bump-specular.fx",
+      "index": 2,
+      "material": "levels/temple/outsourced/tmp-face-gold:03,8c22f309-4adb-4a4c-afdb-b31fd22ff08c,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh4",
+      "requested": "levels/temple/outsourced/tmp-face-gold:swirls,834c8907-7714-4e30-9d1f-28ddafa349b9,blend-color-bump-specular.fx",
+      "index": 3,
+      "material": "levels/temple/outsourced/tmp-face-gold:swirls,834c8907-7714-4e30-9d1f-28ddafa349b9,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh10",
+      "requested": "levels/temple/outsourced/tmp-face-gold:01,658ae594-31ee-4a72-bd8f-389ed9d77fb5,blend-color-bump-specular.fx",
+      "index": 4,
+      "material": "levels/temple/outsourced/tmp-face-gold:01,658ae594-31ee-4a72-bd8f-389ed9d77fb5,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh12",
+      "requested": "levels/temple/outsourced/tmp-face-gold:06,2b5fa577-07e4-413c-b875-d9152d84ac77,blend-color-bump-specular.fx",
+      "index": 5,
+      "material": "levels/temple/outsourced/tmp-face-gold:06,2b5fa577-07e4-413c-b875-d9152d84ac77,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh14",
+      "requested": "levels/temple/outsourced/tmp-face-gold:02,edc64661-4fce-441d-9f6f-f1932ba08491,blend-color-bump-specular.fx",
+      "index": 6,
+      "material": "levels/temple/outsourced/tmp-face-gold:02,edc64661-4fce-441d-9f6f-f1932ba08491,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh21",
+      "requested": "levels/temple/stone/tmp-stone-column-to-drk-cheaper:tmp-pillar-stone,cca5ccf1-1abf-4c4e-b766-07a40006195a,blend-color-bump-specular.fx",
+      "index": 7,
+      "material": "levels/temple/stone/tmp-stone-column-to-drk-cheaper:tmp-pillar-stone,cca5ccf1-1abf-4c4e-b766-07a40006195a,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh25",
+      "requested": "levels/temple/walls/tmp-stone-crumpled-blend-cheaper:tmp-mural-to-paint,f5017653-7620-4dea-adc0-f189de2929bb,blend-color-bump-specular.fx",
+      "index": 8,
+      "material": "levels/temple/walls/tmp-stone-crumpled-blend-cheaper:tmp-mural-to-paint,f5017653-7620-4dea-adc0-f189de2929bb,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh26",
+      "requested": "levels/temple/plants/tmp-hanging-vine:default,242ee757-b93a-4795-9661-1b5aaa4c3ea5,leaf-color-bump-specular.fx",
+      "index": 9,
+      "material": "levels/temple/plants/tmp-hanging-vine:default,242ee757-b93a-4795-9661-1b5aaa4c3ea5,leaf-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh27",
+      "requested": "levels/temple/outsourced/tmp-face-gold:05,e91642a3-afd8-4a12-8209-eefb71d48b16,blend-color-bump-specular.fx",
+      "index": 10,
+      "material": "levels/temple/outsourced/tmp-face-gold:05,e91642a3-afd8-4a12-8209-eefb71d48b16,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh35",
+      "requested": "levels/temple/walls/tmp-stone-crumpled-blend-cheaper:plaster-to-yellowpaint-copy,c9d20008-4356-4ba8-9647-c6e52d5d24c1,blend-color-bump-specular.fx",
+      "index": 11,
+      "material": "levels/temple/walls/tmp-stone-crumpled-blend-cheaper:plaster-to-yellowpaint-copy,c9d20008-4356-4ba8-9647-c6e52d5d24c1,blend-color-bump-specular.fx",
+      "match": true
+    },
+    {
+      "mesh": "menu-temple.Prototype0.Submesh36",
+      "requested": "levels/temple/metal/tmp-metal-gold-dish:war-metal-bronz,7b0d55e3-99a8-4d4a-bade-9c59a690f796,color-bump-specular.fx",
+      "index": 12,
+      "material": "levels/temple/metal/tmp-metal-gold-dish:war-metal-bronz,7b0d55e3-99a8-4d4a-bade-9c59a690f796,color-bump-specular.fx",
+      "match": true
+    }
+  ]
+}

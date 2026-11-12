@@ -1184,6 +1184,12 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             const std::array<float,2> first_uv{-2.51171875f,-2.513671875f};
             U2_TEST_ASSERT(!meshes.empty() && !meshes[0].texcoords.empty() && meshes[0].texcoords[0]==first_uv,
                            "First real UV pair decodes exactly from attribute 1 R16G16Float");
+            bool material_indices=meshes.size()==13;
+            for(size_t i=0;i<meshes.size();++i) material_indices &= meshes[i].material_index==int32_t(i) && !meshes[i].material_name.empty();
+            U2_TEST_ASSERT(material_indices,"All 13 temple material indices match the live original PrepareBinary capture");
+            U2_TEST_ASSERT(!meshes.empty() && meshes[0].material_name==
+                           "levels/temple/walls/tmp-stone-crumpled-blend:redpaint-to-lrg-brick,f8906991-3ff7-4224-813f-2dc43d693c13,blend-color-bump-specular.fx",
+                           "First temple mesh owns the exact original material reference, not a guessed texture path");
             size_t triangle_count=0;
             for (const auto &mesh : meshes) triangle_count+=mesh.triangles.size();
             const std::array<uint16_t,3> first_triangle{0,1,2};
@@ -1369,6 +1375,63 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            "Normal snapshots own their data after the source page is destroyed");
             U2_TEST_ASSERT(meshes[0].texcoords.size()==3 && meshes[0].texcoords[0]==sample_uv && std::signbit(meshes[0].texcoords[1][0]),
                            "UV snapshots own their coordinates after the source page is destroyed");
+        }
+        {
+            uint8_t page[1024]{};
+            auto put32=[&](size_t at,uint32_t value) { for(unsigned i=0;i<4;++i) page[at+i]=uint8_t(value>>(8*i)); };
+            auto ptr=[&](size_t at,size_t target) { const auto value=reinterpret_cast<uintptr_t>(page+target);for(unsigned i=0;i<8;++i) page[at+i]=uint8_t(value>>(8*i)); };
+            auto text=[&](size_t at,const char *value) { std::memcpy(page+at,value,std::strlen(value)+1); };
+            put32(8,900);text(900,"GEOMETRY_1");put32(40,1);ptr(48,128);
+            ptr(136,840);text(840,"material-test");ptr(128+0x48,860);text(860,"beta");put32(128+0x50,UINT32_MAX);
+            put32(160,3);put32(164,3);put32(168,1);ptr(176,320);ptr(192,384);
+            page[386]=1;page[388]=2;
+            page[320]=1;page[322]=12;put32(324,36);ptr(328,360);ptr(336,400);put32(360,0x060C0000);
+            put32(0x68,3);ptr(0x70,512);ptr(512,760);ptr(584,780);ptr(656,760);text(760,"beta");text(780,"alpha");text(800,"gamma");
+            std::vector<U2NativeMeshPreview> meshes;
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==1 &&
+                           meshes[0].material_index==0 && meshes[0].material_name=="beta" && meshes[0].material_name_hash==0x50906A36 &&
+                           page[128+0x50]==255,
+                           "Material lookup uses the original CRC and first duplicate, leaving the raw guest index untouched");
+            ptr(512,800);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==2,
+                           "Material indices follow table names rather than mesh order");
+            text(860,"BETA");
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==-1 &&
+                           meshes[0].material_name=="BETA",
+                           "Missing case-sensitive material lookup preserves the original -1 result");
+            text(860,"alpha");
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==1 &&
+                           meshes[0].material_name_hash==0xE13ADC9F,
+                           "Unsigned material hash ordering handles keys with the high bit set");
+            text(760,"material:5bc97c8a");text(800,"material:d5bf1bfc");text(860,"material:d5bf1bfc");ptr(512,760);ptr(656,800);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==0 &&
+                           meshes[0].material_name_hash==0x2C62520D,
+                           "Original material lookup keeps the first index even for two distinct names with the same CRC");
+            text(760,"beta");text(800,"gamma");text(860,"beta");ptr(656,760);
+            put32(0x68,UINT32_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==0,
+                           "Material preflight rejects negative or overflowing counts without replacing output");
+            put32(0x68,1);ptr(0x70,953);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Material table rejects a truncated 72-byte record");
+            ptr(0x70,952);std::memcpy(page+952,page+512,72);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==0,
+                           "Material table accepts a record ending exactly at the page boundary");
+            ptr(0x70,512);ptr(512,1023);page[1023]='X';
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Material lookup rejects unterminated table names");
+            ptr(512,760);ptr(128+0x48,1023);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Material lookup bounds requested mesh names");
+            ptr(128+0x48,860);std::memset(page+512,0xFF,8);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Material lookup rejects foreign table name pointers");
+            std::memset(page+512,0,8);std::memset(page+128+0x48,0,8);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==0 &&
+                           meshes[0].material_name.empty() && meshes[0].material_name_hash==0,
+                           "Null material names retain the original empty-name hash semantics");
+            put32(0x68,0);ptr(128+0x48,860);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==-1 && meshes[0].material_name=="beta",
+                           "An empty material table preserves an unresolved named reference");
+            std::memset(page,0,sizeof(page));
+            U2_TEST_ASSERT(meshes[0].material_name=="beta" && meshes[0].material_index==-1,
+                           "Material references remain owned after the source page is destroyed");
         }
         {
             // Coherent perspective sample 307 from the original RenderCamera
