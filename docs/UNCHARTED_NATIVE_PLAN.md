@@ -334,6 +334,11 @@ cet ajout, aucun build du jeu nécessaire.
 > charge ponctuellement pour ce seul sous-mesh (`NATIVE_TEMPLE_DETAILED_COLOR.md`).
 > Le snapshot résident reste en 64×64 ; la politique de streaming et le choix
 > LOD ne sont pas portés. Natif 484/484 et hybride 490/490 validés.
+> Le 13 novembre, un premier écran-titre statique est composé sur le temple
+> avec le logo réel de `menu.pak` (BC1 + masque BC4 comparés au GPU original),
+> l'invitation et les mentions relevées (`NATIVE_TITLE_SCREEN_PREVIEW.md`).
+> Police et disposition sont provisoires ; les transitions et contrôles du
+> menu original restent à porter. Natif 493/493 et hybride 499/499 validés.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.

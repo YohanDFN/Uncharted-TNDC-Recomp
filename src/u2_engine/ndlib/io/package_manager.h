@@ -59,6 +59,8 @@ bool u2_cpp_PackageMgr_GetNativeTexturePreview(const char *package,size_t index,
 // chain, bounded reads; no streaming state, guest object or registry mutation.
 bool u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview(const char *dictionary,const char *cooked_name,
                                                          U2NativeTexturePreview *out);
+// Captured menu logo2 BC1 + BC4 mask pair, owned first-mip preview only.
+bool u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(U2NativeTexturePixels *out);
 bool u2_cpp_PackageMgr_GetNativeMaterialTexturePreview(const char *package,size_t mesh,size_t reference,
                                                       U2NativeTexturePreview *out);
 bool u2_cpp_PackageMgr_GetNativeGeometryPreview(const char *package, std::vector<U2NativeMeshPreview> *out);

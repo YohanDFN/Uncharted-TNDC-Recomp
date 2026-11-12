@@ -1,0 +1,5 @@
+[U2 SelfTest] PASSED: 886 native C functions survived edge-case fuzzing without fault!
+[U2 EngineTest] PASSED: 831 DC detours survived full-body sandbox execution via ELF trampolines!
+[U2 EngineTest] PASSED: 490/490 functional C++23 engine assertions verified via ELF trampolines!
+Image 0x1d2f24d0: 2048x512x1 Bc1RgbaUnormBlock guest 0x1158430000+0xab800 mips 12 layers 1 samples 1 tile Thin1DThin usage { TransferSrc | TransferDst | Sampled | Storage } host 0xab800 bytes
+Image 0x1d2f2ad0: 2048x512x1 Bc4UnormBlock guest 0x11584dc000+0xab800 mips 12 layers 1 samples 1 tile Thin1DThin usage { TransferSrc | TransferDst | Sampled | Storage } host 0xab800 bytes

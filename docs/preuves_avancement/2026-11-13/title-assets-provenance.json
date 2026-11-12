@@ -1,0 +1,41 @@
+{
+  "archive": "menu.pak",
+  "vram_file_offset": 521456,
+  "planes": [
+    {
+      "cooked_name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2.tga/3DA08A9F6983BA12.ndb",
+      "table_index": 0,
+      "descriptor_page_offset": "0xad50",
+      "uid": "0x41f53d8c",
+      "vram_offset": 0,
+      "bytes": 702464,
+      "width": 2048,
+      "height": 512,
+      "mip_count": 12,
+      "format": 71,
+      "layout_tag": 3,
+      "gpu_format": "Bc1RgbaUnormBlock",
+      "gpu_tile_mode": "Thin1DThin",
+      "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9",
+      "equals_original_capture": true
+    },
+    {
+      "cooked_name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-alpha.tga/4C70F66839038231.ndb",
+      "table_index": 1,
+      "descriptor_page_offset": "0xac20",
+      "uid": "0xce17d5a2",
+      "vram_offset": 702464,
+      "bytes": 702464,
+      "width": 2048,
+      "height": 512,
+      "mip_count": 12,
+      "format": 80,
+      "layout_tag": 3,
+      "gpu_format": "Bc4UnormBlock",
+      "gpu_tile_mode": "Thin1DThin",
+      "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d",
+      "equals_original_capture": true
+    }
+  ],
+  "limits": "identical payloads also occur in localized variants; this does not identify a unique locale or port the UI shader"
+}

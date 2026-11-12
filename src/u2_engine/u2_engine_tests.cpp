@@ -1222,6 +1222,56 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            "Real GPU-matched temple column BC1 data decodes to 4096 owned pixels with the expected first RGB565 endpoint");
         }
         {
+            std::vector<uint8_t> blocks(1024);
+            blocks[0]=255;blocks[1]=0;
+            uint64_t selectors=0;for(unsigned i=0;i<16;++i) selectors|=uint64_t(i%8)<<(3*i);
+            for(unsigned i=0;i<6;++i) blocks[2+i]=uint8_t(selectors>>(8*i));
+            U2NativeTexturePixels gray;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc4Preview(&gray,blocks.data(),blocks.size(),4,4) &&
+                           (gray.rgba[0]&255)==255 && (gray.rgba[1]&255)==0 && (gray.rgba[2]&255)==218 &&
+                           (gray.rgba[3]&255)==182 && (gray.rgba[7]&255)==36 && !gray.srgb,
+                           "BC4 UNORM expands endpoints and all six interpolated values without gamma conversion");
+            blocks[0]=10;blocks[1]=110;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc4Preview(&gray,blocks.data(),blocks.size(),4,4) &&
+                           (gray.rgba[2]&255)==30 && (gray.rgba[5]&255)==90 &&
+                           (gray.rgba[6]&255)==0 && (gray.rgba[7]&255)==255,
+                           "BC4 ascending endpoints provide four interpolants plus exact zero and one");
+            for(size_t block=0;block<128;++block) {
+                std::fill(blocks.begin()+block*8,blocks.begin()+block*8+8,0);
+                blocks[block*8]=blocks[block*8+1]=uint8_t(block);
+            }
+            U2_TEST_ASSERT(u2_native_DecodeThinBc4Preview(&gray,blocks.data(),blocks.size(),64,32) &&
+                           (gray.rgba[4]&255)==1 && (gray.rgba[4*64]&255)==2 && (gray.rgba[32]&255)==64,
+                           "BC4 Thin1D detiling crosses Morton blocks and adjacent microtiles");
+            U2_TEST_ASSERT(u2_native_DecodeThinBc4Preview(&gray,blocks.data(),512,5,3) && gray.rgba.size()==15 && (gray.rgba[4]&255)==1,
+                           "BC4 partial image edges retain only pixels inside the requested dimensions");
+            const auto saved=gray.rgba;
+            U2_TEST_ASSERT(!u2_native_DecodeThinBc4Preview(&gray,blocks.data(),511,4,4) && gray.rgba==saved &&
+                           !u2_native_DecodeThinBc4Preview(&gray,nullptr,512,4,4) &&
+                           !u2_native_DecodeThinBc4Preview(nullptr,blocks.data(),512,4,4) &&
+                           !u2_native_DecodeThinBc4Preview(&gray,blocks.data(),512,0,4) &&
+                           !u2_native_DecodeThinBc4Preview(&gray,blocks.data(),512,4097,4) && gray.rgba==saved,
+                           "BC4 missing, truncated and oversized inputs preserve the previous owned output");
+            std::vector<uint8_t> rgb(512),alpha(512);rgb[0]=0;rgb[1]=0xF8;alpha[0]=alpha[1]=128;
+            U2_TEST_ASSERT(u2_native_BuildTitleLogoPreview(&gray,rgb.data(),rgb.size(),alpha.data(),alpha.size(),4,4) &&
+                           gray.rgba[0]==0x800000FF && gray.rgba[15]==0x800000FF,
+                           "Title logo combines original BC1 RGB with separate BC4 alpha without premultiplication");
+            const auto composed=gray.rgba;
+            U2_TEST_ASSERT(!u2_native_BuildTitleLogoPreview(&gray,rgb.data(),rgb.size(),alpha.data(),511,4,4) && gray.rgba==composed &&
+                           !u2_native_BuildTitleLogoPreview(nullptr,rgb.data(),rgb.size(),alpha.data(),alpha.size(),4,4),
+                           "Logo composition publishes nothing when either plane or the output is invalid");
+            U2NativeTexturePixels logo;
+            const bool loaded=u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(&logo);
+            U2_TEST_ASSERT(loaded && logo.width==2048 && logo.height==512 && logo.rgba.size()==1048576 && !logo.srgb &&
+                           std::any_of(logo.rgba.begin(),logo.rgba.end(),[](uint32_t p) { return (p>>24)==0; }) &&
+                           std::any_of(logo.rgba.begin(),logo.rgba.end(),[](uint32_t p) { return (p>>24)==255; }) &&
+                           std::any_of(logo.rgba.begin(),logo.rgba.end(),[](uint32_t p) { return (p>>24)>0 && (p>>24)<255; }),
+                           "Real menu package logo pair produces owned RGB with transparent, opaque and antialiased mask pixels");
+            const auto *menu=u2_cpp_PackageMgr_FindNativeRequest("menu");
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(nullptr) && menu && menu->state==U2NativePackageState::Resolved,
+                           "Title preview rejects a missing output and does not promote the menu package to Ready");
+        }
+        {
             std::vector<uint8_t> page(1024);
             const auto put32=[&](size_t at,uint32_t value) { for(unsigned i=0;i<4;++i) page[at+i]=uint8_t(value>>(i*8)); };
             const auto put64=[&](size_t at,uint64_t value) { for(unsigned i=0;i<8;++i) page[at+i]=uint8_t(value>>(i*8)); };

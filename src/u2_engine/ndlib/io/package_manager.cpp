@@ -325,6 +325,89 @@ extern "C" bool u2_cpp_PackageMgr_InspectVramExtent(const uint8_t *header,size_t
     *offset=end;*bytes=length;return true;
 }
 
+extern "C" bool u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(U2NativeTexturePixels *out) {
+    if(!out) return false;
+    const int fd=runtime_file_open("/app0/u2data/build/main/pak22/ps4/menu.pak",0,0);
+    if(fd<0) return false;
+    struct Close { int fd;~Close() { runtime_file_close(fd); } } close{fd};
+    try {
+        const int64_t file_size=runtime_file_lseek(fd,0,2);
+        std::array<uint8_t,0x2C> prefix{};
+        uint32_t count=0,table=0;
+        if(file_size<0 || runtime_file_pread(fd,prefix.data(),prefix.size(),0)!=int64_t(prefix.size()) ||
+           !u2_cpp_PackageMgr_InspectHeader(prefix.data(),prefix.size(),uint64_t(file_size),&count,&table) || count!=2) return false;
+        std::array<uint8_t,24> entries{};
+        if(runtime_file_pread(fd,entries.data(),entries.size(),table)!=int64_t(entries.size())) return false;
+        const uint32_t header_bytes=read_le32(entries.data());
+        if(header_bytes< uint64_t(table)+entries.size() || header_bytes>4*1024*1024) return false;
+        std::vector<uint8_t> header(header_bytes);
+        if(runtime_file_pread(fd,header.data(),header.size(),0)!=int64_t(header.size())) return false;
+        // The menu VRAM bank exceeds the resident-loader's 16 MiB budget.
+        // Validate its extent without allocating it; read just the two planes.
+        uint64_t vram_start=header_bytes;
+        for(size_t i=0;i<2;++i) {
+            const auto *e=entries.data()+i*12;
+            const uint64_t begin=read_le32(e),bytes=read_le32(e+4);
+            if(read_le32(e+8)!=0 || begin<vram_start || begin>uint64_t(file_size) || bytes>uint64_t(file_size)-begin) return false;
+            vram_start=begin+bytes;
+        }
+        const uint64_t vram_bytes=uint64_t(file_size)-vram_start;
+        if(read_le32(header.data()+0x20)!=vram_bytes) return false;
+        std::array<std::vector<uint8_t>,2> pages;
+        for(size_t i=0;i<2;++i) {
+            const auto *e=entries.data()+i*12;
+            const uint32_t bytes=read_le32(e+4);
+            if(bytes<16 || bytes>4*1024*1024) return false;
+            pages[i].resize(bytes);
+            if(runtime_file_pread(fd,pages[i].data(),bytes,read_le32(e))!=int64_t(bytes) ||
+               !u2_cpp_PackageMgr_CheckPage(e,12,uint64_t(file_size),pages[i].data(),bytes)) return false;
+        }
+        std::vector<std::string> types;bool relocated=false;
+        if(!u2_cpp_PackageMgr_ReadLoginTypes(header.data(),header.size(),pages[0].data(),pages[0].size(),pages[1].data(),pages[1].size(),&types) ||
+           !u2_cpp_PackageMgr_RelocatePages(header.data(),header.size(),pages[0].data(),pages[0].size(),pages[1].data(),pages[1].size(),&relocated)) return false;
+        const auto *root=pages[read_le32(header.data()+8)].data()+read_le32(header.data()+12);
+        std::array<std::vector<uint8_t>,2> blocks;
+        const char *cooked[]={
+            "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2.tga/3DA08A9F6983BA12.ndb",
+            "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-alpha.tga/4C70F66839038231.ndb"};
+        for(size_t login=0;login<types.size();++login) {
+            if(types[login]!="TEXTURE_TABLE") continue;
+            const uint32_t pi=read_le32(root+0x28+login*8),md=read_le32(root+0x2C+login*8);
+            const auto &page=pages[pi];const size_t size=page.size();
+            const auto range=[&](uint64_t address,size_t bytes,size_t &offset) {
+                const auto base=reinterpret_cast<uintptr_t>(page.data());
+                if(address<base || address-base>size || bytes>size-(address-base)) return false;
+                offset=size_t(address-base);return true;
+            };
+            if(md>size || size-md<0x40) return false;
+            const auto *m=page.data()+md;
+            const auto u64=[](const uint8_t *p) { uint64_t n=0;for(unsigned i=0;i<8;++i)n|=uint64_t(p[i])<<(8*i);return n; };
+            const uint32_t textures=read_le32(m+0x20);
+            size_t keys=0,descriptors=0;
+            if(textures>4096 || !range(u64(m+0x28),size_t(textures)*4,keys) || !range(u64(m+0x38),size_t(textures)*8,descriptors)) return false;
+            for(size_t i=0;i<textures;++i) {
+                size_t at=0,name=0;
+                if(!range(u64(page.data()+descriptors+i*8),64,at)) return false;
+                const auto *d=page.data()+at;
+                if(!range(u64(d+0x38),1,name) || !std::memchr(page.data()+name,0,size-name)) return false;
+                for(size_t slot=0;slot<2;++slot) {
+                    if(std::strcmp(reinterpret_cast<const char*>(page.data()+name),cooked[slot])) continue;
+                    if(!blocks[slot].empty()) return false;
+                    const uint64_t offset=u64(d+8);const uint32_t bytes=read_le32(d+0x10);
+                    if(read_le32(d+0x14)!=read_le32(page.data()+keys+i*4) || read_le32(d+0x18)!=1 ||
+                       read_le32(d+0x1C)!=(slot==0 ? 71u : 80u) || read_le32(d+0x20)!=0x01000000 ||
+                       read_le32(d+0x24)!=12 || read_le32(d+0x28)!=2048 || read_le32(d+0x2C)!=512 ||
+                       read_le32(d+0x34)!=3 || bytes!=702464 || offset>vram_bytes || bytes>vram_bytes-offset) return false;
+                    blocks[slot].resize(bytes);
+                    if(runtime_file_pread(fd,blocks[slot].data(),bytes,int64_t(vram_start+offset))!=int64_t(bytes)) return false;
+                }
+            }
+        }
+        if(blocks[0].empty() || blocks[1].empty()) return false;
+        return u2_native_BuildTitleLogoPreview(out,blocks[0].data(),blocks[0].size(),blocks[1].data(),blocks[1].size(),2048,512);
+    } catch(const std::bad_alloc &) { return false; }
+}
+
 extern "C" bool u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview(const char *dictionary,const char *name,
                                                                     U2NativeTexturePreview *out) {
     if(!dictionary || !*dictionary || !name || !*name || !out) return false;

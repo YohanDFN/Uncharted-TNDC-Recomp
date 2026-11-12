@@ -16,6 +16,7 @@
 #include "../src/u2_engine/u2_engine.h"
 #include "png_loader.h"
 #include "temple_preview.h"
+#include "title_preview.h"
 
 namespace u2::standalone {
 
@@ -113,6 +114,7 @@ public:
         if (m_temple_preview.load()) {
             native_log("[U2 Native] Previewing real temple opaque surfaces with depth from the start camera.\n");
             if (m_renderer) SDL_SetRenderLogicalPresentation(m_renderer,1920,1080,SDL_LOGICAL_PRESENTATION_LETTERBOX);
+            if(!m_title_preview.load(m_renderer)) native_log("[U2 Native Title] original logo unavailable; keeping geometry preview.\n");
         } else {
             native_log("[U2 Native] Temple position preview unavailable; see resource diagnostics.\n");
         }
@@ -135,6 +137,10 @@ public:
         while (running) {
             while (SDL_PollEvent(&ev)) {
                 if (m_temple_preview.ready()) {
+                    if(ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_F1 && !ev.key.repeat && m_title_preview.ready()) {
+                        m_title_visible=!m_title_visible;m_capture_attempted=false;
+                        native_log(m_title_visible ? "[U2 Native Title] visible\n" : "[U2 Native Title] hidden\n");
+                    }
                     if (ev.type==SDL_EVENT_QUIT || (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_ESCAPE)) running=false;
                     if (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_SPACE && !ev.key.repeat) {
                         m_temple_preview.toggle_mode();m_capture_attempted=false;
@@ -230,6 +236,7 @@ public:
 
     void shutdown() {
         m_temple_preview.release_texture();
+        m_title_preview.release_texture();
         if (m_splash_texture) {
             SDL_DestroyTexture(m_splash_texture);
             m_splash_texture = nullptr;
@@ -725,7 +732,9 @@ private:
 
     void render_frame() {
         if (m_temple_preview.ready()) {
-            m_temple_preview.draw(m_renderer);
+            const bool title=m_title_visible && m_title_preview.ready();
+            m_temple_preview.draw(m_renderer,!title);
+            if(title) m_title_preview.draw(m_renderer);
             if (!m_capture_attempted) {
                 m_capture_attempted=true;
                 const char *path=std::getenv("BB_NATIVE_CAPTURE");
@@ -769,6 +778,8 @@ private:
     };
 
     TemplePreview m_temple_preview;
+    TitlePreview m_title_preview;
+    bool m_title_visible{true};
     bool m_capture_attempted{false};
     int m_menu_selected_item{0};
     std::string m_last_action_msg{""};

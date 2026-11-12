@@ -186,7 +186,7 @@ public:
         std::printf("[U2 Native Preview] mode=%s\n",m_mode==Mode::Solid ? "solid" : m_mode==Mode::Wireframe ? "wireframe" : "points");
         std::fflush(stdout);
     }
-    void draw(SDL_Renderer *renderer) {
+    void draw(SDL_Renderer *renderer,bool show_caption=true) {
         if (!ready()) return;
         SDL_SetRenderDrawColor(renderer,8,12,19,255);SDL_RenderClear(renderer);
         if(m_mode==Mode::Solid && !m_solid_texture) {
@@ -211,6 +211,7 @@ public:
             SDL_SetRenderDrawColor(renderer,color.r,color.g,color.b,color.a);
             if (!m_batches[i].empty()) SDL_RenderFillRects(renderer,m_batches[i].data(),static_cast<int>(m_batches[i].size()));
         }
+        if(!show_caption) return;
         SDL_SetRenderDrawColor(renderer,8,12,19,230);
         const SDL_FRect bar{0,0,1920,56};SDL_RenderFillRect(renderer,&bar);
         SDL_SetRenderDrawColor(renderer,240,235,220,255);

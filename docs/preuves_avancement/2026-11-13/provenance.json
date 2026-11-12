@@ -1,0 +1,56 @@
+{
+  "date_du_dossier": "2026-11-13",
+  "fuseau": "Europe/Paris",
+  "captures": [
+    {
+      "fichier": "reference-titre-hybride-2026-11-11.png",
+      "type": "hybrid_reference_framebuffer",
+      "dimensions": [
+        2560,
+        1440
+      ],
+      "sha256": "75b4834c973b8fe9592005aaa01b1886e7e95da0fe74691b784e99eb6dd51e29",
+      "capture_date": "2026-11-11",
+      "source": "user/diag_hybrid_menu_restored.png, docs/HYBRID_BOOT_RESTORE.md",
+      "build_commit": null,
+      "legende": "Previously validated original title-screen capture, reused unchanged; not a successful new capture from this session."
+    },
+    {
+      "fichier": "01-ecran-titre-natif.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "0be325afeb950b3f2cebb9c86524953f1681e14aa6d6ec523f80ccf42f6d0abb",
+      "build_base_commit": "ad88d7bbddbdeb73625c4429915877ebc9b4fe16",
+      "build_changes": "static title preview using the captured menu logo BC1 and BC4 planes",
+      "executable_sha256": "40c35ed58507b4de52e4bf8eb7a6add1d616578bc686f5fca50d4711ea194b22",
+      "scenario": "menu-temple preview plus original title logo, observed French prompt and legal text",
+      "conversion": "SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Static native title screen. Original logo pixels; temporary SDL font, reference-derived layout, vertical image flip and readability shade. No menu transition."
+    }
+  ],
+  "validation": {
+    "native_assertions": "493/493",
+    "native_seconds": 6,
+    "native_exit": 0,
+    "hybrid_assertions": "499/499",
+    "hybrid_seconds": 30,
+    "hybrid_exit": "STOPPED_AFTER_TIMEOUT",
+    "selftest": 886,
+    "full_body": 831,
+    "toggle_seconds": 12,
+    "toggle_observed": [
+      "hidden",
+      "visible"
+    ],
+    "toggle_exit": 0
+  },
+  "limits": [
+    "original UI pipeline and transitions not ported",
+    "font, layout, prompt symbol and shade are preview conventions",
+    "fresh original framebuffer capture attempts unsuccessful; prior validated reference reused",
+    "HTML display not checked at user request"
+  ]
+}

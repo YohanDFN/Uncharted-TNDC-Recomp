@@ -1,9 +1,28 @@
 # Preuves d'avancement — Uncharted 2 natif
 
-Dossier constitué le **12 novembre 2026**, fuseau Europe/Paris.
+Historique des **12 et 13 novembre 2026**, fuseau Europe/Paris.
 
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
+
+## 13 novembre : premier écran-titre sur le temple natif
+
+[Galerie autonome du 13 novembre](preuves_avancement/2026-11-13/preuves_avancement.html),
+avec référence hybride conservée et capture native.
+
+![Premier écran-titre natif](preuves_avancement/2026-11-13/01-ecran-titre-natif.png)
+
+Le logo réel **2048×512**, couleur BC1 et masque BC4, est décodé depuis
+`menu.pak` après comparaison des deux chaînes aux images GPU originales.
+L'invitation française et les mentions relevées apparaissent sur le temple.
+Disposition et police restent provisoires ; l'invitation est statique et la
+transition vers les options n'est pas portée. F1 permet de retrouver le décor seul.
+
+Validation : natif **493/493**, sortie **0** après six secondes ; hybride
+**499/499**, SelfTest et sandbox réussis, timeout attendu de **30 secondes**.
+Test F1 de douze secondes réussi. Aucun crash ni nouvelle assertion.
+Capture réelle SDL 1920×1080 du build basé sur `ad88d7b` avec cette évolution ;
+empreinte dans la provenance. Voir [preuves et limites](NATIVE_TITLE_SCREEN_PREVIEW.md).
 
 ## Première étape : vrais sommets du temple
 

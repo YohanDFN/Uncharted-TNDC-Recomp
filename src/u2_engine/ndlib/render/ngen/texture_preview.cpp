@@ -147,6 +147,50 @@ bool u2_native_FindDictionaryTextureDescriptor(U2NativeDictionaryTextureDescript
     } catch(const std::bad_alloc &) { return false; }
 }
 
+bool u2_native_DecodeThinBc4Preview(U2NativeTexturePixels *out,const uint8_t *data,
+                                    size_t bytes,uint32_t width,uint32_t height) {
+    if(!out || !data || !width || !height || width>4096 || height>4096) return false;
+    const size_t columns=(width+3)/4,rows=(height+3)/4;
+    const size_t pitch=(columns+7)&~size_t{7},padded_rows=(rows+7)&~size_t{7};
+    if(bytes<pitch*padded_rows*8) return false;
+    try {
+        U2NativeTexturePixels result;result.width=width;result.height=height;
+        result.rgba.resize(size_t(width)*height);
+        for(size_t y=0;y<rows;++y) for(size_t x=0;x<columns;++x) {
+            size_t morton=0;
+            for(unsigned bit=0;bit<3;++bit) {
+                morton|=((x>>bit)&1)<<(2*bit);morton|=((y>>bit)&1)<<(2*bit+1);
+            }
+            const auto *s=data+(((y/8)*(pitch/8)+x/8)*64+morton)*8;
+            std::array<unsigned,8> palette{s[0],s[1]};
+            if(s[0]>s[1]) for(unsigned i=2;i<8;++i) palette[i]=((8-i)*s[0]+(i-1)*s[1])/7;
+            else {
+                for(unsigned i=2;i<6;++i) palette[i]=((6-i)*s[0]+(i-1)*s[1])/5;
+                palette[6]=0;palette[7]=255;
+            }
+            uint64_t indices=0;for(unsigned i=0;i<6;++i) indices|=uint64_t(s[2+i])<<(8*i);
+            for(unsigned by=0;by<4;++by) for(unsigned bx=0;bx<4;++bx) {
+                const size_t px=x*4+bx,py=y*4+by;
+                if(px>=width || py>=height) continue;
+                const uint32_t value=palette[(indices>>(3*(by*4+bx)))&7];
+                result.rgba[py*width+px]=value|(value<<8)|(value<<16)|0xFF000000u;
+            }
+        }
+        *out=std::move(result);return true;
+    } catch(const std::bad_alloc &) { return false; }
+}
+
+bool u2_native_BuildTitleLogoPreview(U2NativeTexturePixels *out,
+    const uint8_t *color,size_t color_bytes,const uint8_t *alpha,size_t alpha_bytes,
+    uint32_t width,uint32_t height) {
+    if(!out) return false;
+    U2NativeTexturePixels rgb,mask;
+    if(!u2_native_DecodeThinBc1Preview(&rgb,color,color_bytes,width,height,false) ||
+       !u2_native_DecodeThinBc4Preview(&mask,alpha,alpha_bytes,width,height)) return false;
+    for(size_t i=0;i<rgb.rgba.size();++i) rgb.rgba[i]=(rgb.rgba[i]&0xFFFFFFu)|((mask.rgba[i]&255)<<24);
+    *out=std::move(rgb);return true;
+}
+
 bool u2_native_DecodeThinBc1Preview(U2NativeTexturePixels *out,const uint8_t *data,
                                     size_t bytes,uint32_t width,uint32_t height,bool srgb) {
     // Scope/budget of the viewer, not a limit of the original texture format.

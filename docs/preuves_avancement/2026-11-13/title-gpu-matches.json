@@ -1,0 +1,228 @@
+[
+  {
+    "pid": 28524,
+    "address": "0x1158430000",
+    "format": "Bc1RgbaUnormBlock",
+    "bytes": 702464,
+    "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9",
+    "matches": [
+      {
+        "descriptor": "0x38e0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-tur.tga/17D4D44EF8ED6F9C.ndb",
+        "format": 71,
+        "vram_offset": 68896256,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x3b60",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-swe.tga/0AA9303575D1D52A.ndb",
+        "format": 71,
+        "vram_offset": 67491328,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x3de0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-sas.tga/725767B7B83FBE86.ndb",
+        "format": 71,
+        "vram_offset": 66086400,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x42e0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-por.tga/2AC91305EE5B27CA.ndb",
+        "format": 71,
+        "vram_offset": 63276544,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x47e0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-nor.tga/575A33EA47694420.ndb",
+        "format": 71,
+        "vram_offset": 60466688,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x4f60",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-fre.tga/72CD21354FC35878.ndb",
+        "format": 71,
+        "vram_offset": 57648640,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x51e0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-fin.tga/9C07A6951852A8FA.ndb",
+        "format": 71,
+        "vram_offset": 56243712,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x5460",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-dut.tga/718AABAAFE356C1A.ndb",
+        "format": 71,
+        "vram_offset": 54838784,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x56e0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-dan.tga/A61CB444633A7DBC.ndb",
+        "format": 71,
+        "vram_offset": 53433856,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x5960",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-cze.tga/30627CA2AB6B35ED.ndb",
+        "format": 71,
+        "vram_offset": 52028928,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x5be0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-chi.tga/102DE4DEADDE2333.ndb",
+        "format": 71,
+        "vram_offset": 50624000,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0x5e60",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-bra.tga/3798EE7A20E59310.ndb",
+        "format": 71,
+        "vram_offset": 49219072,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      },
+      {
+        "descriptor": "0xad50",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2.tga/3DA08A9F6983BA12.ndb",
+        "format": 71,
+        "vram_offset": 0,
+        "bytes": 702464,
+        "sha256": "0173da24ef461eac499a0cc4f031d96fc02a8369b344f7c88fa08d4c306e6cd9"
+      }
+    ]
+  },
+  {
+    "pid": 28524,
+    "address": "0x11584dc000",
+    "format": "Bc4UnormBlock",
+    "bytes": 702464,
+    "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d",
+    "matches": [
+      {
+        "descriptor": "0x37a0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-tur-alpha.tga/1A0917651C6AADAB.ndb",
+        "format": 80,
+        "vram_offset": 69598720,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x3a20",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-swe-alpha.tga/FA87A347FCEB5409.ndb",
+        "format": 80,
+        "vram_offset": 68193792,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x3ca0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-sas-alpha.tga/72EFFA89AC17AF0D.ndb",
+        "format": 80,
+        "vram_offset": 66788864,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x41a0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-por-alpha.tga/BF09FBE3A4AEC329.ndb",
+        "format": 80,
+        "vram_offset": 63979008,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x46a0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-nor-alpha.tga/395D4CA7CA1C9467.ndb",
+        "format": 80,
+        "vram_offset": 61169152,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x4e20",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-fre-alpha.tga/75C55570287BC50F.ndb",
+        "format": 80,
+        "vram_offset": 58351104,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x50a0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-fin-alpha.tga/0731491C83AD84F9.ndb",
+        "format": 80,
+        "vram_offset": 56946176,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x5320",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-dut-alpha.tga/3BAB8DDF74E0BB19.ndb",
+        "format": 80,
+        "vram_offset": 55541248,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x55a0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-dan-alpha.tga/8A81C49FE14834CB.ndb",
+        "format": 80,
+        "vram_offset": 54136320,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x5820",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-cze-alpha.tga/BBE8FBEE6437F55A.ndb",
+        "format": 80,
+        "vram_offset": 52731392,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x5aa0",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-chi-alpha.tga/54F275808E9184F0.ndb",
+        "format": 80,
+        "vram_offset": 51326464,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0x5d20",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-bra-alpha.tga/0A45BA02C6F623F7.ndb",
+        "format": 80,
+        "vram_offset": 49921536,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      },
+      {
+        "descriptor": "0xac20",
+        "name": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-alpha.tga/4C70F66839038231.ndb",
+        "format": 80,
+        "vram_offset": 702464,
+        "bytes": 702464,
+        "sha256": "7abbff48948699ad737428cf33ea0d93bff8f57a0a2bb36a1f08893b31f60f8d"
+      }
+    ]
+  }
+]
