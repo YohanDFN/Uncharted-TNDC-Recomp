@@ -1,0 +1,26 @@
+{
+  "date_du_dossier": "2026-11-12",
+  "fuseau": "Europe/Paris",
+  "version_capture_fil_de_fer": "5c6750fe61515a09e2734ad2baf86936966ffdbf",
+  "captures": [
+    {
+      "fichier": "01-temple-sommets.png",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "2aa10a3890b915f58271961a946e104a5c6735ee9ce7538efd6a39311f150ccf",
+      "legende": "Capture conservée du premier aperçu validé, associé au commit `8199a62`. Treize sous-meshes issus de `menu-temple.pak` : **12 383 positions**, dont **11 576 visibles** depuis la caméra de départ."
+    },
+    {
+      "fichier": "02-temple-fil-de-fer.png",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "6d6865cabf687756398a0e07844fbb3e4d8a5f02a2099ec5723a6567484c31ab",
+      "legende": "Nouvelle capture réalisée pour ce dossier sur la version `5c6750f`. **13 680 triangles réels**, **24 130 arêtes visibles**. Les buffers d'indices des treize sous-meshes ont été retrouvés dans les dessins du moteur original, avec des indices de 16 bits et une topologie TriangleList sans primitive restart."
+    }
+  ],
+  "executable_sha256": "82c0112ce464f14a04ac738d1a2e13e9c4bd5193ade43cc56e24eb69b05c597a"
+}
