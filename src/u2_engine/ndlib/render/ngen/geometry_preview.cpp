@@ -62,6 +62,30 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
             if (!end) return false;
             U2NativeMeshPreview mesh;
             mesh.name.assign(reinterpret_cast<const char *>(page+name),end-(page+name));
+            // C4E4F0 copies four-byte attribute definitions; descriptors are
+            // 24 bytes apart at C36F80. Identify by ID, never by stream order.
+            for (size_t s=0;s<streams;++s) {
+                const auto *extra=page+stream+s*24;
+                const uint16_t attributes=u16(extra);
+                size_t definitions=0;
+                if (!attributes || attributes>4 || !range(u64(extra+8),size_t(attributes)*4,definitions)) return false;
+                for (size_t a=0;a<attributes;++a) {
+                    if (page[definitions+a*4]!=2) continue;
+                    size_t normal_data=0;
+                    if (!mesh.normals.empty() || attributes!=1 || u32(page+definitions)!=0x0A080002 ||
+                        u16(extra+2)!=8 || u32(extra+4)!=vertices*8 ||
+                        !range(u64(extra+16),size_t(vertices)*8,normal_data)) return false;
+                    mesh.normals.resize(vertices);
+                    for (size_t v=0;v<vertices;++v) for (size_t component=0;component<4;++component) {
+                        const uint16_t half=u16(page+normal_data+v*8+component*2);
+                        const unsigned exponent=(half>>10)&31, fraction=half&1023;
+                        if (exponent==31) return false; // Reject infinities/NaNs atomically.
+                        const float magnitude=exponent ? std::ldexp(float(1024+fraction),int(exponent)-25)
+                                                       : std::ldexp(float(fraction),-24);
+                        mesh.normals[v][component]=(half&0x8000) ? -magnitude : magnitude;
+                    }
+                }
+            }
             mesh.positions.resize(vertices);
             mesh.triangles.resize(indices/3);
             for (size_t triangle=0;triangle<mesh.triangles.size();++triangle) {

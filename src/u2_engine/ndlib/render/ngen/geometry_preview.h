@@ -9,11 +9,15 @@
 struct U2NativeMeshPreview {
     std::string name;
     std::vector<std::array<float, 3>> positions;
+    // Optional attribute ID 2, R16G16B16A16Float. Preserve all four components;
+    // no normalization or assumption about the original lighting model.
+    std::vector<std::array<float, 4>> normals;
     std::vector<std::array<uint16_t, 3>> triangles;
 };
 
 // Supports the established first position stream: one attribute, ID/offset 0,
-// R32G32B32Float (format 6), stride 12. Other encodings/cross-page pointers fail.
+// R32G32B32Float (format 6), stride 12. Optional normal attribute ID 2 supports
+// only offset 0, size/stride 8, format 10. Other encodings/cross-page pointers fail.
 bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
                                    const uint8_t *page, size_t page_size,
                                    size_t metadata_offset);

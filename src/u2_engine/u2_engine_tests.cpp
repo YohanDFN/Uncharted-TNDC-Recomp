@@ -1085,7 +1085,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         {
             std::vector<U2NativeMeshPreview> meshes;
             U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeGeometryPreview("menu-temple", &meshes) && meshes.size()==13,
-                           "Real GEOMETRY_1 yields 13 owned position-only mesh snapshots");
+                           "Real GEOMETRY_1 yields 13 owned mesh snapshots");
             U2_TEST_ASSERT(!meshes.empty() && meshes[0].name=="menu-temple.Prototype0.Submesh0" && meshes[0].positions.size()==321 &&
                            meshes[0].positions[0][0]==-69.251220703125f && meshes[0].positions[0][1]==38.54443359375f &&
                            meshes[0].positions[0][2]==-9.87060546875f,
@@ -1093,6 +1093,20 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             size_t total=0;
             for (const auto &mesh : meshes) total+=mesh.positions.size();
             U2_TEST_ASSERT(total==12383, "All 13 temple mesh position streams decoded with their 0x88 descriptor stride");
+            size_t normal_count=0;bool normal_lengths=true;
+            for (const auto &mesh : meshes) {
+                normal_count+=mesh.normals.size();
+                normal_lengths &= mesh.normals.size()==mesh.positions.size();
+                for (const auto &n : mesh.normals) {
+                    const float length=std::sqrt(n[0]*n[0]+n[1]*n[1]+n[2]*n[2]);
+                    normal_lengths &= length>0.993f && length<1.007f && n[3]==1;
+                }
+            }
+            U2_TEST_ASSERT(normal_count==12383 && normal_lengths,
+                           "All real temple attribute-2 streams decode near-unit normals with preserved w=1");
+            const std::array<float,4> first_normal{-0.00390625f,1,-0.00390625f,1};
+            U2_TEST_ASSERT(!meshes.empty() && !meshes[0].normals.empty() && meshes[0].normals[0]==first_normal,
+                           "First original temple normal preserves exact signed binary16 values");
             size_t triangle_count=0;
             for (const auto &mesh : meshes) triangle_count+=mesh.triangles.size();
             const std::array<uint16_t,3> first_triangle{0,1,2};
@@ -1116,7 +1130,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             const std::array<float,3> first{-1,2,3.5f};
             for (size_t i=0;i<3;++i) put32(464+i*4,std::bit_cast<uint32_t>(first[i]));
             U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==1 &&
-                           meshes[0].positions.size()==3 && meshes[0].positions[0]==first,
+                           meshes[0].positions.size()==3 && meshes[0].positions[0]==first && meshes[0].normals.empty(),
                            "Geometry preview decodes signed nonzero float3 positions");
             U2_TEST_ASSERT(meshes[0].triangles.size()==1 && meshes[0].triangles[0]==first_triangle,
                            "Geometry decoder preserves little-endian uint16 triangle indices");
@@ -1170,9 +1184,68 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            !u2_native_ReadGeometryPreview(&meshes,nullptr,sizeof(page),0) &&
                            !u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),SIZE_MAX) &&
                            !u2_native_ReadGeometryPreview(&meshes,page,0x77,0), "Geometry preview rejects null, overflowing and truncated metadata");
+            // Add an optional normal stream to the synthetic position-only page.
+            put32(40,1);ptr(128+48,568);put32(128+40,2);
+            std::memcpy(page+568,page+416,24);
+            auto put16=[&](size_t at,uint16_t value) { page[at]=uint8_t(value);page[at+1]=uint8_t(value>>8); };
+            put16(592,1);put16(594,8);put32(596,24);ptr(600,672);ptr(608,680);put32(672,0x0A080002);
+            for(size_t v=0;v<3;++v) {
+                put16(680+v*8,0xBC00);put16(682+v*8,0x3800);
+                put16(684+v*8,1);put16(686+v*8,0x8000);
+            }
+            const std::array<float,4> sample_normal{-1,0.5f,0x1p-24f,-0.0f};
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==1 &&
+                           meshes[0].normals.size()==3 && meshes[0].normals[0]==sample_normal &&
+                           std::signbit(meshes[0].normals[0][3]),
+                           "Normal decoding preserves signed values, subnormals and negative zero without normalization");
+            put16(680,0x7BFF);put16(682,0x0400);put16(684,0x03FF);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) &&
+                           meshes[0].normals[0][0]==65504 && meshes[0].normals[0][1]==0x1p-14f &&
+                           meshes[0].normals[0][2]==1023*0x1p-24f,
+                           "Normal binary16 conversion handles maximum finite and normal/subnormal boundaries exactly");
+            put16(680,0xBC00);put16(682,0x3800);put16(684,1);
+            bool rejected_specials=true;
+            for(uint16_t special : {uint16_t{0x7C00},uint16_t{0xFC00},uint16_t{0x7E01}}) {
+                put16(680,special);
+                rejected_specials &= !u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) &&
+                    meshes[0].normals[0][0]==65504;
+            }
+            U2_TEST_ASSERT(rejected_specials,"Normal stream rejects infinities and NaN without publishing partial output");
+            put16(680,0xBC00);put32(672,0x06080002);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Normal stream refuses unsupported formats");
+            put32(672,0x0A080102);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Normal stream refuses unproven attribute offsets");
+            put32(672,0x0A080002);put16(594,4);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Normal stream checks its eight-byte stride");
+            put16(594,8);put32(596,23);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Normal stream checks exact vertex byte count");
+            put32(596,24);put64(608,UINT64_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Normal stream rejects foreign data pointers");
+            ptr(608,745);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Normal stream rejects data truncated by one byte");
+            ptr(608,744);std::memcpy(page+744,page+680,24);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].normals[0]==sample_normal,
+                           "Normal stream accepts data ending exactly at the page boundary");
+            ptr(608,680);put32(128+40,3);std::memcpy(page+616,page+592,24);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Normal streams reject duplicate semantic IDs");
+            put32(672,0x0A080004);ptr(624,708);put32(708,0x0A080002);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].normals[0]==sample_normal,
+                           "Normal stream lookup follows attribute ID rather than its stream slot");
+            ptr(624,767);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Normal stream bounds attribute definitions before reading semantic IDs");
+            ptr(624,708);put16(616,0);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Stream inspection refuses empty attribute arrays");
+            put16(616,5);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
+                           "Stream inspection respects the original four-attribute limit");
+            put16(616,1);
             std::memset(page,0,sizeof(page));
             U2_TEST_ASSERT(meshes[0].name=="test-mesh" && meshes[0].positions[0]==first && meshes[0].triangles[0]==first_triangle,
                            "Geometry positions and names survive destruction of source page data");
+            U2_TEST_ASSERT(meshes[0].normals.size()==3 && meshes[0].normals[0]==sample_normal && std::signbit(meshes[0].normals[0][3]),
+                           "Normal snapshots own their data after the source page is destroyed");
         }
         {
             // Coherent perspective sample 307 from the original RenderCamera

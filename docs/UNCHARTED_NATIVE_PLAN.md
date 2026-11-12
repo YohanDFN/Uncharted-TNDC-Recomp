@@ -199,6 +199,10 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > `NATIVE_TEMPLE_WIREFRAME.md` et `NATIVE_TEMPLE_SOLID_PREVIEW.md`.
 > Une image statique est calculée sur CPU avec profondeur par pixel puis présentée
 > dans une texture SDL. Espace parcourt surfaces, fil de fer et sommets.
+> Les 12 383 normales du temple sont également décodées depuis l'attribut 2
+> R16G16B16A16Float, sans modifier l'affichage (`NATIVE_TEMPLE_NORMALS.md`).
+> Leur identification est appuyée par la géométrie ; la liaison au shader actif
+> reste à établir avant de revendiquer le rendu original.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
