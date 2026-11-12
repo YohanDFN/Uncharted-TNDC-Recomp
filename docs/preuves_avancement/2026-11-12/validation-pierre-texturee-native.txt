@@ -1,0 +1,166 @@
+[NativeTest] Lancement de out\uncharted2-native.exe sur l'ecran 1 (Fermeture auto: 6s)...
+============================================================
+[U2 Native] Uncharted 2: Among Thieves — Native C++23 Recomp
+[U2 Native] Starting Standalone Engine (Zero PS4 Code Execution)
+============================================================
+[U2 Native] Engine Context initialized (24 MiB non-executable data buffer, 0 guest code pages)
+[U2 Native] Loading ELF data from: out\big2\eboot.elf
+[U2 Native] Loaded 2 data/rodata segments (16399 KiB) from 'out\big2\eboot.elf'
+[U2 Engine] Patched GetSubMeshInstance bounds check at 0x00C47DE2 -> skip out-of-bounds submeshes
+[U2 Recomp] Module 'player': installed 156 native detours
+[U2 Recomp] Module 'npc': installed 127 native detours
+[U2 Recomp] Module 'audio': installed 17 native detours
+[U2 Recomp] Module 'event': installed 42 native detours
+[U2 Recomp] Module 'scene': installed 492 native detours
+[U2 Recomp] Module 'engine': installed 80 native detours
+[U2 Recomp] Installed 914 native C/C++ function detours across 6 modules (ExecuteScriptCode=GUEST_ELF, EvalEx=GUEST_ELF, Run=GUEST_ELF)
+[U2 Native] Memory Subsystem initialized (AllocStack depth 46, thread-local active)
+[U2 Native] Initializing SDL video subsystem...
+[U2 Native] Enumerated 2 connected display(s):
+  Display [0] ID=1 'MSI G27CQ4 E2' Bounds=(0,0 2560x1440)
+  Display [1] ID=2 'MSI MAG241C' Bounds=(-1920,0 1920x1080)
+[U2 Native] Creating SDL window (1920x1080)...
+[U2 Native] Positioned window on Display 1 ('MSI MAG241C') at coordinates (-1920, 0)
+[U2 Native] Creating accelerated renderer...
+[U2 Native] Graphics & Window initialized (1920x1080, Presenter: direct3d11)
+[U2 Native] Loaded Splash Screen 'C:\Users\Yohan\Desktop\Uncharted\CUSA02343/sce_sys/pic1.png' (1920x1080)
+[U2 Native] Initializing Boot State Machine & Subsystems...
+[U2 Engine] UCCApp_StateMachineUpdate called: state=1, dt=0.016000
+[U2 Engine] GameLoading_MountInitialArchives called
+[U2 Engine] Mounted core archive [0]: 'u2data/build/main/bin.psarc' at 'build/main/'
+[U2 Engine] Mounted core archive [1]: 'u2data/data.psarc' at ''
+[U2 Engine] Mounted core archive [2]: 'u2data/build/main/core.psarc' at 'build/main/'
+[U2 Native] Boot State Transition: State 1 -> State 2
+[U2 Engine] UCCApp_StateMachineUpdate called: state=2, dt=0.016000
+[U2 Native] Boot State Transition: State 2 -> State 3
+[U2 Engine] UCCApp_StateMachineUpdate called: state=3, dt=0.016000
+[U2 Native] Boot State Transition: State 3 -> State 4
+[U2 Engine] UCCApp_StateMachineUpdate called: state=4, dt=0.016000
+[U2 Engine] Settings_Init called
+[U2 Engine] Settings_Init: packages_head=000000000BCF4140, was=000000000BCF4140
+[U2 Engine] Settings_Init: now packages_head[0]=000000000BCF4140, [8]=000000000BCF4140
+[U2 Engine] ProcessMgr_Init called (mgr=0000000000000000)
+[U2 Native] Boot State Transition: State 4 -> State 5
+[U2 Engine] UCCApp_StateMachineUpdate called: state=5, dt=0.016000
+[U2 Native] Boot State Transition: State 5 -> State 6
+[U2 Engine] UCCApp_StateMachineUpdate called: state=6, dt=0.016000
+[U2 Native] Boot State Transition: State 6 -> State 7
+[U2 Engine] UCCApp_StateMachineUpdate called: state=7, dt=0.016000
+[U2 Native PackageMgr] Requesting menu packages...
+[U2 Native PackageMgr] 'menu' header=inspected pages=2 table=0x2C
+[U2 Native PackageMgr] 'menu' id=0x99E4DD3A state=resolved path='/app0/u2data/build/main/pak22/ps4/menu.pak' size=129593072
+[U2 Native PackageMgr] fixups audited local=4088 pending=60 (no writes)
+[U2 Native PackageMgr] page1 verified bytes=696; relocated=4148
+[U2 Native PackageMgr] resource catalog entries=538 (login pending)
+[U2 Native PackageMgr] login[0]=LEVEL_INFO_1 (pending)
+[U2 Native PackageMgr] login[1]=DEBUG_INFO_1 (pending)
+[U2 Native PackageMgr] login[2]=LEVEL_PATS_1 (pending)
+[U2 Native PackageMgr] login[3]=EFFECT_TABLE (pending)
+[U2 Native PackageMgr] login[4]=TEXTURE_TABLE (pending)
+[U2 Native PackageMgr] login[5]=LEVEL_OFFSET_1 (pending)
+[U2 Native PackageMgr] login[6]=GEOMETRY_1 (pending)
+[U2 Native PackageMgr] login[7]=CAMERA_TABLE_1 (pending)
+[U2 Native PackageMgr] login[8]=LIGHT_TABLE_1 (pending)
+[U2 Native PackageMgr] login[9]=COLLISION_DATA_HAVOK_BG (pending)
+[U2 Native Level] LEVEL_INFO_1 loaded value=0x00000000; remaining login=9
+[U2 Native Level] LEVEL_OFFSET_1 decoded translation=(0.000000000, 0.000000000, 0.000000000) (engine login pending)
+[U2 Native Camera] CAMERA_TABLE_1 decoded=1 definitions=1 (engine login pending)
+[U2 Native Camera] start='|_cam_start_1|_cam_start_Shape1' position=(-78.384804, 26.898600, -29.629000)
+[U2 Native Camera] stored orientation A=(-0.195781, 0.903569, -0.381095) B=(0.412893, 0.428443, 0.803714) external-transform=0
+[U2 Native Camera] quaternion xyzw=(-0.213427931, 0.229328841, 0.051615912, 0.948257685)
+[U2 Native Camera] translated position=(-78.384803772, 26.898599625, -29.628999710)
+[U2 Native Geometry] decoded=1 meshes=13 positions=12383 triangles=13680 normals=12383 uv=12383 materials=13 texture-refs=100 (preview geometry; engine login pending)
+[U2 Native Textures] loaded=1 images=60 decoded-bc1=44 compressed-only=16 vram-offset=0x1F06B8 bytes=8763392 (owned preview; engine login pending)
+[U2 Native Material Images] linked=1 references=100 decoded=59 (owned preview; shader/sampler binding pending)
+[U2 Native PackageMgr] 'menu-temple' page0=verified offset=0x8280 bytes=1999220
+[U2 Native PackageMgr] 'menu-temple' header=inspected pages=2 table=0x2C
+[U2 Native PackageMgr] 'menu-temple' id=0x572BA02C state=resolved path='/app0/u2data/build/main/pak22/ps4/menu-temple.pak' size=10796728
+[U2 Native] Boot sequence complete! Reached State 7 (MAIN MENU ACTIVE).
+[U2 Native] Validating C++23 engine subsystems...
+[U2 DC ScriptLoader] Ingested 13494 DC symbols across 113 .bin files from 'C:\Users\Yohan\Desktop\Uncharted\CUSA02343/u2data/build/main/dc1/ps4'
+[U2 Engine] Settings_Init called
+[U2 Engine] Settings_Init: packages_head=0000000081524140, was=0000000000000000
+[U2 Engine] Settings_Init: now packages_head[0]=0000000081524140, [8]=0000000081524140
+[U2 EngineTest] PASSED: 831 DC detours survived full-body sandbox execution via ELF trampolines!
+[MemDebug] AllocStack 0000000081A440F0 PUSHED TO 2 (tag=TagMain) by caller 00007FF63653EF8B (image+0x7ff5b654ef8b)
+[U2 Engine] Settings_Init called
+[U2 Engine] Settings_Init: packages_head=0000000081524140, was=0000000000000000
+[U2 Engine] Settings_Init: now packages_head[0]=0000000081524140, [8]=0000000081524140
+[U2 Engine] ProcessMgr_Init called (mgr=0000000001FFCF00)
+[U2 Engine] GameLoading_MountInitialArchives called
+[U2 Engine] Mounted core archive [0]: 'u2data/build/main/bin.psarc' at 'build/main/'
+[U2 Engine] Mounted core archive [1]: 'u2data/data.psarc' at ''
+[U2 Engine] Mounted core archive [2]: 'u2data/build/main/core.psarc' at 'build/main/'
+[U2 Engine] GameLoading_PlayGoWait called (timeout=100) caller=00007FF636548241 (guest offset=0x7ff5b6558241)
+[U2 Engine] IntroState_Update called (self=0000000000000000)
+[U2 Engine] UCCApp_StateMachineUpdate called: state=1, dt=0.016000
+[U2 Engine] GameLoading_MountInitialArchives called
+[U2 Engine] Mounted core archive [3]: 'u2data/build/main/bin.psarc' at 'build/main/'
+[U2 Engine] Mounted core archive [4]: 'u2data/data.psarc' at ''
+[U2 Engine] Mounted core archive [5]: 'u2data/build/main/core.psarc' at 'build/main/'
+[U2 Engine] UCCApp_StateMachineUpdate called: state=2, dt=0.016000
+[U2 Engine] UCCApp_StateMachineUpdate called: state=3, dt=0.016000
+[U2 Engine] UCCApp_StateMachineUpdate called: state=4, dt=0.016000
+[U2 Engine] Settings_Init called
+[U2 Engine] Settings_Init: packages_head=0000000081524140, was=0000000081524140
+[U2 Engine] Settings_Init: now packages_head[0]=0000000081524140, [8]=0000000081524140
+[U2 Engine] ProcessMgr_Init called (mgr=0000000000000000)
+[U2 Engine] UCCApp_StateMachineUpdate called: state=5, dt=0.016000
+[U2 Engine] UCCApp_StateMachineUpdate called: state=6, dt=0.016000
+[U2 Engine] UCCApp_StateMachineUpdate called: state=7, dt=0.016000
+[U2 Engine] Requesting genuine packages: 'menu' and 'menu-temple'...
+[U2 Engine] Setting MenuHost mode to 1 (Main Menu)...
+[U2 Engine] Menu process task created: 0000000000000000
+[U2 Native PackageMgr] 'menu' header=inspected pages=2 table=0x2C
+[U2 Native PackageMgr] 'menu' id=0x99E4DD3A state=resolved path='/app0/u2data/build/main/pak22/ps4/menu.pak' size=129593072
+[U2 Native PackageMgr] fixups audited local=4088 pending=60 (no writes)
+[U2 Native PackageMgr] page1 verified bytes=696; relocated=4148
+[U2 Native PackageMgr] resource catalog entries=538 (login pending)
+[U2 Native PackageMgr] login[0]=LEVEL_INFO_1 (pending)
+[U2 Native PackageMgr] login[1]=DEBUG_INFO_1 (pending)
+[U2 Native PackageMgr] login[2]=LEVEL_PATS_1 (pending)
+[U2 Native PackageMgr] login[3]=EFFECT_TABLE (pending)
+[U2 Native PackageMgr] login[4]=TEXTURE_TABLE (pending)
+[U2 Native PackageMgr] login[5]=LEVEL_OFFSET_1 (pending)
+[U2 Native PackageMgr] login[6]=GEOMETRY_1 (pending)
+[U2 Native PackageMgr] login[7]=CAMERA_TABLE_1 (pending)
+[U2 Native PackageMgr] login[8]=LIGHT_TABLE_1 (pending)
+[U2 Native PackageMgr] login[9]=COLLISION_DATA_HAVOK_BG (pending)
+[U2 Native Level] LEVEL_INFO_1 loaded value=0x00000000; remaining login=9
+[U2 Native Level] LEVEL_OFFSET_1 decoded translation=(0.000000000, 0.000000000, 0.000000000) (engine login pending)
+[U2 Native Camera] CAMERA_TABLE_1 decoded=1 definitions=1 (engine login pending)
+[U2 Native Camera] start='|_cam_start_1|_cam_start_Shape1' position=(-78.384804, 26.898600, -29.629000)
+[U2 Native Camera] stored orientation A=(-0.195781, 0.903569, -0.381095) B=(0.412893, 0.428443, 0.803714) external-transform=0
+[U2 Native Camera] quaternion xyzw=(-0.213427931, 0.229328841, 0.051615912, 0.948257685)
+[U2 Native Camera] translated position=(-78.384803772, 26.898599625, -29.628999710)
+[U2 Native Geometry] decoded=1 meshes=13 positions=12383 triangles=13680 normals=12383 uv=12383 materials=13 texture-refs=100 (preview geometry; engine login pending)
+[U2 Native Textures] loaded=1 images=60 decoded-bc1=44 compressed-only=16 vram-offset=0x1F06B8 bytes=8763392 (owned preview; engine login pending)
+[U2 Native Material Images] linked=1 references=100 decoded=59 (owned preview; shader/sampler binding pending)
+[U2 Native PackageMgr] 'menu-temple' page0=verified offset=0x8280 bytes=1999220
+[U2 Native PackageMgr] 'menu-temple' header=inspected pages=2 table=0x2C
+[U2 Native PackageMgr] 'menu-temple' id=0x572BA02C state=resolved path='/app0/u2data/build/main/pak22/ps4/menu-temple.pak' size=10796728
+Runtime: open(non_existent_mock_shader.cxo) -> not found
+[U2 Engine] AudioFile_Initialize: success (self=0000000001FFCF00, buf1=0000000082244F00, buf2=0000000082231900, slots=000000006D137500)
+[U2 ScriptManager] LookupPointer: MISSING symbol hash 0xDEADBEEF
+[U2 EngineTest] PASSED: 469/469 functional C++23 engine assertions verified via ELF trampolines!
+[U2 Native] All C++23 native subsystem assertions verified successfully.
+[U2 Native] Engine running. (Press ESC or close window to exit)
+[U2 Native Preview] color-map mesh='menu-temple.Prototype0.Submesh21' reference=0 image=37 size=64x64 (repeat bilinear first mip; linear-space lighting)
+[U2 Native Preview] temple meshes=13 positions=12383 visible=11576 triangles=13680 visible-edges=24130 camera='|_cam_start_1|_cam_start_Shape1' reference-view zoom=1.303225398 near=0.24 far=5000
+[U2 Native Preview] solid covered-pixels=2073600 depth-passing-samples=6091777 cache-ms=255 (CPU depth image; static reference view)
+[U2 Native Preview] lighting normals=12383/12383 ambient=0.22 diffuse=0.78 (viewer preset; Gouraud shading)
+[U2 Native Preview] textured meshes=1 depth-passing-samples=590779 (column base color only; no original material, mip selection or anisotropy)
+[U2 Native] Previewing real temple opaque surfaces with depth from the start camera.
+[U2 Native] Native loop active: temple geometry preview.
+[U2 Native Preview] solid image uploaded to SDL texture
+[U2 Native Preview] framebuffer capture saved: user/diag_columns_final.bmp
+[U2 Native] Temps restant avant fermeture: 6s
+[U2 Native] Temps restant avant fermeture: 5s
+[U2 Native] Temps restant avant fermeture: 4s
+[U2 Native] Temps restant avant fermeture: 3s
+[U2 Native] Temps restant avant fermeture: 2s
+[U2 Native] Temps restant avant fermeture: 1s
+[U2 Native] Temps restant avant fermeture: 0s
+[U2 Native] Delai de 6s atteint. Fermeture propre du moteur.
+[U2 Native] Engine shutdown complete. Goodbye!
+[NativeTest] Code de sortie: 0

@@ -7,6 +7,7 @@
 #include <new>
 #include <utility>
 #include <vector>
+#include "preview_texture.h"
 
 namespace u2::standalone {
 
@@ -34,15 +35,19 @@ public:
     // Returns depth-passing sample writes, not the number of unique pixels.
     // Optional vertex brightness is interpolated with perspective correction.
     size_t triangle(const std::array<Vertex,3> &vertices,uint32_t color,
-                    const std::array<float,3> &brightness={1,1,1}) {
+                    const std::array<float,3> &brightness={1,1,1},
+                    const U2NativeTexturePixels *texture=nullptr,
+                    const std::array<std::array<float,2>,3> &uv={}) {
         if(width<=0 || height<=0 || pixels.size()!=size_t(width)*height || depth.size()!=pixels.size()) return 0;
-        struct ClipVertex { Vertex position;float brightness; };
+        if(texture && !preview_texture_valid(*texture)) return 0;
+        struct ClipVertex { Vertex position;float brightness;std::array<float,2> uv; };
         std::array<ClipVertex,12> polygon{},clipped{};
         size_t count=3;
         for(size_t i=0;i<3;++i) {
             for(float value : vertices[i]) if(!std::isfinite(value)) return 0;
             if(!std::isfinite(brightness[i]) || brightness[i]<0 || brightness[i]>1) return 0;
-            polygon[i]={vertices[i],brightness[i]};
+            if(texture) for(float value : uv[i]) if(!std::isfinite(value)) return 0;
+            polygon[i]={vertices[i],brightness[i],texture ? uv[i] : std::array<float,2>{}};
         }
         for(size_t plane=0;plane<6;++plane) {
             size_t next_count=0;
@@ -64,6 +69,10 @@ public:
                     }
                     intersection.brightness=previous.brightness+t*(current.brightness-previous.brightness);
                     if(!std::isfinite(intersection.brightness)) return 0;
+                    for(size_t axis=0;axis<2;++axis) {
+                        intersection.uv[axis]=previous.uv[axis]+t*(current.uv[axis]-previous.uv[axis]);
+                        if(!std::isfinite(intersection.uv[axis])) return 0;
+                    }
                     clipped[next_count++]=intersection;
                 }
                 if(current_distance>=0) {
@@ -85,15 +94,17 @@ public:
             if(!std::isfinite(inverse_w)) return 0;
             screen[i]={(std::clamp(x,-1.0f,1.0f)+1)*0.5f*width,
                        (1-std::clamp(y,-1.0f,1.0f))*0.5f*height,std::clamp(z,0.0f,1.0f),
-                       inverse_w,polygon[i].brightness*inverse_w};
+                       inverse_w,polygon[i].brightness*inverse_w,
+                       polygon[i].uv[0]*inverse_w,polygon[i].uv[1]*inverse_w};
+            if(!std::isfinite(screen[i].u_over_w) || !std::isfinite(screen[i].v_over_w)) return 0;
         }
         size_t written=0;
-        for(size_t i=1;i+1<count;++i) written+=rasterize(screen[0],screen[i],screen[i+1],color);
+        for(size_t i=1;i+1<count;++i) written+=rasterize(screen[0],screen[i],screen[i+1],color,texture);
         return written;
     }
 
 private:
-    struct ScreenVertex { float x,y,z,inverse_w,brightness_over_w; };
+    struct ScreenVertex { float x,y,z,inverse_w,brightness_over_w,u_over_w,v_over_w; };
     static float distance(const Vertex &v,size_t plane) {
         switch(plane) {
             case 0: return v[2];
@@ -107,7 +118,7 @@ private:
     static float edge(const ScreenVertex &a,const ScreenVertex &b,float x,float y) {
         return (b.x-a.x)*(y-a.y)-(b.y-a.y)*(x-a.x);
     }
-    size_t rasterize(ScreenVertex a,ScreenVertex b,ScreenVertex c,uint32_t color) {
+    size_t rasterize(ScreenVertex a,ScreenVertex b,ScreenVertex c,uint32_t color,const U2NativeTexturePixels *texture) {
         float area=edge(a,b,c.x,c.y);
         if(!std::isfinite(area) || area==0) return 0;
         if(area<0) { std::swap(b,c);area=-area; }
@@ -132,7 +143,11 @@ private:
                 if(!(denominator>0) || !std::isfinite(brightness)) continue;
                 const float amount=std::clamp(brightness,0.0f,1.0f);
                 uint32_t shaded=color&0xFF000000u;
-                for(unsigned shift : {0u,8u,16u})
+                if(texture) {
+                    const float u=(e0*a.u_over_w+e1*b.u_over_w+e2*c.u_over_w)/denominator;
+                    const float v=(e0*a.v_over_w+e1*b.v_over_w+e2*c.v_over_w)/denominator;
+                    if(!preview_sample_repeat(*texture,u,v,amount,&shaded)) continue;
+                } else for(unsigned shift : {0u,8u,16u})
                     shaded|=uint32_t(std::lround(float((color>>shift)&255)*amount))<<shift;
                 depth[pixel]=z;pixels[pixel]=shaded;++written;
             }

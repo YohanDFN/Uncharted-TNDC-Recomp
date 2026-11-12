@@ -51,6 +51,29 @@
       "donnees_compressees_sha256": "4b9f0e9526ade0aab5edd273636e69236efc7b24b46b9e7d06dda2109829923f",
       "offset_fichier": "0xA262B8",
       "octets_residents": 5120
+    },
+    {
+      "fichier": "06-temple-pierre-texturee.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "1b388ae8985f66632e9959ef0124808a226df6cc06505bf606a017b439659e76",
+      "build_base_commit": "338d6543f7c968b7849d411a033e742c1b6e0dae",
+      "build_changes": "native column base-color sampling iteration, NATIVE_TEMPLE_COLOR_SAMPLING.md",
+      "executable_sha256": "fb162bb13dc1f7f16f4208c61b43853b860cfe0fe1b2f48d532efe5e4e0bddde",
+      "scenario": "menu-temple, solid preview, Submesh21 primary color map",
+      "legende": "Real SDL framebuffer. Stone surfaces and cornices textured using the resident 64x64 BC1 first mip. Perspective-correct UVs, repeat bilinear, linear-space viewer lighting. Other meshes retain preview colors; no original material, mip selection or anisotropy.",
+      "conversion": "SDL_RenderReadPixels to SDL_SaveBMP, System.Drawing BMP to PNG, no retouching",
+      "validation": {
+        "native_assertions": "469/469",
+        "native_seconds": 6,
+        "native_exit": 0,
+        "hybrid_assertions": "475/475",
+        "hybrid_seconds": 30,
+        "hybrid_exit": "STOPPED_AFTER_TIMEOUT"
+      }
     }
   ],
   "executable_sha256": "82c0112ce464f14a04ac738d1a2e13e9c4bd5193ade43cc56e24eb69b05c597a",

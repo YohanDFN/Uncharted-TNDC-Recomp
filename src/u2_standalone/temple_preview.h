@@ -56,9 +56,28 @@ public:
         std::vector<WireBatch> wire_batches;
         PreviewDepthImage solid;
         const bool solid_ready=solid.reset(1920,1080,0xFF130C08);
-        size_t depth_writes=0,lit_vertices=0;
+        size_t depth_writes=0,lit_vertices=0,textured_meshes=0,textured_writes=0;
         size_t visible=0,total=0,visible_edges=0,triangles=0;
-        for (const auto &mesh : meshes) {
+        for (size_t mesh_index=0;mesh_index<meshes.size();++mesh_index) {
+            const auto &mesh=meshes[mesh_index];
+            U2NativeTexturePreview column_image;
+            const U2NativeTexturePixels *color_map=nullptr;
+            // Deliberately scoped to the mesh whose original UV/image/sampler
+            // path was captured. Other materials require separate evidence.
+            if(mesh.name=="menu-temple.Prototype0.Submesh21" && mesh.texcoords.size()==mesh.positions.size()) {
+                size_t matches=0,reference=0;
+                for(size_t r=0;r<mesh.material_textures.size();++r)
+                    if(mesh.material_textures[r].parameter_name=="g_tColorMap") { ++matches;reference=r; }
+                if(matches==1 && u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",mesh_index,reference,&column_image) &&
+                   u2_native_TextureImageMatchesReference(mesh.material_textures[reference],column_image) &&
+                   column_image.format==72 && column_image.width==64 && column_image.height==64 &&
+                   preview_texture_valid(column_image.pixels) &&
+                   std::all_of(column_image.pixels.rgba.begin(),column_image.pixels.rgba.end(),[](uint32_t p) { return (p>>24)==255; })) {
+                    color_map=&column_image.pixels;++textured_meshes;
+                    std::printf("[U2 Native Preview] color-map mesh='%s' reference=%zu image=%d size=%ux%u (repeat bilinear first mip; linear-space lighting)\n",
+                        mesh.name.c_str(),reference,mesh.material_textures[reference].image_index,column_image.width,column_image.height);
+                } else std::printf("[U2 Native Preview] column color-map unavailable; keeping preview colors\n");
+            }
             auto &points=batches.emplace_back();
             auto &wire=wire_batches.emplace_back();
             const auto tint=palette[(batches.size()-1)%std::size(palette)];
@@ -94,9 +113,13 @@ public:
             triangles+=mesh.triangles.size();
             if(solid_ready) {
                 const uint32_t rgba=uint32_t(tint.r)|(uint32_t(tint.g)<<8)|(uint32_t(tint.b)<<16)|0xFF000000u;
-                for(const auto &triangle : mesh.triangles)
-                    depth_writes+=solid.triangle({clip_vertices[triangle[0]],clip_vertices[triangle[1]],clip_vertices[triangle[2]]},rgba,
-                        {brightness[triangle[0]],brightness[triangle[1]],brightness[triangle[2]]});
+                for(const auto &triangle : mesh.triangles) {
+                    std::array<std::array<float,2>,3> uv{};
+                    if(color_map) for(size_t c=0;c<3;++c) uv[c]=mesh.texcoords[triangle[c]];
+                    const size_t writes=solid.triangle({clip_vertices[triangle[0]],clip_vertices[triangle[1]],clip_vertices[triangle[2]]},rgba,
+                        {brightness[triangle[0]],brightness[triangle[1]],brightness[triangle[2]]},color_map,uv);
+                    depth_writes+=writes;if(color_map) textured_writes+=writes;
+                }
             }
             std::set<uint32_t> edges;
             for(const auto &triangle : mesh.triangles) for(size_t corner=0;corner<3;++corner) {
@@ -122,6 +145,7 @@ public:
         if (!visible) return false;
         m_batches=std::move(batches);m_visible=visible;m_total=total;
         m_wire_batches=std::move(wire_batches);m_visible_edges=visible_edges;m_triangles=triangles;
+        m_textured_meshes=textured_writes ? textured_meshes : 0;
         m_covered_pixels=0;
         for(float value : solid.depth) if(std::isfinite(value)) ++m_covered_pixels;
         release_texture();m_solid_image=std::move(solid);
@@ -131,6 +155,7 @@ public:
         std::printf("[U2 Native Preview] solid covered-pixels=%zu depth-passing-samples=%zu cache-ms=%llu (CPU depth image; static reference view)\n",
             m_covered_pixels,depth_writes,static_cast<unsigned long long>(SDL_GetTicks()-started));
         std::printf("[U2 Native Preview] lighting normals=%zu/%zu ambient=0.22 diffuse=0.78 (viewer preset; Gouraud shading)\n",lit_vertices,total);
+        std::printf("[U2 Native Preview] textured meshes=%zu depth-passing-samples=%zu (column base color only; no original material, mip selection or anisotropy)\n",textured_meshes,textured_writes);
         return true;
     }
     bool ready() const { return m_visible!=0; }
@@ -170,7 +195,8 @@ public:
         const SDL_FRect bar{0,0,1920,56};SDL_RenderFillRect(renderer,&bar);
         SDL_SetRenderDrawColor(renderer,240,235,220,255);
         char caption[160];
-        if(m_mode==Mode::Solid) std::snprintf(caption,sizeof(caption),"TEMPLE - ECLAIRAGE DE PREVISUALISATION   |   %zu triangles   |   ESPACE : fil de fer   |   ECHAP : quitter",m_triangles);
+        if(m_mode==Mode::Solid) std::snprintf(caption,sizeof(caption),"TEMPLE - %sECLAIRAGE DE PREVISUALISATION   |   %zu triangles   |   ESPACE : fil de fer   |   ECHAP : quitter",
+            m_textured_meshes ? "PIERRE TEXTUREE / " : "",m_triangles);
         else if(m_mode==Mode::Wireframe) std::snprintf(caption,sizeof(caption),"TEMPLE - FIL DE FER NATIF   |   %zu triangles / %zu aretes visibles   |   ESPACE : sommets   |   ECHAP : quitter",m_triangles,m_visible_edges);
         else std::snprintf(caption,sizeof(caption),"TEMPLE - SOMMETS   |   %zu / %zu points   |   ESPACE : surfaces   |   ECHAP : quitter",m_visible,m_total);
         SDL_RenderDebugText(renderer,24,24,caption);
@@ -183,6 +209,7 @@ private:
     PreviewDepthImage m_solid_image;
     SDL_Texture *m_solid_texture{nullptr};
     size_t m_covered_pixels{0};
+    size_t m_textured_meshes{0};
     Mode m_mode{Mode::Wireframe};
 };
 } // namespace u2::standalone

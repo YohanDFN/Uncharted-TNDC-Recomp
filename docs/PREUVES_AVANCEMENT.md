@@ -3,7 +3,7 @@
 Dossier constitué le **12 novembre 2026**, fuseau Europe/Paris.
 
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
-Les cinq images sont intégrées dans ce fichier HTML, consultable hors ligne.
+Les six images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
 ## Première étape : vrais sommets du temple
 
@@ -54,6 +54,25 @@ pas encore appliquée aux meshes. Aucune haute résolution n'est reconstruite.
 
 ![Texture de couleur des colonnes décodée en natif, mip résident 64×64](preuves_avancement/2026-11-12/05-colonnes-texture-bc1.png)
 
+## Sixième étape : pierre texturée dans le framebuffer natif
+
+La carte de couleur réelle du matériau « colonnes » est désormais appliquée
+au sous-mesh 21 : les corniches et surfaces de pierre autour de la statue
+montrent leurs détails gris, avec UV corrigés en perspective et répétition.
+Le trajet UV/image/sampler est établi dans les shaders originaux capturés.
+
+![Pierre texturée dans le rendu natif du temple](preuves_avancement/2026-11-12/06-temple-pierre-texturee.png)
+
+Capture réelle SDL 1920×1080 du build basé sur `338d654` avec cette évolution,
+identifié par SHA-256 dans `provenance.json`. Validation : natif **469/469**,
+sortie **0** après six secondes ; hybride **475/475**, timeout attendu de
+**30 secondes**, SelfTest et sandbox réussis. Aucun crash ni nouvelle assertion.
+
+Limites : un seul mesh, premier mip résident **64×64**, filtre bilinéaire sans
+anisotropie ni sélection LOD. L'éclairage reste celui du viewer et le matériau
+original complet n'est pas reproduit. Les autres surfaces restent colorées.
+Voir [preuves et méthode](NATIVE_TEMPLE_COLOR_SAMPLING.md).
+
 ## Validation et provenance
 
 | Contrôle | Résultat | Scénario |
@@ -69,6 +88,8 @@ pas encore appliquée aux meshes. Aucune haute résolution n'est reconstruite.
 Les quatre premières images sont des captures réelles du framebuffer de
 `uncharted2-native.exe`, en 1920 × 1080. La cinquième est une texture 64 × 64
 produite par le décodeur C++ testé et inspectée visuellement.
+La sixième est une nouvelle capture réelle du framebuffer, avec la première
+carte de couleur appliquée à la géométrie.
 La conversion BMP vers PNG ne comporte aucune retouche.
 
 - [Journal de la nouvelle capture](preuves_avancement/2026-11-12/validation-native.txt).
@@ -86,9 +107,10 @@ La conversion BMP vers PNG ne comporte aucune retouche.
 - [Décodage des pixels BC1 et limites](NATIVE_TEMPLE_BC1_PIXELS.md).
 - [Chargement des 60 images résidentes par métadonnées](NATIVE_TEXTURE_TABLE_LOADING.md).
 - [Liaison des 100 références de matériaux aux images](NATIVE_MATERIAL_IMAGE_BINDINGS.md).
+- [Échantillonnage de la carte de couleur et trajet shader vérifié](NATIVE_TEMPLE_COLOR_SAMPLING.md).
 
-Le pipeline GPU du jeu, l'application des textures au décor, l'éclairage original et les interactions du menu
-restent à porter. Les couleurs servent à distinguer
-les sous-meshes, sans reproduire leurs matériaux. Cet aperçu emploie la caméra
+Le pipeline GPU du jeu, les textures des autres surfaces, l'éclairage original
+et les interactions du menu restent à porter. Hors du sous-mesh de pierre
+texturé, les couleurs servent à distinguer les sous-meshes. Cet aperçu emploie la caméra
 de départ et une lentille de référence capturée ; son affichage n'exécute aucun
 octet de code PS4.

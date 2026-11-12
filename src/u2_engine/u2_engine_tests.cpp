@@ -1288,6 +1288,65 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         }
         {
             using Image=u2::standalone::PreviewDepthImage;
+            using u2::standalone::preview_sample_repeat;
+            constexpr uint32_t bg=0xFF130C08;
+            U2NativeTexturePixels texture{2,2,false,{0xFF000000,0xFF0000FF,0xFF00FF00,0xFFFF0000}};
+            uint32_t sample=123;
+            U2_TEST_ASSERT(preview_sample_repeat(texture,0.75f,0.25f,1,&sample) && sample==0xFF0000FF,
+                           "Bilinear normalized texel centers preserve the selected RGBA texel without flipping V");
+            U2_TEST_ASSERT(preview_sample_repeat(texture,-0.25f,2.25f,1,&sample) && sample==0xFF0000FF,
+                           "Repeat sampling retains negative and tiled UV coordinates");
+            U2_TEST_ASSERT(preview_sample_repeat(texture,0,0,1,&sample) && sample==0xFF404040,
+                           "Repeat bilinear filtering crosses both image seams at normalized zero");
+            U2_TEST_ASSERT(preview_sample_repeat(texture,0.75f,0.25f,0.5f,&sample) && sample==0xFF000080,
+                           "Linear texture lighting scales RGB and preserves filtered alpha");
+            texture.srgb=true;
+            U2_TEST_ASSERT(preview_sample_repeat(texture,0.75f,0.25f,0.5f,&sample) && sample==0xFF0000BC,
+                           "sRGB texture lighting occurs in linear space before encoding for SDL");
+            U2_TEST_ASSERT(preview_sample_repeat(texture,0,0,1,&sample) && sample==0xFF898989,
+                           "sRGB bilinear interpolation decodes texels before averaging");
+            texture.srgb=false;sample=123;
+            const float nan=std::numeric_limits<float>::quiet_NaN();
+            auto invalid=texture;invalid.rgba.pop_back();
+            U2_TEST_ASSERT(!preview_sample_repeat(invalid,0,0,1,&sample) && sample==123 &&
+                           !preview_sample_repeat(texture,nan,0,1,&sample) && sample==123 &&
+                           !preview_sample_repeat(texture,0,0,-1,&sample) && sample==123 &&
+                           !preview_sample_repeat(texture,0,0,1,nullptr),
+                           "Invalid texture extents, UVs, brightness and output are rejected without publishing pixels");
+            U2_TEST_ASSERT(preview_sample_repeat(texture,std::numeric_limits<float>::max(),-std::numeric_limits<float>::max(),1,&sample) && sample==0xFF404040,
+                           "Large finite UVs reduce before conversion to bounded texel coordinates");
+            U2NativeTexturePixels single{1,1,false,{0x7F204080}};
+            U2_TEST_ASSERT(preview_sample_repeat(single,-13.5f,9,0.5f,&sample) && sample==0x7F102040,
+                           "Single-texel repeat and alpha remain well-defined");
+            Image image,split;image.reset(16,16,bg);split.reset(16,16,bg);
+            const std::array<Image::Vertex,3> face{{{-1,-1,0.2f,1},{2,-2,1.6f,2},{0,4,2,4}}};
+            image.triangle(face,0,{1,1,1},&texture,{{{0.25f,0.25f},{0.75f,0.25f},{0.25f,0.75f}}});
+            // At (8.5,8.5): screen weights 0.234375,0.296875,0.46875;
+            // perspective weights divide them by w=1,2,4 before normalization.
+            preview_sample_repeat(texture,0.25f+0.5f*(0.296875f/2)/0.5f,
+                0.25f+0.5f*(0.46875f/4)/0.5f,1,&sample);
+            U2_TEST_ASSERT(image.pixels[8*16+8]==sample && std::abs(image.depth[8*16+8]-0.51875f)<0.000001f,
+                           "Unequal-w UV interpolation is perspective-correct while z/w depth remains linear");
+            image.reset(16,16,bg);
+            image.triangle({{{-1,-1,-0.5f,1},{1,-1,0.5f,1},{0,1,0.5f,1}}},0,{1,1,1},&texture,
+                {{{0.25f,0.25f},{0.75f,0.25f},{0.25f,0.75f}}});
+            const Image::Vertex a{-0.5f,0,0,1},b{0,-1,0,1},c{1,-1,0.5f,1},d{0,1,0.5f,1};
+            split.triangle({a,b,c},0,{1,1,1},&texture,{{{0.25f,0.5f},{0.5f,0.25f},{0.75f,0.25f}}});
+            split.triangle({a,c,d},0,{1,1,1},&texture,{{{0.25f,0.5f},{0.75f,0.25f},{0.25f,0.75f}}});
+            U2_TEST_ASSERT(image.pixels==split.pixels && image.depth==split.depth,
+                           "Near-plane clipping carries UVs like an explicitly split textured polygon");
+            const auto saved=image.pixels;const auto depths=image.depth;
+            U2_TEST_ASSERT(image.triangle(face,0,{1,1,1},&invalid)==0 && image.pixels==saved && image.depth==depths &&
+                           image.triangle(face,0,{1,1,1},&texture,{{{nan,0},{0,0},{0,0}}})==0 && image.pixels==saved && image.depth==depths,
+                           "Invalid textured triangles preserve both color and depth buffers");
+            image.reset(16,16,bg);split.reset(16,16,bg);
+            image.triangle(face,0x7F204080,{0.5f,0.5f,0.5f});
+            split.triangle(face,0,{0.5f,0.5f,0.5f},&single);
+            U2_TEST_ASSERT(image.pixels==split.pixels && image.depth==split.depth,
+                           "Constant linear texture preserves established depth coverage and brightness");
+        }
+        {
+            using Image=u2::standalone::PreviewDepthImage;
             constexpr uint32_t background=0xFF130C08,red=0xFF0000FF,blue=0xFFFF0000;
             Image image,reverse;
             U2_TEST_ASSERT(image.reset(16,16,background) && reverse.reset(16,16,background) &&

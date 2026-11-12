@@ -1,0 +1,32 @@
+[ColumnBinding] hash=f1ef5c58 images=10 samplers=2
+[ColumnBinding] companion=f1ef5c58
+[ColumnBinding] companion=50411a0b
+[ColumnBinding] image=0 address=11478e0000 size=1920x1080
+[ColumnBinding] image=1 address=115d844000 size=64x64
+[ColumnBinding] image=2 address=115d84c000 size=64x64
+[ColumnBinding] image=3 address=115d848000 size=64x64
+[ColumnBinding] image=4 address=115d844000 size=64x64
+[ColumnBinding] image=5 address=115d84c000 size=64x64
+[ColumnBinding] image=6 address=11458f0000 size=1920x1080
+[ColumnBinding] image=7 address=11498c0000 size=960x540
+[ColumnBinding] image=8 address=11428b0000 size=1920x1080
+[ColumnBinding] image=9 address=11418b0000 size=1920x1080
+[ColumnBinding] uv-buffer=119ffb9c00 bytes=6648 stride=4
+[ColumnBinding] sampler=0 raw=00fff00000000400/4000000008f00000
+[ColumnBinding] sampler=1 raw=00fff00000000200/4000000008f00000
+[ColumnBinding] hash=f1ef5c58 images=10 samplers=2
+[ColumnBinding] companion=f1ef5c58
+[ColumnBinding] companion=50411a0b
+[ColumnBinding] image=0 address=11478e0000 size=1920x1080
+[ColumnBinding] image=1 address=115d844000 size=64x64
+[ColumnBinding] image=2 address=115d84c000 size=64x64
+[ColumnBinding] image=3 address=115d848000 size=64x64
+[ColumnBinding] image=4 address=115d844000 size=64x64
+[ColumnBinding] image=5 address=115d84c000 size=64x64
+[ColumnBinding] image=6 address=11458f0000 size=1920x1080
+[ColumnBinding] image=7 address=1149b00000 size=960x540
+[ColumnBinding] image=8 address=11428b0000 size=1920x1080
+[ColumnBinding] image=9 address=11418b0000 size=1920x1080
+[ColumnBinding] uv-buffer=119ffb9c00 bytes=6648 stride=4
+[ColumnBinding] sampler=0 raw=00fff00000000400/4000000008f00000
+[ColumnBinding] sampler=1 raw=00fff00000000200/4000000008f00000

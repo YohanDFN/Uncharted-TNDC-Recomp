@@ -1,0 +1,48 @@
+[AutoTest] Loading launcher settings from C:\Users\Yohan\AppData\Roaming\uncharted-launcher\settings.json ...
+[AutoTest] Launching Uncharted (u2) for 30 seconds...
+[AutoTest] Game dir: C:\Users\Yohan\Desktop\Uncharted\CUSA02343
+[AutoTest] Log output: C:\Users\Yohan\Desktop\uncharted_pc-0.3.3\user\last_run.log
+[AutoTest] Reached timeout of 30s without crash. Terminating test run cleanly...
+  [U2 Recomp] Module 'player': installed 156 native detours
+  [U2 Recomp] Module 'npc': installed 127 native detours
+  [U2 Recomp] Module 'audio': installed 17 native detours
+  [U2 Recomp] Module 'event': installed 42 native detours
+  [U2 Recomp] Module 'scene': installed 492 native detours
+  [U2 Recomp] Module 'engine': installed 55 native detours
+  [U2 SelfTest] Running edge-case validation across all native C DC detours...
+  [U2 SelfTest] PASSED: 886 native C functions survived edge-case fuzzing without fault!
+  [U2 EngineTest] PASSED: 831 DC detours survived full-body sandbox execution via ELF trampolines!
+  [U2 EngineTest] PASSED: 475/475 functional C++23 engine assertions verified via ELF trampolines!
+  [U2 Recomp] Installed 889 native C/C++ function detours across 6 modules (ExecuteScriptCode=GUEST_ELF, EvalEx=GUEST_ELF, Run=GUEST_ELF)
+  [U2 Recomp] Memory subsystem detours available (set BB_U2_NATIVE_MEM=1 to activate native C AllocStack)
+
+============================================================
+[AutoTest] Run completed. Exit code: STOPPED_AFTER_TIMEOUT
+============================================================
+Last log lines:
+  Runtime: mapped direct memory 000000101b800000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101b900000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101ba00000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101bb00000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101bc00000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101bd00000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101be00000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101bf00000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101c000000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101c100000, size=1048576, prot=0x33
+  Runtime: mapped direct memory 000000101c200000, size=1048576, prot=0x33
+  Runtime: open(/app0/u2data/build/main/effect1/menu.bin) -> not found
+  Runtime: open(/app0/u2data/build/main/bpdata1/menu.json) -> not found
+  Runtime: open(/app0/u2data/build/main/effect1/menu-temple.bin) -> not found
+  Runtime: open(/app0/u2data/build/main/effect1/menu-temple-ingame10.bin) -> not found
+  GPU [Render.Vulkan] <Warning> vk_runtime.cpp:60 SanitizeCopyLayers: Coercing copy source layers 1 and destination layers 2 to minimum.
+  GPU [Render.Vulkan] <Warning> vk_runtime.cpp:60 SanitizeCopyLayers: Coercing copy source layers 2 and destination layers 3 to minimum.
+  GPU [Render.Vulkan] <Warning> vk_runtime.cpp:60 SanitizeCopyLayers: Coercing copy source layers 3 and destination layers 4 to minimum.
+  Runtime: open(/app0/u2data/build/main/effect1/anim-menu.bin) -> not found
+  Runtime: open(/app0/u2data/build/main/effect1/pigeon-fma.bin) -> not found
+  Runtime: open(/app0/u2data/build/main/effect1/temple-cloth-banner-single.bin) -> not found
+  Runtime: open(/app0/u2data/build/main/effect1/title-vine-d.bin) -> not found
+  Runtime: open(/app0/u2data/build/main/effect1/rpg_rocket.bin) -> not found
+  Runtime: open(/app0/u2data/build/main/effect1/rpg.bin) -> not found
+  Runtime: guest thread 'DCLoader' created (stack=65536, prio=699)
+============================================================

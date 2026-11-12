@@ -221,8 +221,12 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > (`NATIVE_TEXTURE_TABLE_LOADING.md`). Les cent références de matériaux sont
 > reliées aux images par leur nom cooked suivi de `.ndb`, sans confondre les
 > indices des deux tables ; 59 références disposent de pixels décodés
-> (`NATIVE_MATERIAL_IMAGE_BINDINGS.md`). L'application au viewer, les autres
-> formats et les paramètres du sampler restent à porter.
+> (`NATIVE_MATERIAL_IMAGE_BINDINGS.md`). La carte de couleur du sous-mesh 21
+> est maintenant appliquée au viewer après comparaison du buffer UV et de
+> l'image originale, et suivi du trajet dans les shaders actifs
+> (`NATIVE_TEMPLE_COLOR_SAMPLING.md`). Le viewer utilise le premier mip 64×64
+> avec répétition et filtre bilinéaire ; le sampler original primaire est
+> anisotrope/trilinéaire. Les autres surfaces et formats restent à porter.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.
