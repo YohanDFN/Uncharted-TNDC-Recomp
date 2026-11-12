@@ -7,6 +7,7 @@
 #include <vector>
 #include "preview_clip.h"
 #include "preview_depth.h"
+#include "preview_lighting.h"
 #include "ndlib/io/package_manager.h"
 #include "game/rendercamera.h"
 
@@ -47,17 +48,32 @@ public:
             {1-2*(y*y+z*z),2*(x*y+z*w),2*(x*z-y*w)},
             {2*(x*y-z*w),1-2*(x*x+z*z),2*(y*z+x*w)},
             {2*(x*z+y*w),2*(y*z-x*w),1-2*(x*x+y*y)}}};
+        // Light toward the camera, offset upward and left in its reference view.
+        // This is a viewer preset, not a recovered light from the original game.
+        std::array<float,3> toward_light{};
+        for(size_t i=0;i<3;++i) toward_light[i]=-0.35f*basis[0][i]+0.6f*basis[1][i]-basis[2][i];
         std::vector<std::vector<SDL_FRect>> batches;
         std::vector<WireBatch> wire_batches;
         PreviewDepthImage solid;
         const bool solid_ready=solid.reset(1920,1080,0xFF130C08);
-        size_t depth_writes=0;
+        size_t depth_writes=0,lit_vertices=0;
         size_t visible=0,total=0,visible_edges=0,triangles=0;
         for (const auto &mesh : meshes) {
             auto &points=batches.emplace_back();
             auto &wire=wire_batches.emplace_back();
             const auto tint=palette[(batches.size()-1)%std::size(palette)];
             const SDL_FColor color{tint.r/255.0f,tint.g/255.0f,tint.b/255.0f,1};
+            std::vector<float> brightness(mesh.positions.size(),1);
+            bool normals_valid=mesh.normals.size()==mesh.positions.size();
+            if(normals_valid) for(size_t v=0;v<mesh.normals.size();++v) {
+                const auto &n=mesh.normals[v];
+                if(!preview_light_intensity({n[0],n[1],n[2]},toward_light,&brightness[v])) { normals_valid=false;break; }
+            }
+            if(normals_valid) lit_vertices+=brightness.size();
+            else {
+                std::fill(brightness.begin(),brightness.end(),1);
+                std::printf("[U2 Native Preview] lighting unavailable for '%s': keeping flat colors\n",mesh.name.c_str());
+            }
             std::vector<std::array<float,4>> clip_vertices;
             clip_vertices.reserve(mesh.positions.size());
             points.reserve(mesh.positions.size());
@@ -79,7 +95,8 @@ public:
             if(solid_ready) {
                 const uint32_t rgba=uint32_t(tint.r)|(uint32_t(tint.g)<<8)|(uint32_t(tint.b)<<16)|0xFF000000u;
                 for(const auto &triangle : mesh.triangles)
-                    depth_writes+=solid.triangle({clip_vertices[triangle[0]],clip_vertices[triangle[1]],clip_vertices[triangle[2]]},rgba);
+                    depth_writes+=solid.triangle({clip_vertices[triangle[0]],clip_vertices[triangle[1]],clip_vertices[triangle[2]]},rgba,
+                        {brightness[triangle[0]],brightness[triangle[1]],brightness[triangle[2]]});
             }
             std::set<uint32_t> edges;
             for(const auto &triangle : mesh.triangles) for(size_t corner=0;corner<3;++corner) {
@@ -113,6 +130,7 @@ public:
             meshes.size(),total,visible,triangles,visible_edges,camera.name.c_str());
         std::printf("[U2 Native Preview] solid covered-pixels=%zu depth-passing-samples=%zu cache-ms=%llu (CPU depth image; static reference view)\n",
             m_covered_pixels,depth_writes,static_cast<unsigned long long>(SDL_GetTicks()-started));
+        std::printf("[U2 Native Preview] lighting normals=%zu/%zu ambient=0.22 diffuse=0.78 (viewer preset; Gouraud shading)\n",lit_vertices,total);
         return true;
     }
     bool ready() const { return m_visible!=0; }
@@ -152,7 +170,7 @@ public:
         const SDL_FRect bar{0,0,1920,56};SDL_RenderFillRect(renderer,&bar);
         SDL_SetRenderDrawColor(renderer,240,235,220,255);
         char caption[160];
-        if(m_mode==Mode::Solid) std::snprintf(caption,sizeof(caption),"TEMPLE - SURFACES PLEINES NATIVES   |   %zu triangles   |   ESPACE : fil de fer   |   ECHAP : quitter",m_triangles);
+        if(m_mode==Mode::Solid) std::snprintf(caption,sizeof(caption),"TEMPLE - ECLAIRAGE DE PREVISUALISATION   |   %zu triangles   |   ESPACE : fil de fer   |   ECHAP : quitter",m_triangles);
         else if(m_mode==Mode::Wireframe) std::snprintf(caption,sizeof(caption),"TEMPLE - FIL DE FER NATIF   |   %zu triangles / %zu aretes visibles   |   ESPACE : sommets   |   ECHAP : quitter",m_triangles,m_visible_edges);
         else std::snprintf(caption,sizeof(caption),"TEMPLE - SOMMETS   |   %zu / %zu points   |   ESPACE : surfaces   |   ECHAP : quitter",m_visible,m_total);
         SDL_RenderDebugText(renderer,24,24,caption);

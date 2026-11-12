@@ -200,7 +200,10 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > Une image statique est calculée sur CPU avec profondeur par pixel puis présentée
 > dans une texture SDL. Espace parcourt surfaces, fil de fer et sommets.
 > Les 12 383 normales du temple sont également décodées depuis l'attribut 2
-> R16G16B16A16Float, sans modifier l'affichage (`NATIVE_TEMPLE_NORMALS.md`).
+> R16G16B16A16Float (`NATIVE_TEMPLE_NORMALS.md`) et utilisées pour un éclairage
+> directionnel propre au viewer, interpolé avec correction de perspective
+> (`NATIVE_TEMPLE_LIGHTING.md`). Les surfaces éclairées remplacent les couleurs
+> plates dans le mode opaque ; les vues fil de fer et sommets restent disponibles.
 > Leur identification est appuyée par la géométrie ; la liaison au shader actif
 > reste à établir avant de revendiquer le rendu original.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu

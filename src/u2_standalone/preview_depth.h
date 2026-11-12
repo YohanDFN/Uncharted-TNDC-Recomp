@@ -11,7 +11,7 @@
 namespace u2::standalone {
 
 // Cached CPU depth image for the static asset viewer. No guest structures,
-// original render-state replacement, lighting or material approximation.
+// original render-state replacement or original material approximation.
 class PreviewDepthImage {
 public:
     using Vertex=std::array<float,4>;
@@ -32,32 +32,38 @@ public:
 
     // Clip the triangle to x/y [-w,w], z [0,w], then rasterize its convex fan.
     // Returns depth-passing sample writes, not the number of unique pixels.
-    size_t triangle(const std::array<Vertex,3> &vertices,uint32_t color) {
+    // Optional vertex brightness is interpolated with perspective correction.
+    size_t triangle(const std::array<Vertex,3> &vertices,uint32_t color,
+                    const std::array<float,3> &brightness={1,1,1}) {
         if(width<=0 || height<=0 || pixels.size()!=size_t(width)*height || depth.size()!=pixels.size()) return 0;
-        std::array<Vertex,12> polygon{},clipped{};
+        struct ClipVertex { Vertex position;float brightness; };
+        std::array<ClipVertex,12> polygon{},clipped{};
         size_t count=3;
         for(size_t i=0;i<3;++i) {
             for(float value : vertices[i]) if(!std::isfinite(value)) return 0;
-            polygon[i]=vertices[i];
+            if(!std::isfinite(brightness[i]) || brightness[i]<0 || brightness[i]>1) return 0;
+            polygon[i]={vertices[i],brightness[i]};
         }
         for(size_t plane=0;plane<6;++plane) {
             size_t next_count=0;
             auto previous=polygon[count-1];
-            float previous_distance=distance(previous,plane);
+            float previous_distance=distance(previous.position,plane);
             if(!std::isfinite(previous_distance)) return 0;
             for(size_t i=0;i<count;++i) {
                 const auto current=polygon[i];
-                const float current_distance=distance(current,plane);
+                const float current_distance=distance(current.position,plane);
                 if(!std::isfinite(current_distance)) return 0;
                 if((previous_distance<0)!=(current_distance<0)) {
                     const float divisor=previous_distance-current_distance;
                     if(!std::isfinite(divisor) || divisor==0 || next_count==clipped.size()) return 0;
                     const float t=previous_distance/divisor;
-                    Vertex intersection;
+                    ClipVertex intersection;
                     for(size_t axis=0;axis<4;++axis) {
-                        intersection[axis]=previous[axis]+t*(current[axis]-previous[axis]);
-                        if(!std::isfinite(intersection[axis])) return 0;
+                        intersection.position[axis]=previous.position[axis]+t*(current.position[axis]-previous.position[axis]);
+                        if(!std::isfinite(intersection.position[axis])) return 0;
                     }
+                    intersection.brightness=previous.brightness+t*(current.brightness-previous.brightness);
+                    if(!std::isfinite(intersection.brightness)) return 0;
                     clipped[next_count++]=intersection;
                 }
                 if(current_distance>=0) {
@@ -71,12 +77,15 @@ public:
         }
         std::array<ScreenVertex,12> screen{};
         for(size_t i=0;i<count;++i) {
-            const auto &v=polygon[i];
+            const auto &v=polygon[i].position;
             if(!(v[3]>0)) return 0;
             const float x=v[0]/v[3],y=v[1]/v[3],z=v[2]/v[3];
             if(!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return 0;
+            const float inverse_w=1/v[3];
+            if(!std::isfinite(inverse_w)) return 0;
             screen[i]={(std::clamp(x,-1.0f,1.0f)+1)*0.5f*width,
-                       (1-std::clamp(y,-1.0f,1.0f))*0.5f*height,std::clamp(z,0.0f,1.0f)};
+                       (1-std::clamp(y,-1.0f,1.0f))*0.5f*height,std::clamp(z,0.0f,1.0f),
+                       inverse_w,polygon[i].brightness*inverse_w};
         }
         size_t written=0;
         for(size_t i=1;i+1<count;++i) written+=rasterize(screen[0],screen[i],screen[i+1],color);
@@ -84,7 +93,7 @@ public:
     }
 
 private:
-    struct ScreenVertex { float x,y,z; };
+    struct ScreenVertex { float x,y,z,inverse_w,brightness_over_w; };
     static float distance(const Vertex &v,size_t plane) {
         switch(plane) {
             case 0: return v[2];
@@ -118,7 +127,14 @@ private:
             const float z=std::clamp(interpolated,0.0f,1.0f);
             const size_t pixel=size_t(y)*width+x;
             if(z<depth[pixel]) {
-                depth[pixel]=z;pixels[pixel]=color;++written;
+                const float denominator=e0*a.inverse_w+e1*b.inverse_w+e2*c.inverse_w;
+                const float brightness=(e0*a.brightness_over_w+e1*b.brightness_over_w+e2*c.brightness_over_w)/denominator;
+                if(!(denominator>0) || !std::isfinite(brightness)) continue;
+                const float amount=std::clamp(brightness,0.0f,1.0f);
+                uint32_t shaded=color&0xFF000000u;
+                for(unsigned shift : {0u,8u,16u})
+                    shaded|=uint32_t(std::lround(float((color>>shift)&255)*amount))<<shift;
+                depth[pixel]=z;pixels[pixel]=shaded;++written;
             }
         }
         return written;

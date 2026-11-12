@@ -11,6 +11,7 @@
 #include "game/rendercamera.h"
 #include "../u2_standalone/preview_clip.h"
 #include "../u2_standalone/preview_depth.h"
+#include "../u2_standalone/preview_lighting.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -986,6 +987,71 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
+        {
+            using u2::standalone::preview_light_intensity;
+            float brightness=-1;
+            U2_TEST_ASSERT(preview_light_intensity({0,1,0},{0,1,0},&brightness) && brightness==1,
+                           "Preview directional light reaches full intensity for an aligned normal");
+            U2_TEST_ASSERT(preview_light_intensity({0,-1,0},{0,1,0},&brightness) && brightness==0.22f &&
+                           preview_light_intensity({1,0,0},{0,1,0},&brightness) && brightness==0.22f,
+                           "Preview back-facing and perpendicular normals retain only ambient light");
+            const std::array<float,3> normal{0,2,2},light{0,8,0};
+            U2_TEST_ASSERT(preview_light_intensity(normal,light,&brightness) &&
+                           std::abs(brightness-float(0.22+0.78/std::sqrt(2.0)))<0.000001f && normal[1]==2 && light[1]==8,
+                           "Preview lighting normalizes temporary directions without modifying stored normals");
+            const float largest=std::numeric_limits<float>::max(),smallest=std::numeric_limits<float>::denorm_min();
+            U2_TEST_ASSERT(preview_light_intensity({largest,0,0},{smallest,0,0},&brightness) && brightness==1,
+                           "Preview lighting handles large finite and subnormal directions without float norm overflow");
+            brightness=-7;
+            U2_TEST_ASSERT(!preview_light_intensity({0,0,0},light,&brightness) &&
+                           !preview_light_intensity(normal,{0,0,0},&brightness) && brightness==-7 &&
+                           !preview_light_intensity(normal,light,nullptr),
+                           "Preview lighting refuses zero directions and missing output without inventing an intensity");
+            const float nan=std::numeric_limits<float>::quiet_NaN(),inf=std::numeric_limits<float>::infinity();
+            U2_TEST_ASSERT(!preview_light_intensity({nan,0,1},light,&brightness) &&
+                           !preview_light_intensity(normal,{inf,0,1},&brightness) && brightness==-7,
+                           "Preview lighting rejects nonfinite normals and light directions atomically");
+
+            using Image=u2::standalone::PreviewDepthImage;
+            constexpr uint32_t bg=0xFF130C08;
+            Image shaded,plain;
+            shaded.reset(16,16,bg);plain.reset(16,16,bg);
+            const std::array<Image::Vertex,3> triangle{{{-1,-1,0.2f,1},{2,-2,1.6f,2},{0,4,2,4}}};
+            const size_t center=8*16+8;
+            shaded.triangle(triangle,0xFFFFFFFF,{1,0,0});
+            U2_TEST_ASSERT(shaded.pixels[center]==0xFF787878 && std::abs(shaded.depth[center]-0.51875f)<0.000001f,
+                           "Unequal-w brightness is perspective-correct (0.46875 at sample), while depth remains linear z/w");
+            auto reversed=triangle;std::swap(reversed[0],reversed[2]);
+            plain.triangle(reversed,0xFFFFFFFF,{0,0,1});
+            bool equivalent_depth=true;
+            for(size_t i=0;i<plain.depth.size();++i) {
+                const bool covered=std::isfinite(plain.depth[i]),other=std::isfinite(shaded.depth[i]);
+                equivalent_depth &= covered==other && (!covered || std::abs(plain.depth[i]-shaded.depth[i])<0.000001f);
+            }
+            U2_TEST_ASSERT(plain.pixels==shaded.pixels && equivalent_depth,
+                           "Lighting follows vertex attributes when winding changes");
+            shaded.reset(16,16,bg);plain.reset(16,16,bg);
+            shaded.triangle(triangle,0x7F204080,{0.5f,0.5f,0.5f});
+            U2_TEST_ASSERT(shaded.pixels[center]==0x7F102040,
+                           "Vertex brightness scales RGB channels while preserving alpha");
+            shaded.reset(16,16,bg);
+            const auto original_pixels=shaded.pixels;
+            const auto original_depth=shaded.depth;
+            bool invalid_rejected=true;
+            for(float invalid : {nan,-0.01f,1.01f})
+                invalid_rejected &= shaded.triangle(triangle,0xFFFFFFFF,{0,invalid,1})==0 &&
+                    shaded.pixels==original_pixels && shaded.depth==original_depth;
+            U2_TEST_ASSERT(invalid_rejected,"Invalid vertex brightness leaves both color and depth untouched");
+            shaded.triangle(triangle,0xFFFFFFFF,{1,1,1});plain.triangle(triangle,0xFFFFFFFF);
+            U2_TEST_ASSERT(shaded.pixels==plain.pixels && shaded.depth==plain.depth,
+                           "Default brightness retains the previous opaque depth rendering");
+            shaded.reset(16,16,bg);plain.reset(16,16,bg);
+            shaded.triangle({{{-1,-1,-0.5f,1},{1,-1,0.5f,1},{0,1,0.5f,1}}},0xFFFFFFFF,{1,0,0});
+            const Image::Vertex a{-0.5f,0,0,1},b{0,-1,0,1},c{1,-1,0.5f,1},d{0,1,0.5f,1};
+            plain.triangle({a,b,c},0xFFFFFFFF,{0.5f,0.5f,0});plain.triangle({a,c,d},0xFFFFFFFF,{0.5f,0,0});
+            U2_TEST_ASSERT(shaded.pixels==plain.pixels && shaded.depth==plain.depth,
+                           "Near-plane clipping interpolates brightness like an explicitly split polygon");
+        }
         {
             using Image=u2::standalone::PreviewDepthImage;
             constexpr uint32_t background=0xFF130C08,red=0xFF0000FF,blue=0xFFFF0000;
