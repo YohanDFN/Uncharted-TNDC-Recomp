@@ -1173,6 +1173,17 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             const std::array<float,4> first_normal{-0.00390625f,1,-0.00390625f,1};
             U2_TEST_ASSERT(!meshes.empty() && !meshes[0].normals.empty() && meshes[0].normals[0]==first_normal,
                            "First original temple normal preserves exact signed binary16 values");
+            size_t uv_count=0;bool uv_sizes=true,uv_outside_unit=false;
+            for (const auto &mesh : meshes) {
+                uv_count+=mesh.texcoords.size();uv_sizes &= mesh.texcoords.size()==mesh.positions.size();
+                for (const auto &uv : mesh.texcoords) for(float coordinate : uv)
+                    uv_outside_unit |= coordinate<0 || coordinate>1;
+            }
+            U2_TEST_ASSERT(uv_count==12383 && uv_sizes && uv_outside_unit,
+                           "All temple meshes preserve a texture coordinate per vertex, including negative and tiled coordinates");
+            const std::array<float,2> first_uv{-2.51171875f,-2.513671875f};
+            U2_TEST_ASSERT(!meshes.empty() && !meshes[0].texcoords.empty() && meshes[0].texcoords[0]==first_uv,
+                           "First real UV pair decodes exactly from attribute 1 R16G16Float");
             size_t triangle_count=0;
             for (const auto &mesh : meshes) triangle_count+=mesh.triangles.size();
             const std::array<uint16_t,3> first_triangle{0,1,2};
@@ -1196,7 +1207,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             const std::array<float,3> first{-1,2,3.5f};
             for (size_t i=0;i<3;++i) put32(464+i*4,std::bit_cast<uint32_t>(first[i]));
             U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes.size()==1 &&
-                           meshes[0].positions.size()==3 && meshes[0].positions[0]==first && meshes[0].normals.empty(),
+                           meshes[0].positions.size()==3 && meshes[0].positions[0]==first && meshes[0].normals.empty() && meshes[0].texcoords.empty(),
                            "Geometry preview decodes signed nonzero float3 positions");
             U2_TEST_ASSERT(meshes[0].triangles.size()==1 && meshes[0].triangles[0]==first_triangle,
                            "Geometry decoder preserves little-endian uint16 triangle indices");
@@ -1307,11 +1318,57 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),
                            "Stream inspection respects the original four-attribute limit");
             put16(616,1);
+            // Position + UV + normal streams, each with its own semantic ID.
+            put32(672,0x22040001);put16(594,4);put32(596,12);ptr(608,720);
+            put16(720,0xC100);put16(722,0x4280); // (-2.5, 3.25), preserve tiling
+            put16(724,0x8000);put16(726,1); // negative zero and minimum subnormal
+            put16(728,0x7BFF);put16(730,0x83FF);
+            const std::array<float,2> sample_uv{-2.5f,3.25f};
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].texcoords.size()==3 &&
+                           meshes[0].texcoords[0]==sample_uv && meshes[0].normals[0]==sample_normal,
+                           "UV snapshots coexist with normals and do not clamp or wrap texture coordinates");
+            U2_TEST_ASSERT(std::signbit(meshes[0].texcoords[1][0]) && meshes[0].texcoords[1][1]==0x1p-24f &&
+                           meshes[0].texcoords[2][0]==65504 && meshes[0].texcoords[2][1]==-1023*0x1p-24f,
+                           "UV half-float decoding preserves signed zero, subnormals and the finite maximum");
+            bool invalid_uv=true;
+            for(size_t component=0;component<2;++component) for(uint16_t special : {uint16_t{0x7C00},uint16_t{0xFC00},uint16_t{0x7E01}}) {
+                const uint16_t saved=component ? 0x4280 : 0xC100;
+                put16(720+component*2,special);
+                invalid_uv &= !u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].texcoords[0]==sample_uv;
+                put16(720+component*2,saved);
+            }
+            U2_TEST_ASSERT(invalid_uv,"UV stream rejects nonfinite values in either component without partial publication");
+            put32(672,0x0A040001);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader refuses formats other than the established R16G16Float");
+            put32(672,0x22040101);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader refuses unproven attribute offsets");
+            put32(672,0x22080001);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader checks the four-byte attribute size");
+            put32(672,0x22040001);put16(594,8);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader checks the four-byte vertex stride");
+            put16(594,4);put32(596,13);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader checks exact byte count against vertex count");
+            put32(596,12);put64(608,UINT64_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader rejects foreign data pointers");
+            ptr(608,757);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader rejects a buffer truncated by one byte");
+            ptr(608,756);std::memcpy(page+756,page+720,12);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].texcoords[0]==sample_uv,
+                           "UV reader accepts a buffer ending exactly at the page boundary");
+            ptr(608,720);ptr(624,672);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"UV reader rejects duplicate attribute IDs");
+            ptr(624,708);
+            std::array<uint8_t,24> saved_stream;
+            std::memcpy(saved_stream.data(),page+592,24);std::memcpy(page+592,page+616,24);std::memcpy(page+616,saved_stream.data(),24);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].texcoords[0]==sample_uv && meshes[0].normals[0]==sample_normal,
+                           "UV reader identifies streams by semantic ID when UV and normal slots are swapped");
             std::memset(page,0,sizeof(page));
             U2_TEST_ASSERT(meshes[0].name=="test-mesh" && meshes[0].positions[0]==first && meshes[0].triangles[0]==first_triangle,
                            "Geometry positions and names survive destruction of source page data");
             U2_TEST_ASSERT(meshes[0].normals.size()==3 && meshes[0].normals[0]==sample_normal && std::signbit(meshes[0].normals[0][3]),
                            "Normal snapshots own their data after the source page is destroyed");
+            U2_TEST_ASSERT(meshes[0].texcoords.size()==3 && meshes[0].texcoords[0]==sample_uv && std::signbit(meshes[0].texcoords[1][0]),
+                           "UV snapshots own their coordinates after the source page is destroyed");
         }
         {
             // Coherent perspective sample 307 from the original RenderCamera

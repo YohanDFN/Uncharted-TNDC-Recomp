@@ -15,6 +15,15 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
         for (unsigned i=0;i<8;++i) value |= uint64_t(p[i]) << (i*8);
         return value;
     };
+    auto read_half = [&u16](const uint8_t *p,float &value) {
+        const uint16_t half=u16(p);
+        const unsigned exponent=(half>>10)&31, fraction=half&1023;
+        if (exponent==31) return false;
+        const float magnitude=exponent ? std::ldexp(float(1024+fraction),int(exponent)-25)
+                                       : std::ldexp(float(fraction),-24);
+        value=(half&0x8000) ? -magnitude : magnitude;
+        return true;
+    };
     constexpr char type[] = "GEOMETRY_1";
     const uint64_t type_offset=u64(page+metadata+8);
     if (type_offset > size || sizeof(type) > size-type_offset ||
@@ -70,20 +79,25 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
                 size_t definitions=0;
                 if (!attributes || attributes>4 || !range(u64(extra+8),size_t(attributes)*4,definitions)) return false;
                 for (size_t a=0;a<attributes;++a) {
+                    if (page[definitions+a*4]==1) {
+                        size_t uv_data=0;
+                        // Format table entry 34 is R16G16Float in the original
+                        // runtime. Canonical temple definition: 01 00 04 22.
+                        if (!mesh.texcoords.empty() || attributes!=1 || u32(page+definitions)!=0x22040001 ||
+                            u16(extra+2)!=4 || u32(extra+4)!=vertices*4 ||
+                            !range(u64(extra+16),size_t(vertices)*4,uv_data)) return false;
+                        mesh.texcoords.resize(vertices);
+                        for (size_t v=0;v<vertices;++v) for (size_t component=0;component<2;++component)
+                            if (!read_half(page+uv_data+v*4+component*2,mesh.texcoords[v][component])) return false;
+                    }
                     if (page[definitions+a*4]!=2) continue;
                     size_t normal_data=0;
                     if (!mesh.normals.empty() || attributes!=1 || u32(page+definitions)!=0x0A080002 ||
                         u16(extra+2)!=8 || u32(extra+4)!=vertices*8 ||
                         !range(u64(extra+16),size_t(vertices)*8,normal_data)) return false;
                     mesh.normals.resize(vertices);
-                    for (size_t v=0;v<vertices;++v) for (size_t component=0;component<4;++component) {
-                        const uint16_t half=u16(page+normal_data+v*8+component*2);
-                        const unsigned exponent=(half>>10)&31, fraction=half&1023;
-                        if (exponent==31) return false; // Reject infinities/NaNs atomically.
-                        const float magnitude=exponent ? std::ldexp(float(1024+fraction),int(exponent)-25)
-                                                       : std::ldexp(float(fraction),-24);
-                        mesh.normals[v][component]=(half&0x8000) ? -magnitude : magnitude;
-                    }
+                    for (size_t v=0;v<vertices;++v) for (size_t component=0;component<4;++component)
+                        if (!read_half(page+normal_data+v*8+component*2,mesh.normals[v][component])) return false;
                 }
             }
             mesh.positions.resize(vertices);
