@@ -9,6 +9,8 @@
 #include "game/camera/camera_orientation.h"
 #include "game/camera/camera_position.h"
 #include "game/rendercamera.h"
+#include "ndlib/render/ngen/texture_preview.h"
+#include "../runtime.h"
 #include "../u2_standalone/preview_clip.h"
 #include "../u2_standalone/preview_depth.h"
 #include "../u2_standalone/preview_lighting.h"
@@ -987,6 +989,58 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
+        {
+            U2NativeTexturePixels image;
+            std::array<uint8_t,1024> blocks{};
+            blocks[0]=0;blocks[1]=0xF8;blocks[2]=0x1F;blocks[3]=0;
+            for(size_t i=4;i<8;++i) blocks[i]=0xE4; // selectors 0,1,2,3 on each row
+            U2_TEST_ASSERT(u2_native_DecodeThinBc1Preview(&image,blocks.data(),512,4,4,false) &&
+                           image.rgba.size()==16 && image.rgba[0]==0xFF0000FF && image.rgba[1]==0xFFFF0000,
+                           "BC1 endpoints decode RGB565 with explicit RGBA byte order");
+            U2_TEST_ASSERT(image.rgba[2]==0xFF5500AA && image.rgba[3]==0xFFAA0055 && image.rgba[12]==image.rgba[0],
+                           "BC1 four-color interpolation and row selector order match known encoded blocks");
+            blocks[0]=0x1F;blocks[1]=0;blocks[2]=0;blocks[3]=0xF8;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc1Preview(&image,blocks.data(),512,4,4,true) && image.srgb &&
+                           image.rgba[2]==0xFF7F007F && image.rgba[3]==0,
+                           "BC1 three-color mode preserves transparent black and encoded sRGB values");
+            blocks[0]=0xE0;blocks[1]=7;blocks[2]=0xE0;blocks[3]=7;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc1Preview(&image,blocks.data(),512,4,4,false) &&
+                           image.rgba[0]==0xFF00FF00 && image.rgba[3]==0,
+                           "Equal BC1 endpoints retain three-color transparency semantics");
+            std::fill(blocks.begin(),blocks.end(),0);
+            // Distinct endpoints at microtile Morton indices 1 (x=1) and 2 (y=1).
+            blocks[8+1]=0xF8;blocks[16+0]=0x1F;blocks[512+0]=0xE0;blocks[512+1]=7;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc1Preview(&image,blocks.data(),blocks.size(),64,32,false) &&
+                           image.rgba[4]==0xFF0000FF && image.rgba[4*64]==0xFFFF0000 && image.rgba[32]==0xFF00FF00,
+                           "Thin1D BC1 detiling follows Morton block order and crosses 8x8 microtile boundaries");
+            U2_TEST_ASSERT(u2_native_DecodeThinBc1Preview(&image,blocks.data(),512,5,3,false) &&
+                           image.rgba.size()==15 && image.rgba[4]==0xFF0000FF,
+                           "BC1 preview crops partial edge blocks to the requested pixel dimensions");
+            const auto saved=image.rgba;
+            U2_TEST_ASSERT(!u2_native_DecodeThinBc1Preview(&image,blocks.data(),511,4,4,false) && image.rgba==saved && image.width==5,
+                           "BC1 decoder rejects a padded microtile truncated by one byte atomically");
+            U2_TEST_ASSERT(!u2_native_DecodeThinBc1Preview(nullptr,blocks.data(),512,4,4,false) &&
+                           !u2_native_DecodeThinBc1Preview(&image,nullptr,512,4,4,false) &&
+                           !u2_native_DecodeThinBc1Preview(&image,blocks.data(),512,0,4,false) &&
+                           !u2_native_DecodeThinBc1Preview(&image,blocks.data(),512,4,0,false),
+                           "BC1 decoder rejects missing buffers and zero dimensions");
+            U2_TEST_ASSERT(!u2_native_DecodeThinBc1Preview(&image,blocks.data(),blocks.size(),UINT32_MAX,4,false) &&
+                           !u2_native_DecodeThinBc1Preview(&image,blocks.data(),blocks.size(),4,4097,false) && image.rgba==saved,
+                           "BC1 dimension budget is checked before products and allocations");
+            U2_TEST_ASSERT(u2_native_DecodeThinBc1Preview(&image,blocks.data(),512,4,4,false),
+                           "BC1 decoder accepts an exact padded first-mip extent");
+            const auto owned=image.rgba;std::fill(blocks.begin(),blocks.end(),255);
+            U2_TEST_ASSERT(image.rgba==owned,"Decoded BC1 pixels own their data after the input is overwritten");
+            // Captured resident column color: full 5120 bytes match the original
+            // GPU image by SHA-256; its first mip is BC1 sRGB Thin1DThin, 64x64.
+            std::array<uint8_t,5120> resident{};
+            const int64_t fd=runtime_file_open("/app0/u2data/build/main/pak22/ps4/menu-temple.pak",0,0);
+            const bool read_sample=fd>=0 && runtime_file_pread(int(fd),resident.data(),resident.size(),0xA262B8)==int64_t(resident.size());
+            if(fd>=0) runtime_file_close(int(fd));
+            U2_TEST_ASSERT(read_sample && u2_native_DecodeThinBc1Preview(&image,resident.data(),resident.size(),64,64,true) &&
+                           image.rgba.size()==4096 && image.srgb && image.rgba[0]==0xFF8C8E94,
+                           "Real GPU-matched temple column BC1 data decodes to 4096 owned pixels with the expected first RGB565 endpoint");
+        }
         {
             using u2::standalone::preview_light_intensity;
             float brightness=-1;
