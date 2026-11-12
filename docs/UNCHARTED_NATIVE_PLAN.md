@@ -240,3 +240,75 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
    * Décodage des streams audio ATRAC9 du menu principal (`u2data/build/main/snd/...`) via `LibAtrac9`.
 2. **Validation** :
    * Lecture fluide de la musique du thème d'Uncharted 2 sur les haut-parleurs/casque lors de l'affichage du menu interactif.
+
+<a id="attribution-automatique-materiaux"></a>
+
+### Jalon transversal rendu : attribution automatique par famille de matériaux [PLANIFIÉ]
+
+Objectif : passer du cas vérifié du sous-mesh 21 à un parcours générique
+mesh → matériau → paramètres → images → échantillonnage. Toutes les surfaces
+compatibles doivent recevoir leurs textures depuis les données chargées,
+sans condition sur le nom, le numéro du mesh ou l'index fixe d'une image.
+Ce jalon de rendu peut avancer indépendamment de l'étape audio ci-dessus.
+
+**Point de départ observé** : les associations de données sont déjà communes
+aux treize meshes et aux cent références de textures ; l'affichage texturé
+reste limité à un seul mesh. Voir les preuves de
+[liaison matériau/image](NATIVE_MATERIAL_IMAGE_BINDINGS.md) et du
+[trajet UV/image/sampler des colonnes](NATIVE_TEMPLE_COLOR_SAMPLING.md).
+Le partage d'un nom de paramètre ou d'un suffixe de shader ne suffit pas à
+établir que deux matériaux ont le même comportement.
+
+1. **Inventorier les variantes et choisir les prochains cas utiles.** Pour
+   les matériaux du temple, relever les paramètres présents, images et formats
+   résidents, attributs géométriques disponibles et variantes de shaders
+   réellement actives. Distinguer ce qui est observé, encore hypothétique ou
+   propre au viewer. Examiner le grand visage comme prochain cas visible,
+   en déterminant s'il partage une famille déjà étudiée ou révèle une variante.
+2. **Établir une première famille prise en charge.** Prouver les règles de
+   sélection des cartes, le trajet des UV et leurs transformations, les
+   samplers et les opérations utiles sur plusieurs matériaux distincts de la
+   famille candidate. Définir ses préconditions à partir des données et du
+   comportement établis. Toute différence non expliquée reste une variante
+   non prise en charge ; quelques exemples ne prouvent pas l'universalité.
+3. **Construire les associations de rendu communes.** Produire une description
+   hôte possédée des cartes et règles nécessaires, en réutilisant les
+   associations matériau/image existantes. Vérifier unicité des paramètres,
+   formats décodés, attributs, tailles et durées de vie avant utilisation.
+   La partie moteur appartient à `src/u2_engine/` ; l'application au viewer
+   et ses conventions restent dans `src/u2_standalone/`. Aucun login moteur
+   ni statut Ready ne doit être déduit du seul succès d'une prévisualisation.
+4. **Appliquer la famille à tous les meshes compatibles.** Remplacer la
+   sélection explicite du sous-mesh 21 par le parcours des matériaux chargés.
+   Déterminer l'admissibilité par les préconditions vérifiées, jamais par une
+   liste de noms ou de numéros de meshes. Publier les comptes de matériaux et
+   meshes pris en charge, ainsi que les motifs précis des rejets : variante
+   inconnue, carte absente ou ambiguë, format non décodé, attribut manquant.
+   Ne pas substituer une texture arbitraire ; conserver un affichage de
+   diagnostic explicitement identifié pour les cas non pris en charge.
+5. **Étendre par familles et valider la réutilisation.** Ajouter les règles
+   de mélange, normal maps et propriétés de surface uniquement après preuve.
+   Valider ensuite la même prise en charge sur un autre package réellement
+   disponible, sans branche spécifique au décor. L'accès aux mips plus
+   détaillés et au streaming est un axe distinct de qualité : une attribution
+   automatique correcte n'implique pas une texture haute résolution disponible.
+
+**Critère de réussite du premier palier** : toutes les surfaces du temple
+dont les matériaux satisfont les préconditions de la première famille sont
+texturées à partir de leurs références chargées, sans sélection manuelle des
+meshes. Le bilan couvre l'ensemble des meshes inspectés et explique chaque
+cas non pris en charge. Les règles sont confrontées aux bindings originaux
+des cas validés ; toute convention du viewer reste indiquée. L'équivalence
+au matériau original complet n'est pas revendiquée pour une simple carte
+de couleur avec éclairage de prévisualisation.
+
+**Validation lors de l'implémentation** : assertions fonctionnelles sur des
+matériaux distincts et sur les rejets, indépendance vis-à-vis de l'ordre des
+meshes et images, conservation des snapshots et statuts, puis build, test
+hybride de 30 secondes et test natif. Conserver et inspecter une capture réelle
+du framebuffer pour chaque évolution visible, avec provenance et comparaison
+au jalon précédent. Le contrôle de l'affichage HTML n'est pas demandé.
+
+Mise à jour du plan le 12 novembre 2026 : ce jalon explicite la généralisation
+attendue ; il ne constitue pas une implémentation ni une nouvelle preuve runtime.
+Modification documentaire uniquement, à vérifier par contenu, liens et diff.
