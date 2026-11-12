@@ -21,7 +21,7 @@ def rotate(current: Path, journal: Path, replacement: Path):
         old.decode('utf-8-sig')
         digest = hashlib.sha256(old).hexdigest()
         stamp = datetime.now(timezone.utc).isoformat()
-        entry = f'\n\n---\n\n## {stamp}\n\nSHA-256: `{digest}`\n\n'.encode() + old + b'\n'
+        entry = f'\n\n---\n\n## {stamp}\n\nSHA-256: `{digest}`\n\n'.encode() + old + b'\n<!-- End of archived handoff -->\n'
         with journal.open('ab') as archive:
             archive.write(entry)
             archive.flush()

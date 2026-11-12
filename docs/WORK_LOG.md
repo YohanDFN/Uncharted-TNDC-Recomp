@@ -26,3 +26,4 @@ SHA-256: `5de0da14dc36f62294bc95d1d309ee3ea48b8b0c61b61b40d7a2486dadf7d040`
 - Préserver : sous-module gpu/third_party/fsr-vulkan modifié, .agents/, scratch/diag_baseline_3d5dded/.
 - Travail actuel : instructions compactes et archivage du suivi ; aucun changement de comportement du jeu.
 
+<!-- End of archived handoff -->
