@@ -1,5 +1,9 @@
 # Premiers pixels BC1 décodés depuis le PAK du temple
 
+Suite validée : [chargement des 60 images par TEXTURE_TABLE](NATIVE_TEXTURE_TABLE_LOADING.md).
+Le test réel passe désormais par les descripteurs et l'extent VRAM calculé ;
+l'offset fixe décrit ci-dessous appartient à l'expérience historique.
+
 Sous-système : ndlib/render/ngen, décodage CPU pour la prévisualisation.
 Symptôme : les matériaux ont des références de textures, mais aucune image RGBA possédée.
 Dernier point fonctionnel : 100 références résolues dans 60 entrées locales.

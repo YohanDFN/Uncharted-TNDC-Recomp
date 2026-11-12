@@ -10,7 +10,6 @@
 #include "game/camera/camera_position.h"
 #include "game/rendercamera.h"
 #include "ndlib/render/ngen/texture_preview.h"
-#include "../runtime.h"
 #include "../u2_standalone/preview_clip.h"
 #include "../u2_standalone/preview_depth.h"
 #include "../u2_standalone/preview_lighting.h"
@@ -990,6 +989,122 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
         {
+            const auto *info=u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
+            U2_TEST_ASSERT(info && info->texture_table_loaded && info->texture_images==60 && info->texture_images_decoded==44 &&
+                           info->state==U2NativePackageState::Resolved && info->vram_bytes==8763392,
+                           "Real TEXTURE_TABLE loads 60 owned compressed images and decodes 44 supported BC1 previews without claiming engine Ready");
+            size_t bytes=0,pixels=0;bool complete=true;
+            for(size_t i=0;i<60;++i) {
+                U2NativeTexturePreview image;
+                complete &= u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",i,&image);
+                bytes+=image.resident_blocks.size();pixels+=image.pixels.rgba.size();
+                complete &= image.uid!=0 && !image.resource_name.empty() && !image.cooked_name.empty() &&
+                    image.vram_offset<=info->vram_bytes && image.resident_blocks.size()<=info->vram_bytes-image.vram_offset;
+            }
+            U2_TEST_ASSERT(complete && bytes==info->vram_bytes && pixels==177152,
+                           "All 60 image extents cover the declared VRAM bytes and supported first mips own 177152 pixels");
+            U2NativeTexturePreview column,unsupported;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",37,&column) && column.format==72 &&
+                           column.width==64 && column.height==64 && column.mip_count==7 && column.resident_blocks.size()==5120 &&
+                           column.pixels.srgb && column.pixels.rgba.size()==4096 && column.pixels.rgba[0]==0xFF8C8E94,
+                           "Column image is found through TEXTURE_TABLE and the declared VRAM extent, with no fixed file offset");
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",8,&unsupported) && unsupported.format==77 &&
+                           unsupported.resident_blocks.size()==5597184 && unsupported.pixels.rgba.empty(),
+                           "Unsupported large image remains explicitly compressed rather than receiving fabricated pixels");
+            const auto saved_uid=column.uid;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetNativeTexturePreview("missing",0,&column) &&
+                           !u2_cpp_PackageMgr_GetNativeTexturePreview(nullptr,0,&column) &&
+                           !u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",60,&column) &&
+                           !u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",0,nullptr) && column.uid==saved_uid,
+                           "Texture snapshot lookup bounds inputs without replacing prior output");
+            uint8_t header[80]{};
+            auto put32=[&](size_t at,uint32_t value) { for(unsigned i=0;i<4;++i) header[at+i]=uint8_t(value>>(8*i)); };
+            put32(0x10,2);put32(0x14,44);put32(0x20,512);
+            put32(44,80);put32(48,16);put32(56,96);put32(60,16);
+            uint64_t offset=7,extent=9;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),624,&offset,&extent) && offset==112 && extent==512,
+                           "VRAM extent follows declared CPU pages and header size, independent of temple offsets");
+            put32(56,128);
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),656,&offset,&extent) && offset==144,
+                           "VRAM start follows a shifted last CPU page including an alignment gap");
+            offset=7;extent=9;
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),655,&offset,&extent) && offset==7 && extent==9 &&
+                           !u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),657,&offset,&extent),
+                           "VRAM declaration must end exactly at EOF and failed inspection preserves output");
+            put32(64,1);
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),656,&offset,&extent),
+                           "VRAM preflight refuses unestablished compressed CPU page kinds");
+            put32(64,0);put32(56,90);
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),618,&offset,&extent),
+                           "VRAM preflight rejects overlapping CPU page extents");
+            put32(56,128);put32(0x20,16*1024*1024+1);
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),144ull+16*1024*1024+1,&offset,&extent),
+                           "VRAM loading budget is enforced before allocation");
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_InspectVramExtent(nullptr,sizeof(header),656,&offset,&extent) &&
+                           !u2_cpp_PackageMgr_InspectVramExtent(header,0x23,656,&offset,&extent) &&
+                           !u2_cpp_PackageMgr_InspectVramExtent(header,sizeof(header),656,nullptr,&extent),
+                           "VRAM inspection rejects missing outputs and short headers");
+        }
+        {
+            uint8_t page[512]{},vram[1024]{};
+            const auto put32=[&](size_t at,uint32_t value) { for(unsigned i=0;i<4;++i) page[at+i]=uint8_t(value>>(8*i)); };
+            const auto put64=[&](size_t at,uint64_t value) { for(unsigned i=0;i<8;++i) page[at+i]=uint8_t(value>>(8*i)); };
+            const auto ptr=[&](size_t at,size_t target) { put64(at,reinterpret_cast<uintptr_t>(page+target)); };
+            put64(8,64);std::memcpy(page+64,"TEXTURE_TABLE",sizeof("TEXTURE_TABLE"));put32(32,2);
+            ptr(40,96);ptr(48,112);ptr(56,128);put32(96,1);put32(100,2);
+            ptr(112,320);ptr(120,384);ptr(128,160);ptr(136,224);
+            std::memcpy(page+320,"first.ndb",10);std::memcpy(page+352,"cooked/first",13);
+            std::memcpy(page+384,"second.ndb",11);std::memcpy(page+416,"cooked/second",14);
+            for(size_t i=0;i<2;++i) {
+                const size_t d=160+i*64;put64(d+8,i*512);put32(d+16,512);put32(d+20,uint32_t(i+1));put32(d+24,1);
+                put32(d+28,i ? 72 : 83);put32(d+32,i ? 0x010F0000 : 0x01000000);put32(d+36,1);put32(d+40,4);put32(d+44,4);
+                put32(d+52,2);ptr(d+56,352+i*64);
+            }
+            vram[513]=0xF8;vram[514]=0x1F;
+            std::vector<U2NativeTexturePreview> images;
+            const auto read=[&] { return u2_native_ReadTextureTablePreview(&images,page,sizeof(page),0,vram,sizeof(vram)); };
+            U2_TEST_ASSERT(read() && images.size()==2 && images[0].pixels.rgba.empty() && images[0].resident_blocks.size()==512 &&
+                           images[1].pixels.rgba.size()==16 && images[1].pixels.rgba[0]==0xFF0000FF,
+                           "Texture table preserves unknown compression and decodes only the supported bounded BC1 layout");
+            U2_TEST_ASSERT(images[1].resource_name=="second.ndb" && images[1].cooked_name=="cooked/second" && images[1].vram_offset==512,
+                           "Texture descriptors preserve names and 64-bit VRAM offsets in owned snapshots");
+            ptr(128,224);ptr(136,160);put32(96,2);put32(100,1);ptr(112,384);ptr(120,320);
+            U2_TEST_ASSERT(read() && images[0].uid==2 && images[0].pixels.rgba[0]==0xFF0000FF,
+                           "Texture loading follows relocated tables rather than fixed descriptor addresses");
+            ptr(128,160);ptr(136,224);put32(96,1);put32(100,2);ptr(112,320);ptr(120,384);
+            put32(224+20,3);
+            U2_TEST_ASSERT(!read() && images[0].uid==2,"Mismatched descriptor UIDs reject the table without partial publication");
+            put32(224+20,2);put64(224+8,UINT64_MAX);
+            U2_TEST_ASSERT(!read(),"Texture VRAM offset overflow is rejected before pointer arithmetic");
+            put64(224+8,513);
+            U2_TEST_ASSERT(!read(),"Texture extent exceeding the VRAM block by one byte is rejected");
+            put64(224+8,512);put32(224+16,511);
+            U2_TEST_ASSERT(!read(),"Supported BC1 mip-chain extent must match its padded declared layout");
+            put32(224+16,512);ptr(136,449);
+            U2_TEST_ASSERT(!read(),"Texture descriptor reads require the complete 64-byte record");
+            ptr(136,224);put64(40,UINT64_MAX);
+            U2_TEST_ASSERT(!read(),"Texture UID tables reject foreign pointers");
+            ptr(40,96);ptr(224+56,511);page[511]='X';
+            U2_TEST_ASSERT(!read(),"Texture cooked names must terminate inside the owning page");
+            ptr(224+56,416);put32(32,UINT32_MAX);
+            U2_TEST_ASSERT(!read(),"Texture counts are bounded before table multiplication and allocation");
+            put32(32,2);put32(224+36,4);
+            U2_TEST_ASSERT(!read(),"Texture mip counts cannot exceed their dimensions");
+            put32(224+36,1);page[64]='X';
+            U2_TEST_ASSERT(!read(),"Texture table reader checks the exact resource type");
+            page[64]='T';
+            U2_TEST_ASSERT(!u2_native_ReadTextureTablePreview(nullptr,page,sizeof(page),0,vram,sizeof(vram)) &&
+                           !u2_native_ReadTextureTablePreview(&images,page,sizeof(page),SIZE_MAX,vram,sizeof(vram)) &&
+                           !u2_native_ReadTextureTablePreview(&images,page,63,0,vram,sizeof(vram)) &&
+                           !u2_native_ReadTextureTablePreview(&images,page,sizeof(page),0,nullptr,sizeof(vram)),
+                           "Texture table reader rejects null, overflowing and truncated inputs");
+            U2_TEST_ASSERT(read(),"Texture table reader recovers after rejected inputs");
+            std::memset(page,0,sizeof(page));std::memset(vram,0,sizeof(vram));
+            U2_TEST_ASSERT(images[1].resident_blocks[1]==0xF8 && images[1].pixels.rgba[0]==0xFF0000FF &&
+                           images[1].cooked_name=="cooked/second",
+                           "Compressed bytes, decoded pixels and names survive destruction of both source buffers");
+        }
+        {
             U2NativeTexturePixels image;
             std::array<uint8_t,1024> blocks{};
             blocks[0]=0;blocks[1]=0xF8;blocks[2]=0x1F;blocks[3]=0;
@@ -1033,11 +1148,9 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(image.rgba==owned,"Decoded BC1 pixels own their data after the input is overwritten");
             // Captured resident column color: full 5120 bytes match the original
             // GPU image by SHA-256; its first mip is BC1 sRGB Thin1DThin, 64x64.
-            std::array<uint8_t,5120> resident{};
-            const int64_t fd=runtime_file_open("/app0/u2data/build/main/pak22/ps4/menu-temple.pak",0,0);
-            const bool read_sample=fd>=0 && runtime_file_pread(int(fd),resident.data(),resident.size(),0xA262B8)==int64_t(resident.size());
-            if(fd>=0) runtime_file_close(int(fd));
-            U2_TEST_ASSERT(read_sample && u2_native_DecodeThinBc1Preview(&image,resident.data(),resident.size(),64,64,true) &&
+            U2NativeTexturePreview resident;
+            const bool read_sample=u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",37,&resident);
+            U2_TEST_ASSERT(read_sample && u2_native_DecodeThinBc1Preview(&image,resident.resident_blocks.data(),resident.resident_blocks.size(),64,64,true) &&
                            image.rgba.size()==4096 && image.srgb && image.rgba[0]==0xFF8C8E94,
                            "Real GPU-matched temple column BC1 data decodes to 4096 owned pixels with the expected first RGB565 endpoint");
         }

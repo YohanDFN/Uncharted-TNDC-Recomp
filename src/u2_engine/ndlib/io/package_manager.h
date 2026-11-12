@@ -7,6 +7,7 @@
 #include <vector>
 #include "game/loading/level_resources.h"
 #include "ndlib/render/ngen/geometry_preview.h"
+#include "ndlib/render/ngen/texture_preview.h"
 
 #ifndef ABI
 #if defined(_WIN32)
@@ -45,9 +46,15 @@ struct U2NativePackageInfo {
     bool camera_definitions_decoded;
     uint32_t camera_definitions;
     bool level_offset_decoded;
+    bool texture_table_loaded;
+    uint32_t texture_images,texture_images_decoded;
+    uint64_t vram_file_offset,vram_bytes;
 };
 
 extern "C" {
+bool u2_cpp_PackageMgr_InspectVramExtent(const uint8_t *header,size_t header_size,uint64_t file_size,
+                                       uint64_t *offset,uint64_t *bytes);
+bool u2_cpp_PackageMgr_GetNativeTexturePreview(const char *package,size_t index,U2NativeTexturePreview *out);
 bool u2_cpp_PackageMgr_GetNativeGeometryPreview(const char *package, std::vector<U2NativeMeshPreview> *out);
 bool u2_cpp_PackageMgr_GetNativeLevelOffset(const char *package, U2NativeLevelOffset *out);
 bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,

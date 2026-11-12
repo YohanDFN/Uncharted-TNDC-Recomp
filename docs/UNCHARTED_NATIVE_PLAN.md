@@ -215,8 +215,11 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > l'original (`NATIVE_TEMPLE_TEXTURE_REFERENCES.md`). Un décodeur du premier mip
 > BC1 Thin1DThin produit une première image RGBA réelle de colonnes en 64×64,
 > après comparaison des octets compressés à des images GPU originales
-> (`NATIVE_TEMPLE_BC1_PIXELS.md`). La lecture générale des images dans TEXTURE_TABLE,
-> leur application au viewer, les autres formats et les paramètres du sampler restent à porter.
+> (`NATIVE_TEMPLE_BC1_PIXELS.md`). Les 60 images résidentes de TEXTURE_TABLE sont
+> maintenant copiées depuis les descripteurs et le bloc VRAM calculé, sans offset
+> fixe : 44 premiers mips BC1 sont décodés, 16 images restent compressées
+> (`NATIVE_TEXTURE_TABLE_LOADING.md`). La liaison aux matériaux, l'application
+> au viewer, les autres formats et les paramètres du sampler restent à porter.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.

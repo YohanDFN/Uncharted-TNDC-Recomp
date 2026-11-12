@@ -44,6 +44,9 @@ struct NativePackageRequest {
     std::vector<U2NativeCameraDefinition> cameras;
     bool geometry_preview_decoded{false};
     std::vector<U2NativeMeshPreview> geometry_preview;
+    bool texture_table_loaded{false};
+    uint64_t vram_file_offset{0},vram_bytes{0};
+    std::vector<U2NativeTexturePreview> texture_images;
     U2NativePackageInfo view{};
 };
 
@@ -91,6 +94,11 @@ void refresh_view(NativePackageRequest &request) {
         request.cameras_decoded,
         static_cast<uint32_t>(request.cameras.size()),
         request.level_offset.decoded,
+        request.texture_table_loaded,
+        static_cast<uint32_t>(request.texture_images.size()),
+        static_cast<uint32_t>(std::count_if(request.texture_images.begin(),request.texture_images.end(),
+            [](const auto &image) { return !image.pixels.rgba.empty(); })),
+        request.vram_file_offset,request.vram_bytes,
     };
 }
 
@@ -237,6 +245,25 @@ bool resolve_package_file(NativePackageRequest &request) {
                                         std::printf("[U2 Native Geometry] decoded=%u meshes=%zu positions=%zu triangles=%zu normals=%zu uv=%zu materials=%zu texture-refs=%zu (preview geometry; engine login pending)\n",
                                             request.geometry_preview_decoded,request.geometry_preview.size(),vertices,triangles,normals,texcoords,materials,texture_refs);
                                     }
+                                    for(size_t i=0;i<request.login_types.size();++i) {
+                                        if(request.login_types[i]!="TEXTURE_TABLE") continue;
+                                        uint64_t vram_offset=0,vram_bytes=0;
+                                        if(u2_cpp_PackageMgr_InspectVramExtent(header.data(),header.size(),uint64_t(size),&vram_offset,&vram_bytes)) {
+                                            std::vector<uint8_t> vram(static_cast<size_t>(vram_bytes));
+                                            const uint32_t page_index=read_le32(root+0x28+i*8),metadata=read_le32(root+0x2C+i*8);
+                                            if(runtime_file_pread(fd,vram.data(),vram.size(),int64_t(vram_offset))==int64_t(vram.size()) &&
+                                               u2_native_ReadTextureTablePreview(&request.texture_images,pages[page_index],sizes[page_index],metadata,
+                                                                                 vram.data(),vram.size())) {
+                                                request.texture_table_loaded=true;
+                                                request.vram_file_offset=vram_offset;request.vram_bytes=vram_bytes;
+                                            }
+                                        }
+                                        const size_t decoded=std::count_if(request.texture_images.begin(),request.texture_images.end(),
+                                            [](const auto &image) { return !image.pixels.rgba.empty(); });
+                                        std::printf("[U2 Native Textures] loaded=%u images=%zu decoded-bc1=%zu compressed-only=%zu vram-offset=0x%llX bytes=%llu (owned preview; engine login pending)\n",
+                                            request.texture_table_loaded,request.texture_images.size(),decoded,request.texture_images.size()-decoded,
+                                            static_cast<unsigned long long>(request.vram_file_offset),static_cast<unsigned long long>(request.vram_bytes));
+                                    }
                                 } else {
                                     request.second_page.clear();
                                     request.resource_types.clear();
@@ -268,6 +295,33 @@ bool resolve_package_file(NativePackageRequest &request) {
 }
 
 } // namespace
+
+// Observed uncompressed two-page package: VRAM follows the last CPU page.
+// The declared header+20 extent must terminate exactly at EOF; no fixed offset.
+extern "C" bool u2_cpp_PackageMgr_InspectVramExtent(const uint8_t *header,size_t header_size,uint64_t file_size,
+                                                   uint64_t *offset,uint64_t *bytes) {
+    if(!header || !offset || !bytes || header_size<0x24 || read_le32(header+0x10)!=2) return false;
+    const uint32_t table=read_le32(header+0x14),length=read_le32(header+0x20);
+    if(table>header_size || 24>header_size-table || length>16*1024*1024) return false;
+    uint64_t end=header_size;
+    for(size_t i=0;i<2;++i) {
+        const auto *entry=header+table+i*12;
+        const uint64_t begin=read_le32(entry),size=read_le32(entry+4);
+        if(read_le32(entry+8)!=0 || size<16 || begin<end || begin>file_size || size>file_size-begin) return false;
+        end=begin+size;
+    }
+    if(end>file_size || length!=file_size-end) return false;
+    *offset=end;*bytes=length;return true;
+}
+
+extern "C" bool u2_cpp_PackageMgr_GetNativeTexturePreview(const char *package,size_t index,U2NativeTexturePreview *out) {
+    if(!package || !*package || !out) return false;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request=find_request(string_id(package));
+    if(!request || !request->texture_table_loaded || index>=request->texture_images.size()) return false;
+    try { auto snapshot=request->texture_images[index];*out=std::move(snapshot);return true; }
+    catch(const std::bad_alloc &) { return false; }
+}
 
 // DoLogin 0xB6B9F2..0xB6BA49: root page/offset at PakHdr+8/+12,
 // count at root+0x20 and signed (page, metadata offset) pairs at root+0x28.
