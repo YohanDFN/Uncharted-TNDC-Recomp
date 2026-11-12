@@ -79,6 +79,21 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
             material_order.emplace_back(material_hash(name),int32_t(i));
         }
         std::sort(material_order.begin(),material_order.end());
+        // PrepareBinary C2BA2A..C2BC6A: geometry payload+38/+40,
+        // 40-byte texture entries whose first pointer is the cooked name.
+        const uint32_t textures=u32(page+metadata+0x58);
+        size_t texture_table=0;
+        if(textures>INT32_MAX || (textures && (!range(u64(page+metadata+0x60),0,texture_table) ||
+            textures>(size-texture_table)/40))) return false;
+        std::vector<std::pair<uint32_t,int32_t>> texture_order;
+        texture_order.reserve(textures);
+        for(uint32_t i=0;i<textures;++i) {
+            std::string_view name;
+            if(!material_text(u64(page+texture_table+size_t(i)*40),name)) return false;
+            texture_order.emplace_back(material_hash(name),int32_t(i));
+        }
+        std::sort(texture_order.begin(),texture_order.end());
+        size_t remaining_texture_refs=size/40;
         std::vector<U2NativeMeshPreview> result;
         result.reserve(count);
         size_t remaining_positions=size/12;
@@ -117,6 +132,33 @@ bool u2_native_ReadGeometryPreview(std::vector<U2NativeMeshPreview> *out,
                 std::pair<uint32_t,int32_t>{mesh.material_name_hash,0});
             if(material!=material_order.end() && material->first==mesh.material_name_hash)
                 mesh.material_index=material->second;
+            if(mesh.material_index>=0) {
+                const auto *definition=page+material_table+size_t(mesh.material_index)*72;
+                // Material definition+38 count, +28 pointer. Each 40-byte ref
+                // has parameter/source/cooked name pointers at +0/+8/+10 hex.
+                const uint32_t references=u32(definition+0x38);
+                size_t reference_table=0;
+                if(references>remaining_texture_refs || (references &&
+                    (!range(u64(definition+0x28),0,reference_table) || references>(size-reference_table)/40))) return false;
+                remaining_texture_refs-=references;
+                mesh.material_textures.reserve(references);
+                for(size_t r=0;r<references;++r) {
+                    const auto *reference=page+reference_table+r*40;
+                    std::string_view parameter,source,cooked;
+                    if(!material_text(u64(reference),parameter) || !material_text(u64(reference+8),source) ||
+                        !material_text(u64(reference+16),cooked)) return false;
+                    U2NativeTextureReferencePreview texture;
+                    texture.parameter_name=parameter;texture.source_path=source;texture.cooked_name=cooked;
+                    texture.cooked_name_hash=material_hash(cooked);
+                    const auto found=std::lower_bound(texture_order.begin(),texture_order.end(),
+                        std::pair<uint32_t,int32_t>{texture.cooked_name_hash,0});
+                    // Original C2BBDE asserts index >= 0 before writing +18.
+                    // Reject missing references rather than publishing a usable texture.
+                    if(found==texture_order.end() || found->first!=texture.cooked_name_hash) return false;
+                    texture.texture_index=found->second;
+                    mesh.material_textures.push_back(std::move(texture));
+                }
+            }
             // C4E4F0 copies four-byte attribute definitions; descriptors are
             // 24 bytes apart at C36F80. Identify by ID, never by stream order.
             for (size_t s=0;s<streams;++s) {

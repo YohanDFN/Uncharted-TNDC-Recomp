@@ -1,0 +1,907 @@
+{
+  "payload": "0x1048bc5100",
+  "geometry_texture_count": 60,
+  "material_count": 13,
+  "references": [
+    {
+      "material_index": 0,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-red2-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-red2-color.tga/4246CBC0DBEC44C4",
+      "index": 1,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-red2-color.tga/4246CBC0DBEC44C4",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-cracked-paint2-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-cracked-paint2-blend.tga/10B9E069070228FB",
+      "index": 2,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-cracked-paint2-blend.tga/10B9E069070228FB",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/walls/tmp-base-wall-drk-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-color.tga/93889A01A30353AA",
+      "index": 3,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-color.tga/93889A01A30353AA",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-red2-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-red2-property.tga/0DFAFCAD79CE9366",
+      "index": 4,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-red2-property.tga/0DFAFCAD79CE9366",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/walls/tmp-base-wall-drk-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-property.tga/15FA60C46A99C1B0",
+      "index": 5,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-property.tga/15FA60C46A99C1B0",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tDetailMap",
+      "source": "art/levels/temple/textures/walls/tmp-worn-detail.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-worn-detail.tga/763EE14A9C46C306",
+      "index": 6,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-worn-detail.tga/763EE14A9C46C306",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-paint-red-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-normal.tga/DDE45FED6E03FD8E",
+      "index": 7,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-normal.tga/DDE45FED6E03FD8E",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 0,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-01.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01.tga/6D922D58BF71EFA0",
+      "index": 10,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01.tga/6D922D58BF71EFA0",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "index": 11,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/cloth/tmp-pinched-cloth-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/cloth/tmp-pinched-cloth-color.tga/F795D4C8DC8FE26B",
+      "index": 12,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/cloth/tmp-pinched-cloth-color.tga/F795D4C8DC8FE26B",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-01-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01-property.tga/9B28D83E81F2730C",
+      "index": 13,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01-property.tga/9B28D83E81F2730C",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/cloth/tmp-pinched-cloth-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/cloth/tmp-pinched-cloth-property.tga/876F3EDF14016F73",
+      "index": 14,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/cloth/tmp-pinched-cloth-property.tga/876F3EDF14016F73",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/cloth/tmp-pinched-cloth-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/cloth/tmp-pinched-cloth-normal.tga/B14854602A7B8CF4",
+      "index": 15,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/cloth/tmp-pinched-cloth-normal.tga/B14854602A7B8CF4",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 1,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-03.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-03.tga/9FAE905BE5912DAB",
+      "index": 16,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-03.tga/9FAE905BE5912DAB",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "index": 11,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-color-03.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-03.tga/33E5875E44244A0B",
+      "index": 17,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-03.tga/33E5875E44244A0B",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-03-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-03-property.tga/4C3D41BCB3B7A09E",
+      "index": 18,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-03-property.tga/4C3D41BCB3B7A09E",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-03-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-03-property.tga/4C3D41BCB3B7A09E",
+      "index": 18,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-03-property.tga/4C3D41BCB3B7A09E",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-normal-03.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-03.tga/9FFCB787662A2014",
+      "index": 19,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-03.tga/9FFCB787662A2014",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 2,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-swirls-drk-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-drk-color.tga/6879A242FD4125B8",
+      "index": 20,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-drk-color.tga/6879A242FD4125B8",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "index": 11,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-swirls-lgt-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-lgt-color.tga/DABA306BEDBEEFF2",
+      "index": 21,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-lgt-color.tga/DABA306BEDBEEFF2",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-swirls-drk-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-drk-property.tga/DF82BDD2B8E62510",
+      "index": 22,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-drk-property.tga/DF82BDD2B8E62510",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-swirls-lgt-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-lgt-property.tga/342B54D93216E2DC",
+      "index": 23,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-lgt-property.tga/342B54D93216E2DC",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-swirls-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-normal.tga/9CCDC89A13FF8F39",
+      "index": 24,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-swirls-normal.tga/9CCDC89A13FF8F39",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 3,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-01.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01.tga/6D922D58BF71EFA0",
+      "index": 10,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01.tga/6D922D58BF71EFA0",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "index": 11,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-color-01.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-01.tga/065CDDE24F263335",
+      "index": 25,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-01.tga/065CDDE24F263335",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-01-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01-property.tga/9B28D83E81F2730C",
+      "index": 13,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-01-property.tga/9B28D83E81F2730C",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-color-01-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-01-property.tga/25290685ED41104B",
+      "index": 26,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-01-property.tga/25290685ED41104B",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-normal-01.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-01.tga/C603721F2D7E7096",
+      "index": 27,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-01.tga/C603721F2D7E7096",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 4,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-06.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-06.tga/FC5E35CCD10FB241",
+      "index": 28,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-06.tga/FC5E35CCD10FB241",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "index": 11,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-color-06.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-06.tga/A3D9A5778B70A09A",
+      "index": 29,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-06.tga/A3D9A5778B70A09A",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-06-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-06-property.tga/5AED58CC791A4851",
+      "index": 30,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-06-property.tga/5AED58CC791A4851",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-06-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-06-property.tga/5AED58CC791A4851",
+      "index": 30,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-06-property.tga/5AED58CC791A4851",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-normal-06.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-06.tga/6B0A433B09FFC8A9",
+      "index": 31,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-06.tga/6B0A433B09FFC8A9",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 5,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-02.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-02.tga/310F54B9EF348E3B",
+      "index": 32,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-02.tga/310F54B9EF348E3B",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "index": 11,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-color-02.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-02.tga/C20538D7CBFA7B1E",
+      "index": 33,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-02.tga/C20538D7CBFA7B1E",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-02-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-02-property.tga/7CB83E1631B253F5",
+      "index": 34,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-02-property.tga/7CB83E1631B253F5",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-color-02-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-02-property.tga/3652E82C8A0EA5EE",
+      "index": 35,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-02-property.tga/3652E82C8A0EA5EE",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-normal-02.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-02.tga/CC064F527BB3DF95",
+      "index": 36,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-02.tga/CC064F527BB3DF95",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 6,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/stone/tmp-stone-pillar-1-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-color.tga/43FC661B8ECAFCF2",
+      "index": 37,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-color.tga/43FC661B8ECAFCF2",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/stone/tmp-stone-pillar-1-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-blend.tga/78EE2B0D929256B6",
+      "index": 38,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-blend.tga/78EE2B0D929256B6",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/stone/tmp-stone-pillar-1-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-color.tga/43FC661B8ECAFCF2",
+      "index": 37,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-color.tga/43FC661B8ECAFCF2",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/stone/tmp-stone-pillar-1-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-property.tga/64510C1072F816E0",
+      "index": 39,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-property.tga/64510C1072F816E0",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/stone/tmp-stone-pillar-1-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-property.tga/64510C1072F816E0",
+      "index": 39,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-property.tga/64510C1072F816E0",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/stone/tmp-stone-pillar-1-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-normal.tga/6021BE1EFC4E2E17",
+      "index": 40,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/stone/tmp-stone-pillar-1-normal.tga/6021BE1EFC4E2E17",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 7,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-print-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-print-color.tga/355D8F57A285CAFA",
+      "index": 41,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-print-color.tga/355D8F57A285CAFA",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-cracked-paint-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-cracked-paint-blend.tga/B08D9F8343D1A4F9",
+      "index": 42,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-cracked-paint-blend.tga/B08D9F8343D1A4F9",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/walls/tmp-base-wall-drk-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-color.tga/93889A01A30353AA",
+      "index": 3,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-color.tga/93889A01A30353AA",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-print-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-print-property.tga/5765A6E2DDE64EE0",
+      "index": 43,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-print-property.tga/5765A6E2DDE64EE0",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/walls/tmp-base-wall-drk-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-property.tga/15FA60C46A99C1B0",
+      "index": 5,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-base-wall-drk-property.tga/15FA60C46A99C1B0",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-paint-red-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-normal.tga/DDE45FED6E03FD8E",
+      "index": 7,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-normal.tga/DDE45FED6E03FD8E",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 8,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 9,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/plants/tmp-hanging-vine-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-color.tga/0949D3D4C0372459",
+      "index": 44,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-color.tga/0949D3D4C0372459",
+      "match": true
+    },
+    {
+      "material_index": 9,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/plants/tmp-hanging-vine-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-property.tga/D7FFFB2B89A1171C",
+      "index": 45,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-property.tga/D7FFFB2B89A1171C",
+      "match": true
+    },
+    {
+      "material_index": 9,
+      "parameter": "g_tTransparencyMap",
+      "source": "art/levels/temple/textures/plants/tmp-hanging-vine-trans.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-trans.tga/C4605047F16F5ECA",
+      "index": 46,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-trans.tga/C4605047F16F5ECA",
+      "match": true
+    },
+    {
+      "material_index": 9,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/plants/tmp-hanging-vine-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-normal.tga/C79F01B73B5BD447",
+      "index": 47,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/plants/tmp-hanging-vine-normal.tga/C79F01B73B5BD447",
+      "match": true
+    },
+    {
+      "material_index": 9,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 9,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-05.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-05.tga/FD65C00127DDC5EE",
+      "index": 48,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-05.tga/FD65C00127DDC5EE",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "index": 11,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-wall-crackedpillar-blend.tga/7552108405CA872F",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-color-05.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-05.tga/8841FE81A32200FD",
+      "index": 49,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-color-05.tga/8841FE81A32200FD",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-05-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-05-property.tga/06E7BC3A1BA24F38",
+      "index": 50,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-05-property.tga/06E7BC3A1BA24F38",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-colordrk-05-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-05-property.tga/06E7BC3A1BA24F38",
+      "index": 50,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-colordrk-05-property.tga/06E7BC3A1BA24F38",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/outsourced/entry-statue-normal-05.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-05.tga/E398D74B013CEBDA",
+      "index": 51,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/outsourced/entry-statue-normal-05.tga/E398D74B013CEBDA",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 10,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-paint-red-brick-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-brick-color.tga/A2815AB3E80C3A31",
+      "index": 52,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-brick-color.tga/A2815AB3E80C3A31",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tBlendMap",
+      "source": "art/levels/temple/textures/blends/tmp-cracked-paint-blend.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-cracked-paint-blend.tga/B08D9F8343D1A4F9",
+      "index": 42,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/blends/tmp-cracked-paint-blend.tga/B08D9F8343D1A4F9",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tColorMap2",
+      "source": "art/levels/temple/textures/walls/tmp-wall-stone-002-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-stone-002-color.tga/932D511B84ACC4ED",
+      "index": 53,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-stone-002-color.tga/932D511B84ACC4ED",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-paint-red-brick-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-brick-property.tga/FD396F9873C3AD35",
+      "index": 54,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-paint-red-brick-property.tga/FD396F9873C3AD35",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tSpecMaskMap2",
+      "source": "art/levels/temple/textures/walls/tmp-wall-stone-002-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-stone-002-property.tga/90F8C843C8C6A5D9",
+      "index": 55,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-stone-002-property.tga/90F8C843C8C6A5D9",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/walls/tmp-wall-stone-002-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-stone-002-normal.tga/72CF62535DA2CED2",
+      "index": 56,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-stone-002-normal.tga/72CF62535DA2CED2",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 11,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    },
+    {
+      "material_index": 12,
+      "parameter": "g_tColorMap",
+      "source": "art/levels/temple/textures/metal/tmp-bronzdish-color.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/metal/tmp-bronzdish-color.tga/50F321B7585CB2E5",
+      "index": 57,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/metal/tmp-bronzdish-color.tga/50F321B7585CB2E5",
+      "match": true
+    },
+    {
+      "material_index": 12,
+      "parameter": "g_tSpecMaskMap",
+      "source": "art/levels/temple/textures/metal/tmp-bronzdish-property.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/metal/tmp-bronzdish-property.tga/E4D91BD2ABBFD2B1",
+      "index": 58,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/metal/tmp-bronzdish-property.tga/E4D91BD2ABBFD2B1",
+      "match": true
+    },
+    {
+      "material_index": 12,
+      "parameter": "g_tNormalMap",
+      "source": "art/levels/temple/textures/metal/tmp-bronzdish-normal.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/metal/tmp-bronzdish-normal.tga/67D518AD38D8018A",
+      "index": 59,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/metal/tmp-bronzdish-normal.tga/67D518AD38D8018A",
+      "match": true
+    },
+    {
+      "material_index": 12,
+      "parameter": "g_tLightMap",
+      "source": "art/general/textures/default/default-lightmap0.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "index": 8,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmax.tga/2ED972A56C5FD7F3",
+      "match": true
+    },
+    {
+      "material_index": 12,
+      "parameter": "g_tLightMap1",
+      "source": "art/general/textures/default/default-lightmap1.tga",
+      "cooked": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "index": 9,
+      "geometry_texture": "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/lightmaps/menu-temple/indirect.rgbmaxdelta.tga/5C32578BF63EF53E",
+      "match": true
+    }
+  ]
+}

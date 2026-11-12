@@ -1190,6 +1190,27 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(!meshes.empty() && meshes[0].material_name==
                            "levels/temple/walls/tmp-stone-crumpled-blend:redpaint-to-lrg-brick,f8906991-3ff7-4224-813f-2dc43d693c13,blend-color-bump-specular.fx",
                            "First temple mesh owns the exact original material reference, not a guessed texture path");
+            constexpr int texture_indices[13][9]={{1,2,3,4,5,6,7,8,9},{10,11,12,13,14,15,8,9,-1},
+                {16,11,17,18,18,19,8,9,-1},{20,11,21,22,23,24,8,9,-1},{10,11,25,13,26,27,8,9,-1},
+                {28,11,29,30,30,31,8,9,-1},{32,11,33,34,35,36,8,9,-1},{37,38,37,39,39,40,8,9,-1},
+                {41,42,3,43,5,7,8,9,-1},{44,45,46,47,8,9,-1,-1,-1},{48,11,49,50,50,51,8,9,-1},
+                {52,42,53,54,55,56,8,9,-1},{57,58,59,8,9,-1,-1,-1,-1}};
+            size_t reference_count=0;bool texture_matches=meshes.size()==13;
+            for(size_t i=0;i<meshes.size();++i) {
+                const auto &references=meshes[i].material_textures;reference_count+=references.size();
+                size_t expected=0;while(expected<9 && texture_indices[i][expected]>=0) ++expected;
+                texture_matches &= references.size()==expected;
+                for(size_t r=0;r<references.size();++r)
+                    texture_matches &= r<expected && references[r].texture_index==texture_indices[i][r];
+            }
+            U2_TEST_ASSERT(reference_count==100 && texture_matches,
+                           "All 100 temple material texture indices match the live original PrepareBinary capture");
+            U2_TEST_ASSERT(meshes.size()==13 && !meshes[0].material_textures.empty() &&
+                           meshes[0].material_textures[0].parameter_name=="g_tColorMap" &&
+                           meshes[0].material_textures[0].source_path=="art/levels/temple/textures/walls/tmp-wall-red2-color.tga" &&
+                           meshes[0].material_textures[0].cooked_name==
+                           "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/levels/temple/textures/walls/tmp-wall-red2-color.tga/4246CBC0DBEC44C4",
+                           "Texture references preserve parameter, source path and cooked lookup name as distinct owned values");
             size_t triangle_count=0;
             for (const auto &mesh : meshes) triangle_count+=mesh.triangles.size();
             const std::array<uint16_t,3> first_triangle{0,1,2};
@@ -1429,9 +1450,71 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             put32(0x68,0);ptr(128+0x48,860);
             U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_index==-1 && meshes[0].material_name=="beta",
                            "An empty material table preserves an unresolved named reference");
+            // Add geometry-local texture entries and three material references.
+            put32(8,448);text(448,"GEOMETRY_1");put32(0x68,1);ptr(512,860);
+            put32(0x58,3);ptr(0x60,592);ptr(592,940);ptr(632,948);ptr(672,956);
+            text(940,"cook/a");text(948,"cook/b");text(956,"cook/c");
+            put32(568,3);ptr(552,720);
+            text(880,"g_tColorMap");text(896,"g_tNormalMap");text(912,"g_tBlendMap");
+            text(972,"art/a.tga");text(984,"art/b.tga");text(996,"art/c.tga");
+            for(size_t i=0;i<3;++i) {
+                const size_t at=720+i*40;ptr(at,880+i*16);ptr(at+8,972+i*12);ptr(at+16,i==1 ? 940 : 948);put32(at+24,UINT32_MAX);
+            }
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_textures.size()==3 &&
+                           meshes[0].material_textures[0].texture_index==1 && meshes[0].material_textures[1].texture_index==0 &&
+                           meshes[0].material_textures[2].texture_index==1 && page[744]==255,
+                           "Material texture resolution uses cooked names and preserves raw guest indices");
+            U2_TEST_ASSERT(meshes[0].material_textures[0].parameter_name=="g_tColorMap" &&
+                           meshes[0].material_textures[0].source_path=="art/a.tga" && meshes[0].material_textures[0].cooked_name=="cook/b",
+                           "Source image paths are not confused with the cooked texture lookup key");
+            ptr(592,948);ptr(632,940);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) &&
+                           meshes[0].material_textures[0].texture_index==0 && meshes[0].material_textures[1].texture_index==1,
+                           "Texture indices follow table contents when geometry texture entries are reordered");
+            ptr(672,948); // Keep cook/a at index 1 for the second reference.
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_textures[0].texture_index==0,
+                           "Duplicate geometry texture hashes select the first original table index");
+            ptr(592,940);ptr(632,948);ptr(672,956);put32(568,1);
+            ptr(736,1010);text(1010,"absent");
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_textures[0].texture_index==0,
+                           "Missing cooked texture references reject the snapshot atomically, matching the original assertion");
+            text(1010,"Cook/b");
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Texture lookup preserves case-sensitive cooked names");
+            ptr(736,948);put32(0x58,UINT32_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Geometry texture counts are bounded before allocation");
+            put32(0x58,1);ptr(0x60,985);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Geometry texture table rejects a truncated 40-byte entry");
+            ptr(0x60,984);std::memcpy(page+984,page+632,40);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_textures[0].texture_index==0,
+                           "Geometry texture table accepts an entry ending exactly at the page boundary");
+            ptr(0x60,592);put32(0x58,3);put32(568,UINT32_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Material texture reference counts respect the page-derived budget");
+            put32(568,1);ptr(552,985);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Material texture references reject a truncated 40-byte entry");
+            ptr(552,984);std::memcpy(page+984,page+720,40);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_textures[0].texture_index==1,
+                           "Material texture references accept an entry ending exactly at the page boundary");
+            ptr(552,720);ptr(720,1023);page[1023]='X';
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Texture parameter names require a terminator inside their page");
+            ptr(720,880);std::memset(page+728,0xFF,8);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Texture source paths reject foreign pointers");
+            ptr(728,972);std::memset(page+736,0xFF,8);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Cooked texture names reject foreign pointers");
+            ptr(736,948);std::memset(page+592,0xFF,8);
+            U2_TEST_ASSERT(!u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0),"Geometry texture name pointers are checked before hashing");
+            std::memset(page+592,0,8);std::memset(page+736,0,8);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) &&
+                           meshes[0].material_textures[0].cooked_name.empty() && meshes[0].material_textures[0].texture_index==0,
+                           "Texture name hashing retains original NULL-name semantics");
+            ptr(592,940);ptr(736,948);
+            U2_TEST_ASSERT(u2_native_ReadGeometryPreview(&meshes,page,sizeof(page),0) && meshes[0].material_textures[0].texture_index==1,
+                           "Texture reference snapshots recover after rejected inputs without retaining partial state");
             std::memset(page,0,sizeof(page));
-            U2_TEST_ASSERT(meshes[0].material_name=="beta" && meshes[0].material_index==-1,
+            U2_TEST_ASSERT(meshes[0].material_name=="beta" && meshes[0].material_index==0,
                            "Material references remain owned after the source page is destroyed");
+            U2_TEST_ASSERT(meshes[0].material_textures.size()==1 && meshes[0].material_textures[0].parameter_name=="g_tColorMap" &&
+                           meshes[0].material_textures[0].source_path=="art/a.tga" && meshes[0].material_textures[0].cooked_name=="cook/b",
+                           "Texture reference names and paths remain owned after the source page is destroyed");
         }
         {
             // Coherent perspective sample 307 from the original RenderCamera

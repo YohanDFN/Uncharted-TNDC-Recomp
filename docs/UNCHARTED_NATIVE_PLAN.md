@@ -210,8 +210,10 @@ Les fichiers C++23 dans `src/u2_engine/` couvrent progressivement l'intégralit�
 > par les snapshots, sans wrapping ni changement d'affichage (`NATIVE_TEMPLE_UV.md`).
 > La résolution des treize références mesh → matériau local reproduit les indices
 > observés après PrepareBinary original, sans créer d'instances moteur
-> (`NATIVE_TEMPLE_MATERIAL_REFERENCES.md`). Les références matériau → textures,
-> le chargement des images et les paramètres du sampler restent à établir.
+> (`NATIVE_TEMPLE_MATERIAL_REFERENCES.md`). Les cent références de textures des
+> matériaux sont également résolues, avec les indices locaux observés dans
+> l'original (`NATIVE_TEMPLE_TEXTURE_REFERENCES.md`). Le chargement/décodage des
+> images, leur liaison GPU et les paramètres du sampler restent à établir.
 > Le pipeline GPU du jeu, les matériaux, l'éclairage et les interactions du menu
 > original restent à porter.
 > La routine ELF à `0x0056C0E0` reste inchangée dans `bb-probe`.

@@ -5,6 +5,15 @@
 #include <string>
 #include <vector>
 
+// Owned material references, not decoded images or shader/sampler bindings.
+struct U2NativeTextureReferencePreview {
+    std::string parameter_name;
+    std::string source_path;
+    std::string cooked_name;
+    uint32_t cooked_name_hash{0};
+    int32_t texture_index{-1}; // Geometry-local table, not a GPU texture index.
+};
+
 // Owned preview geometry; not a guest Mesh or a completed geometry login.
 struct U2NativeMeshPreview {
     std::string name;
@@ -13,12 +22,13 @@ struct U2NativeMeshPreview {
     std::string material_name;
     uint32_t material_name_hash{0};
     int32_t material_index{-1};
+    std::vector<U2NativeTextureReferencePreview> material_textures;
     std::vector<std::array<float, 3>> positions;
     // Optional attribute ID 2, R16G16B16A16Float. Preserve all four components;
     // no normalization or assumption about the original lighting model.
     std::vector<std::array<float, 4>> normals;
     // Optional attribute ID 1, R16G16Float. Preserve negative and tiled coordinates.
-    // Texture/material binding and sampler addressing remain separate work.
+    // GPU texture binding and sampler addressing remain separate work.
     std::vector<std::array<float, 2>> texcoords;
     std::vector<std::array<uint16_t, 3>> triangles;
 };
