@@ -10,6 +10,7 @@
 #include "game/camera/camera_position.h"
 #include "game/rendercamera.h"
 #include "../u2_standalone/preview_clip.h"
+#include "../u2_standalone/preview_depth.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -985,6 +986,74 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(temple && temple->level_info_loaded && temple->level_info_value == 0,
                        "Real LEVEL_INFO_1 payload transferred to native level property");
         U2NativeCameraDefinition actual_camera;
+        {
+            using Image=u2::standalone::PreviewDepthImage;
+            constexpr uint32_t background=0xFF130C08,red=0xFF0000FF,blue=0xFFFF0000;
+            Image image,reverse;
+            U2_TEST_ASSERT(image.reset(16,16,background) && reverse.reset(16,16,background) &&
+                           image.pixels.size()==256 && std::isinf(image.depth[0]),
+                           "Solid preview initializes owned color and depth buffers");
+            const std::array<Image::Vertex,3> front_face{{{-0.9f,-0.9f,0.2f,1},{0.9f,-0.9f,0.2f,1},{0,0.9f,0.2f,1}}};
+            auto back_face=front_face;for(auto &v : back_face) v[2]=0.8f;
+            const size_t center=8*16+8;
+            U2_TEST_ASSERT(image.triangle(back_face,blue)>0 && image.triangle(front_face,red)>0 &&
+                           image.pixels[center]==red && std::abs(image.depth[center]-0.2f)<0.000001f,
+                           "Per-pixel depth lets a nearer opaque surface hide a farther surface");
+            reverse.triangle(front_face,red);reverse.triangle(back_face,blue);
+            U2_TEST_ASSERT(image.pixels==reverse.pixels && image.depth==reverse.depth,
+                           "Opaque occlusion is independent of triangle submission order");
+            image.reset(16,16,background);reverse.reset(16,16,background);
+            auto clockwise=front_face;std::swap(clockwise[1],clockwise[2]);
+            image.triangle(front_face,red);reverse.triangle(clockwise,red);
+            U2_TEST_ASSERT(image.pixels==reverse.pixels && image.depth==reverse.depth,
+                           "Solid viewer handles both windings without guessing an original cull mode");
+            image.reset(16,16,background);auto small=front_face;
+            for(auto &v : small) { v[0]*=0.4f;v[1]*=0.4f; }
+            image.triangle(back_face,blue);image.triangle(small,red);
+            U2_TEST_ASSERT(image.pixels[center]==red && image.pixels[12*16+8]==blue,
+                           "Depth resolves partial overlap while retaining the visible surrounding surface");
+            image.reset(16,16,background);auto crossing=front_face;crossing[0][2]=-0.5f;
+            U2_TEST_ASSERT(image.triangle(crossing,red)>0,
+                           "Solid triangle clipping retains geometry crossing the near plane");
+            image.reset(16,16,background);crossing=front_face;crossing[0][2]=2;
+            U2_TEST_ASSERT(image.triangle(crossing,red)>0,
+                           "Solid triangle clipping retains geometry crossing the far plane");
+            bool sides=true;
+            for(size_t axis=0;axis<2;++axis) for(float sign : {-1.0f,1.0f}) {
+                image.reset(16,16,background);
+                crossing={{{0,0,0.5f,1},{-0.5f,-0.5f,0.5f,1},{0.5f,0.5f,0.5f,1}}};
+                crossing[0][axis]=sign*2;
+                sides &= image.triangle(crossing,red)>0;
+            }
+            U2_TEST_ASSERT(sides,"Solid triangle clipping handles all four viewport sides");
+            image.reset(16,16,background);const auto saved_pixels=image.pixels;const auto saved_depth=image.depth;
+            auto hidden=front_face;for(auto &v : hidden) v[2]=-0.2f;
+            U2_TEST_ASSERT(image.triangle(hidden,red)==0 && image.pixels==saved_pixels && image.depth==saved_depth,
+                           "Fully clipped surfaces do not write color or depth");
+            hidden=front_face;for(auto &v : hidden) { v[2]=-0.5f;v[3]=-1; }
+            U2_TEST_ASSERT(image.triangle(hidden,red)==0,"Surfaces behind the camera are rejected before perspective division");
+            hidden=front_face;hidden[2]=hidden[1];
+            U2_TEST_ASSERT(image.triangle(hidden,red)==0,"Degenerate triangles do not produce invalid raster bounds");
+            hidden=front_face;hidden[1][0]=std::bit_cast<float>(uint32_t{0x7FC00000});
+            U2_TEST_ASSERT(image.triangle(hidden,red)==0 && image.pixels==saved_pixels && image.depth==saved_depth,
+                           "Nonfinite triangle coordinates cannot poison the cached depth image");
+            const std::array<Image::Vertex,3> perspective{{{-1,-1,0.2f,1},{2,-2,1.6f,2},{0,4,2,4}}};
+            image.triangle(perspective,red);
+            U2_TEST_ASSERT(std::abs(image.depth[center]-0.51875f)<0.000001f,
+                           "Depth interpolates z divided by w linearly in screen space for unequal vertex w");
+            bool boundaries=true;
+            size_t boundary_samples[2]{};size_t boundary_index=0;
+            for(float depth : {0.0f,1.0f}) {
+                image.reset(16,16,background);auto face=front_face;for(auto &v : face) v[2]=depth;
+                boundary_samples[boundary_index++]=image.triangle(face,red);
+                boundaries &= boundary_samples[boundary_index-1]>0 && std::abs(image.depth[center]-depth)<0.000001f;
+            }
+            U2_TEST_ASSERT(boundaries && boundary_samples[0]==boundary_samples[1],
+                           "Solid depth accepts exact near and far boundaries with identical coverage and no far-plane holes");
+            const auto prior=image.pixels;
+            U2_TEST_ASSERT(!image.reset(0,16,0) && !image.reset(2147483647,2,0) && image.pixels==prior && image.width==16,
+                           "Depth image dimensions are bounded before allocation and failure preserves the existing image");
+        }
         {
             const std::array<float,4> inside_a{0,0,0.25f,1},inside_b{0.5f,0.5f,0.75f,1};
             auto a=inside_a,b=inside_b;
