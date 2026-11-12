@@ -20,7 +20,18 @@
       ],
       "sha256": "6d6865cabf687756398a0e07844fbb3e4d8a5f02a2099ec5723a6567484c31ab",
       "legende": "Nouvelle capture réalisée pour ce dossier sur la version `5c6750f`. **13 680 triangles réels**, **24 130 arêtes visibles**. Les buffers d'indices des treize sous-meshes ont été retrouvés dans les dessins du moteur original, avec des indices de 16 bits et une topologie TriangleList sans primitive restart."
+    },
+    {
+      "fichier": "03-temple-surfaces-pleines.png",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "0cd6f6a88b45649b07ccb884967586cabf240b0cc35d87e033cff1cbcd1d53ee",
+      "legende": "13680 triangles; CPU depth image presented through SDL; static reference camera; flat per-mesh colors."
     }
   ],
-  "executable_sha256": "82c0112ce464f14a04ac738d1a2e13e9c4bd5193ade43cc56e24eb69b05c597a"
+  "executable_sha256": "82c0112ce464f14a04ac738d1a2e13e9c4bd5193ade43cc56e24eb69b05c597a",
+  "version_capture_surfaces": "f25a5f91081187e9ea007bb0d407087676854a3f",
+  "executable_surfaces_sha256": "bb13e199fc95df7bf5320837cfc47c4f39d4a29f7e51719d5f6ee81d0780eeee"
 }
