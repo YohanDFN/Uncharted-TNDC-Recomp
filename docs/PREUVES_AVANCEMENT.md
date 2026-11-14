@@ -5,6 +5,16 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre — Chantier C3 : normal maps BC5
+
+[Galerie autonome C3](preuves_avancement/2026-11-14/preuves_avancement.html) : capture framebuffer réelle inspectée, PNG embarqué vérifié octet pour octet.
+
+![Normal maps du temple](preuves_avancement/2026-11-14/native-menu-temple-c3.png)
+
+13 maillages avec `g_tNormalMap` mis à niveau depuis `chunk-21-tstrm` ; 58/60 images résidentes décodées, 228 352 pixels. Base tangente UV et normales interpolées en perspective, lumière du viewer (ambient 0.22, diffuse 0.78), repli Gouraud si UVs dégénérés. Relief visible des pierres et frises ; aperçu CPU statique sans lightmaps ni ombres portées.
+
+Build incrémental natif MSYS2 réussi ; EngineTest 679/679, sortie 0 après 6 secondes, sans faute ni nouvelle assertion. [Journal](preuves_avancement/2026-11-14/validation-c3-native.txt). Aucun lancement hybride ni build complet, conformément au périmètre demandé.
+
 ## 14 novembre (Chantier C2) : `13/13` maillages `menu-temple` texturés (`ThinBGRA8` 87/91 & découpe alpha des lianes)
 
 [Galerie autonome Chantiers A2 à C2](preuves_avancement/2026-11-14/preuves_avancement.html) (**10** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).

@@ -428,3 +428,63 @@ SHA-256: `763c8dde80cb4994d5c6d599140018fc39f9f9ce59d74dc540a571cfe2d5c48b`
   - Aucun (hors fichiers locaux préservés : `.agents/`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`, sous-module `gpu/third_party/fsr-vulkan`).
 
 <!-- End of archived handoff -->
+
+
+---
+
+## 2026-11-14T15:25:17.177013+00:00
+
+SHA-256: `b402733a1e85d038694f18b44b23582b29009269d7b7aba42c30221f208160e8`
+
+# Suivi courant — Port PC Uncharted 2
+
+- **Branche active** : `dev-native`
+- **Dernier jalon validé** : Chantier C2 — Décodage `ThinBGRA8` (`87` / `91`) dans `texture_preview.{h,cpp}` et `package_manager.cpp`, composition du canal `-trans.` sur l'alpha de `g_tColorMap` et découpe alpha-cutout (`alpha < 128`) dans `preview_depth.h` / `temple_preview.h` (**13/13** maillages `menu-temple` texturés, dont les lianes `Submesh26`).
+- **État validé** :
+  - Natif `scratch/run_native_test.ps1 6` : `EngineTest` **673/673**, code de sortie **0**, `textured meshes=13 depth-passing-samples=5803707`.
+  - Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`) : `SelfTest` **886**, `EngineTest` full-body **831**, assertions C++23 **679/679**, `STOPPED_AFTER_TIMEOUT`.
+  - Preuve visuelle `docs/preuves_avancement/2026-11-14/native-menu-temple-c2.png` (SHA-256 `ae7edc6e...`) inspectée et archivée dans `docs/preuves_avancement/2026-11-14/preuves_avancement.html` (ordre croissant A2→C2), `provenance.json` et `docs/PREUVES_AVANCEMENT.md`.
+- **Incertitude / limite restante** :
+  - Le rendu 3D `menu-temple` reste un aperçu CPU statique (pas de normal maps, lightmaps, ombres portées ni caméra animée/post-traitement), et les actions `Continuer / Jouer` / persistance des options du menu restent différées.
+- **Prochaine expérience** :
+  - Chantier C3 (éclairage/lightmaps/normal maps ou rendu GPU Vulkan de `menu-temple`) ou Chantier B2 (persistance des options et branchement de `Continuer / Jouer` vers le chargement de niveau natif).
+- **Travail non enregistré** :
+  - Aucun (hors fichiers locaux préservés : `.agents/`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`, sous-module `gpu/third_party/fsr-vulkan`).
+
+<!-- End of archived handoff -->
+
+
+---
+
+## 2026-11-14T15:25:57.794188+00:00
+
+SHA-256: `96fd9230f276a6abc0e62b1815b778935f662806b58ef8c36821e2fd8820531f`
+
+# Suivi courant ? Port PC Uncharted 2
+
+- Cible/branche : Chantier C3, normal maps BC5 menu-temple ; dev-native.
+- ?tat valid? : build natif incr?mental MSYS2, EngineTest 679/679 ; run_native_test.ps1 6, sortie 0. 58/60 images d?cod?es, 228352 pixels ; 13 normal maps mises ? niveau depuis chunk-21-tstrm. Hybride non relanc? (p?rim?tre demand?).
+- Preuves : [rapport](NATIVE_TEMPLE_NORMALS.md), [galerie](preuves_avancement/2026-11-14/preuves_avancement.html), [journal](preuves_avancement/2026-11-14/validation-c3-native.txt), PNG et provenance associ?s. Capture r?elle inspect?e, image embarqu?e v?rifi?e.
+- Limite : lumi?re de viewer, CPU statique, pas de lightmaps ni ombres port?es. UVs d?g?n?r?s : repli Gouraud.
+- Prochaine exp?rience : prouver les donn?es d'?clairage originales avant leur reproduction.
+- Travail ? pr?server : changements C3 et preuves de cette it?ration ; fichiers locaux pr?existants, .agents/ et sous-module gpu/third_party/fsr-vulkan inchang?s par cette t?che. Aucun code PS4 ex?cut?.
+
+<!-- End of archived handoff -->
+
+
+---
+
+## 2026-11-14T15:26:19.781060+00:00
+
+SHA-256: `c91890210fb1f0e6e4fbb30af96ab566f5dc746550e3a108a05dbd0e53e2bf1a`
+
+# Suivi courant — Port PC Uncharted 2
+
+- Cible/branche : Chantier C3, normal maps BC5 menu-temple ; dev-native.
+- État validé : build natif incrémental MSYS2, EngineTest 679/679 ; run_native_test.ps1 6, sortie 0. 58/60 images décodées, 228352 pixels ; 13 normal maps mises à niveau depuis chunk-21-tstrm. Hybride non relancé (périmètre demandé).
+- Preuves : [rapport](NATIVE_TEMPLE_NORMALS.md), [galerie](preuves_avancement/2026-11-14/preuves_avancement.html), [journal](preuves_avancement/2026-11-14/validation-c3-native.txt), PNG et provenance associés. Capture réelle inspectée, image embarquée vérifiée.
+- Limite : lumière de viewer, CPU statique, pas de lightmaps ni ombres portées. UVs dégénérés : repli Gouraud.
+- Prochaine expérience : prouver les données d'éclairage originales avant leur reproduction.
+- Travail à préserver : changements C3 et preuves de cette it?ration ; fichiers locaux préexistants, .agents/ et sous-module gpu/third_party/fsr-vulkan inchangés par cette tâche. Aucun code PS4 exécuté.
+
+<!-- End of archived handoff -->

@@ -85,3 +85,14 @@ Commit : feat(native): decode owned temple normal streams.
 Prochaine hypothèse : utiliser ces normales pour un éclairage de prévisualisation
 explicite afin de lire les volumes ; reproduire l'éclairage original nécessitera
 ensuite la preuve des matériaux et de la chaîne de shaders correspondante.
+
+
+## 2026-11-14 — C3 : BC5 et éclairage tangent du viewer
+
+Hypothèse : les images format 83, flags 0x01000000 et layout 2 fournissent les canaux X/Y de normales BC5 UNORM, en blocs Morton 8×8. Le décodeur borné reconstruit le Z positif et conserve une sortie linéaire RGBA. Ce choix et l'éclairage directionnel restent une convention du viewer ; aucun shader original n'est prétendu reproduit.
+
+Observation : le chargement de menu-temple décode 58/60 images et 228352 pixels (avant C3 : 46 et 181248). Les 13 références g_tNormalMap sont résolues et mises à niveau depuis chunk-21-tstrm après égalité exacte du mip résident ; blocs BC5 de 16 octets. Les tangentes proviennent des positions/UV par triangle, orthogonalisées à la normale interpolée par pixel, avec signe de la bitangente préservé. Les UVs dégénérés gardent Gouraud.
+
+Validation : build MSYS2 complet (`bb-probe.exe` + `uncharted2-native.exe`), `run_native_test.ps1 6` (sortie 0, EngineTest 679/679), `run_test.ps1 6` (`STOPPED_AFTER_TIMEOUT`, SelfTest 886, full-body 831, EngineTest 685/685). Cas neutre, deux palettes BC4 indépendantes, indices, Morton inter-tuiles, dimensions partielles, Z saturé, troncature/null/bornes et préservation de sortie ; test du changement diffus sans changement de profondeur et UVs dégénérés. Le test historique de format inconnu utilisait 83 sur 512 octets : remplacé par 77 pour conserver son intention ; sa première exécution C3 avait échoué avant cette correction.
+
+[Capture et provenance](preuves_avancement/2026-11-14/provenance.json), [galerie autonome](preuves_avancement/2026-11-14/preuves_avancement.html), [journal natif](preuves_avancement/2026-11-14/validation-c3-native.txt). Capture inspectée : relief visible des pierres/frises, silhouettes et découpe alpha préservées, 5803707 écritures de profondeur. Limites : aperçu CPU statique, pas de lightmaps, ombres portées ou validation du shader original. Prochaine expérience : établir les données d'éclairage originales avant toute reproduction supplémentaire.

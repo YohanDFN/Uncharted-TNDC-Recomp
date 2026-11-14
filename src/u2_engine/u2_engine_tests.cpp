@@ -1059,9 +1059,9 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         }
         {
             const auto *info=u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
-            U2_TEST_ASSERT(info && info->texture_table_loaded && info->texture_images==60 && info->texture_images_decoded==46 &&
+            U2_TEST_ASSERT(info && info->texture_table_loaded && info->texture_images==60 && info->texture_images_decoded==58 &&
                            info->state==U2NativePackageState::Resolved && info->vram_bytes==8763392,
-                           "Real TEXTURE_TABLE loads 60 owned compressed images and decodes 46 supported BC1/BGRA8 previews without claiming engine Ready");
+                           "Real TEXTURE_TABLE loads 60 owned compressed images and decodes 58 supported BC1/BGRA8/BC5 previews without claiming engine Ready");
             size_t bytes=0,pixels=0;bool complete=true;
             for(size_t i=0;i<60;++i) {
                 U2NativeTexturePreview image;
@@ -1070,8 +1070,8 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                 complete &= image.uid!=0 && !image.resource_name.empty() && !image.cooked_name.empty() &&
                     image.vram_offset<=info->vram_bytes && image.resident_blocks.size()<=info->vram_bytes-image.vram_offset;
             }
-            U2_TEST_ASSERT(complete && bytes==info->vram_bytes && pixels==181248,
-                           "All 60 image extents cover the declared VRAM bytes and supported first mips own 181248 pixels");
+            U2_TEST_ASSERT(complete && bytes==info->vram_bytes && pixels==228352,
+                           "All 60 image extents cover the declared VRAM bytes and supported first mips own 228352 pixels");
             U2NativeTexturePreview column,unsupported;
             U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",37,&column) && column.format==72 &&
                            column.width==64 && column.height==64 && column.mip_count==7 && column.resident_blocks.size()==5120 &&
@@ -1126,7 +1126,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             std::memcpy(page+384,"second.ndb",11);std::memcpy(page+416,"cooked/second",14);
             for(size_t i=0;i<2;++i) {
                 const size_t d=160+i*64;put64(d+8,i*512);put32(d+16,512);put32(d+20,uint32_t(i+1));put32(d+24,1);
-                put32(d+28,i ? 72 : 83);put32(d+32,i ? 0x010F0000 : 0x01000000);put32(d+36,1);put32(d+40,4);put32(d+44,4);
+                put32(d+28,i ? 72 : 77);put32(d+32,i ? 0x010F0000 : 0x01000000);put32(d+36,1);put32(d+40,4);put32(d+44,4);
                 put32(d+52,2);ptr(d+56,352+i*64);
             }
             vram[513]=0xF8;vram[514]=0x1F;
@@ -1172,6 +1172,24 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(images[1].resident_blocks[1]==0xF8 && images[1].pixels.rgba[0]==0xFF0000FF &&
                            images[1].cooked_name=="cooked/second",
                            "Compressed bytes, decoded pixels and names survive destruction of both source buffers");
+        }
+        {
+            using Depth=u2::standalone::PreviewDepthImage;
+            Depth::NormalLighting lighting;
+            lighting.normals={{{0,0,1},{0,0,1},{0,0,1}}};lighting.toward_light={1,0,0};
+            const std::array<Depth::Vec3,3> positions{{{0,0,0},{1,0,0},{0,1,0}}};
+            const std::array<std::array<float,2>,3> uv{{{0,0},{1,0},{0,1}}};
+            U2_TEST_ASSERT(Depth::tangent_frame(positions,uv,&lighting) &&
+                           lighting.tangent==(Depth::Vec3{1,0,0}) && lighting.bitangent==(Depth::Vec3{0,1,0}) &&
+                           !Depth::tangent_frame(positions,{},&lighting),
+                           "Normal-map frame derives UV axes and rejects degenerate UVs for Gouraud fallback");
+            const std::array<Depth::Vertex,3> face{{{-1,-1,0.5f,1},{1,-1,0.5f,1},{0,1,0.5f,1}}};
+            Depth gouraud,mapped;gouraud.reset(8,8,0);mapped.reset(8,8,0);
+            U2NativeTexturePixels normal;normal.width=normal.height=1;normal.rgba={0xFF8080FF};
+            const size_t writes=gouraud.triangle(face,0xFFFFFFFF,{0.22f,0.22f,0.22f});
+            U2_TEST_ASSERT(writes && mapped.triangle(face,0xFFFFFFFF,{0.22f,0.22f,0.22f},nullptr,uv,false,&normal,lighting)==writes &&
+                           mapped.depth==gouraud.depth && (mapped.pixels[36]&255)>(gouraud.pixels[36]&255),
+                           "Per-pixel tangent normal changes diffuse light while preserving depth coverage");
         }
         {
             U2NativeTexturePixels image;
@@ -1225,6 +1243,30 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             std::vector<uint8_t> bgra(8*8*4,0);
             bgra[0]=0x10;bgra[1]=0x20;bgra[2]=0x30;bgra[3]=0x80; // pixel (0,0) -> morton 0
             bgra[4]=0x40;bgra[5]=0x50;bgra[6]=0x60;bgra[7]=0xFF; // pixel (1,0) -> morton 1
+            // Exercise both BC4 endpoint modes and their independent 3-bit indices.
+            std::vector<uint8_t> bc5(2048);
+            bc5[0]=bc5[1]=bc5[8]=bc5[9]=128;
+            U2NativeTexturePixels normal;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc5Preview(&normal,bc5.data(),1024,4,4) &&
+                           normal.rgba.size()==16 && normal.rgba[0]==0xFFFF8080u && !normal.srgb,
+                           "BC5 neutral XY reconstructs positive Z in linear RGBA");
+            const auto saved_normal=normal.rgba;
+            U2_TEST_ASSERT(!u2_native_DecodeThinBc5Preview(&normal,bc5.data(),1023,4,4) &&
+                           !u2_native_DecodeThinBc5Preview(nullptr,bc5.data(),1024,4,4) &&
+                           !u2_native_DecodeThinBc5Preview(&normal,nullptr,1024,4,4) &&
+                           !u2_native_DecodeThinBc5Preview(&normal,bc5.data(),1024,0,4) &&
+                           !u2_native_DecodeThinBc5Preview(&normal,bc5.data(),1024,4097,4) && normal.rgba==saved_normal,
+                           "BC5 rejects truncated/null/invalid extents without changing output");
+            bc5[16]=255;bc5[24]=128;bc5[32]=128;bc5[40]=255;bc5[1024]=255;bc5[1032]=255;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc5Preview(&normal,bc5.data(),bc5.size(),64,32) &&
+                           normal.rgba[4]==0xFF8080FFu && normal.rgba[4*64]==0xFF80FF80u &&
+                           normal.rgba[32]==0xFF80FFFFu,
+                           "BC5 channels follow Morton blocks, cross tiles and clamp negative Z squared");
+            bc5.assign(1024,0);bc5[0]=255;bc5[8]=0;bc5[9]=255;
+            bc5[2]=2;bc5[10]=7;
+            U2_TEST_ASSERT(u2_native_DecodeThinBc5Preview(&normal,bc5.data(),bc5.size(),5,3) &&
+                           normal.rgba.size()==15 && (normal.rgba[0]&65535)==(218u|(255u<<8)),
+                           "BC5 decodes independent endpoint palettes/indices and clips partial blocks");
             U2NativeTexturePixels bgra_out;
             U2_TEST_ASSERT(u2_native_DecodeThinBgra8Preview(&bgra_out,bgra.data(),bgra.size(),8,8,true) &&
                            bgra_out.srgb && bgra_out.rgba.size()==64 &&

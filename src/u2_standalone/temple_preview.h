@@ -60,7 +60,8 @@ public:
         size_t visible=0,total=0,visible_edges=0,triangles=0;
         for (size_t mesh_index=0;mesh_index<meshes.size();++mesh_index) {
             const auto &mesh=meshes[mesh_index];
-            U2NativeTexturePreview base_image;
+            U2NativeTexturePreview base_image,normal_image;
+            const U2NativeTexturePixels *normal_map=nullptr;
             const U2NativeTexturePixels *color_map=nullptr;
             bool has_alpha_cutout=false;
             auto try_upgrade=[](U2NativeTexturePreview &img) -> bool {
@@ -71,9 +72,9 @@ public:
                    detailed.width<img.width || detailed.height<img.height ||
                    !preview_texture_valid(detailed.pixels)) return false;
                 const bool bgra8=(img.format==87 || img.format==91);
-                auto mip_bytes=[bgra8](uint32_t mw,uint32_t mh) -> size_t {
+                auto mip_bytes=[bgra8,bc5=img.format==83](uint32_t mw,uint32_t mh) -> size_t {
                     if(bgra8) return size_t((mw+7)&~7u)*((mh+7)&~7u)*4;
-                    return size_t(((mw+3)/4+7)&~7u)*(((mh+3)/4+7)&~7u)*8;
+                    return size_t(((mw+3)/4+7)&~7u)*(((mh+3)/4+7)&~7u)*(bc5 ? 16 : 8);
                 };
                 size_t offset=0;uint32_t w=detailed.width,h=detailed.height;
                 while(w>img.width || h>img.height) {
@@ -129,6 +130,20 @@ public:
                         base_image.width,base_image.height,upgraded ? " (dictionary-upgraded)" : "");
                 }
             }
+            if(mesh.texcoords.size()==mesh.positions.size() && mesh.normals.size()==mesh.positions.size()) {
+                for(size_t r=0;r<mesh.material_textures.size();++r) {
+                    if(mesh.material_textures[r].parameter_name!="g_tNormalMap") continue;
+                    if(u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",mesh_index,r,&normal_image) &&
+                       u2_native_TextureImageMatchesReference(mesh.material_textures[r],normal_image) &&
+                       normal_image.format==83 && preview_texture_valid(normal_image.pixels)) {
+                        const bool upgraded=try_upgrade(normal_image);
+                        normal_map=&normal_image.pixels;
+                        std::printf("[U2 Native Preview] normal-map mesh='%s' size=%ux%u%s\n",mesh.name.c_str(),
+                            normal_image.width,normal_image.height,upgraded ? " (dictionary-upgraded)" : "");
+                        break;
+                    }
+                }
+            }
             auto &points=batches.emplace_back();
             auto &wire=wire_batches.emplace_back();
             const auto tint=palette[(batches.size()-1)%std::size(palette)];
@@ -166,9 +181,20 @@ public:
                 const uint32_t rgba=uint32_t(tint.r)|(uint32_t(tint.g)<<8)|(uint32_t(tint.b)<<16)|0xFF000000u;
                 for(const auto &triangle : mesh.triangles) {
                     std::array<std::array<float,2>,3> uv{};
-                    if(color_map) for(size_t c=0;c<3;++c) uv[c]=mesh.texcoords[triangle[c]];
+                    if(color_map || normal_map) for(size_t c=0;c<3;++c) uv[c]=mesh.texcoords[triangle[c]];
+                    PreviewDepthImage::NormalLighting lighting;
+                    lighting.toward_light=toward_light;
+                    const U2NativeTexturePixels *triangle_normal=nullptr;
+                    if(normal_map && normals_valid) {
+                        std::array<PreviewDepthImage::Vec3,3> positions{};
+                        for(size_t c=0;c<3;++c) for(size_t axis=0;axis<3;++axis) {
+                            positions[c][axis]=mesh.positions[triangle[c]][axis];
+                            lighting.normals[c][axis]=mesh.normals[triangle[c]][axis];
+                        }
+                        if(PreviewDepthImage::tangent_frame(positions,uv,&lighting)) triangle_normal=normal_map;
+                    }
                     const size_t writes=solid.triangle({clip_vertices[triangle[0]],clip_vertices[triangle[1]],clip_vertices[triangle[2]]},rgba,
-                        {brightness[triangle[0]],brightness[triangle[1]],brightness[triangle[2]]},color_map,uv,has_alpha_cutout);
+                        {brightness[triangle[0]],brightness[triangle[1]],brightness[triangle[2]]},color_map,uv,has_alpha_cutout,triangle_normal,lighting);
                     depth_writes+=writes;if(color_map) textured_writes+=writes;
                 }
             }
@@ -205,7 +231,7 @@ public:
             meshes.size(),total,visible,triangles,visible_edges,camera.name.c_str());
         std::printf("[U2 Native Preview] solid covered-pixels=%zu depth-passing-samples=%zu cache-ms=%llu (CPU depth image; static reference view)\n",
             m_covered_pixels,depth_writes,static_cast<unsigned long long>(SDL_GetTicks()-started));
-        std::printf("[U2 Native Preview] lighting normals=%zu/%zu ambient=0.22 diffuse=0.78 (viewer preset; Gouraud shading)\n",lit_vertices,total);
+        std::printf("[U2 Native Preview] lighting normals=%zu/%zu ambient=0.22 diffuse=0.78 (viewer preset; per-pixel normal maps with Gouraud fallback)\n",lit_vertices,total);
         std::printf("[U2 Native Preview] textured meshes=%zu depth-passing-samples=%zu (column base color only; no original material, mip selection or anisotropy)\n",textured_meshes,textured_writes);
         return true;
     }

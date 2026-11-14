@@ -157,6 +157,22 @@
       "scenario": "Chantier C2 — BB_NATIVE_CAPTURE_PAGE=ROOT over 13/13 textured menu-temple with alpha-cutout vines",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Scene 3D menu-temple Chantier C2 : 13/13 sous-maillages textures, y compris les lianes (ThinBGRA8 87/91 + decoupe alpha-cutout)."
+    },
+    {
+      "fichier": "native-menu-temple-c3.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "1fcc9023fb37eb6f1a0b4c77e0abf6643f95c0aa92387138d580fbf58f8288e7",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "8d154c1",
+      "build_changes": "C3: BC5 fmt83 decode; UV tangent frame; per-pixel diffuse normal maps; 58 images / 228352 pixels",
+      "executable_sha256": "852ba018121cc0c4c0acc16562cced4074321d75e6c5d00a7c1f11b80c75cd80",
+      "scenario": "Title screen over menu-temple; 13 dictionary-upgraded normal maps",
+      "conversion": "SDL_RenderReadPixels via BB_NATIVE_CAPTURE to BMP; System.Drawing to PNG; no retouching",
+      "limites": "Static CPU viewer lighting; no original shaders, lightmaps or cast shadows"
     }
   ]
 }
