@@ -62,33 +62,65 @@ public:
             const auto &mesh=meshes[mesh_index];
             U2NativeTexturePreview base_image;
             const U2NativeTexturePixels *color_map=nullptr;
+            bool has_alpha_cutout=false;
+            auto try_upgrade=[](U2NativeTexturePreview &img) -> bool {
+                U2NativeTexturePreview detailed;
+                if(img.cooked_name.empty() ||
+                   !u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm",img.cooked_name.c_str(),&detailed) ||
+                   detailed.uid!=img.uid || detailed.format!=img.format ||
+                   detailed.width<img.width || detailed.height<img.height ||
+                   !preview_texture_valid(detailed.pixels)) return false;
+                const bool bgra8=(img.format==87 || img.format==91);
+                auto mip_bytes=[bgra8](uint32_t mw,uint32_t mh) -> size_t {
+                    if(bgra8) return size_t((mw+7)&~7u)*((mh+7)&~7u)*4;
+                    return size_t(((mw+3)/4+7)&~7u)*(((mh+3)/4+7)&~7u)*8;
+                };
+                size_t offset=0;uint32_t w=detailed.width,h=detailed.height;
+                while(w>img.width || h>img.height) {
+                    offset+=mip_bytes(w,h);
+                    w=std::max(1u,w/2);h=std::max(1u,h/2);
+                }
+                const size_t bytes=mip_bytes(w,h);
+                if(w==img.width && h==img.height && offset<=detailed.resident_blocks.size() &&
+                   bytes<=detailed.resident_blocks.size()-offset && bytes<=img.resident_blocks.size() &&
+                   std::equal(img.resident_blocks.begin(),img.resident_blocks.begin()+bytes,detailed.resident_blocks.begin()+offset)) {
+                    img=std::move(detailed);
+                    return true;
+                }
+                return false;
+            };
             if(mesh.texcoords.size()==mesh.positions.size()) {
                 size_t reference=mesh.material_textures.size();
+                size_t trans_ref=mesh.material_textures.size();
                 for(size_t r=0;r<mesh.material_textures.size();++r) {
-                    if(mesh.material_textures[r].parameter_name=="g_tColorMap") { reference=r;break; }
+                    if(reference==mesh.material_textures.size() && mesh.material_textures[r].parameter_name=="g_tColorMap")
+                        reference=r;
+                    if(trans_ref==mesh.material_textures.size() &&
+                       (mesh.material_textures[r].source_path.find("-trans.")!=std::string::npos ||
+                        mesh.material_textures[r].parameter_name.find("Trans")!=std::string::npos ||
+                        mesh.material_textures[r].parameter_name.find("Alpha")!=std::string::npos))
+                        trans_ref=r;
                 }
                 if(reference<mesh.material_textures.size() &&
                    u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",mesh_index,reference,&base_image) &&
                    u2_native_TextureImageMatchesReference(mesh.material_textures[reference],base_image) &&
                    preview_texture_valid(base_image.pixels)) {
-                    U2NativeTexturePreview detailed;
-                    bool upgraded=false;
-                    if(!base_image.cooked_name.empty() &&
-                       u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm",base_image.cooked_name.c_str(),&detailed) &&
-                       detailed.uid==base_image.uid && detailed.format==base_image.format &&
-                       detailed.width>=base_image.width && detailed.height>=base_image.height &&
-                       preview_texture_valid(detailed.pixels)) {
-                        size_t offset=0;uint32_t w=detailed.width,h=detailed.height;
-                        while(w>base_image.width || h>base_image.height) {
-                            offset+=size_t(((w+3)/4+7)&~7u)*(((h+3)/4+7)&~7u)*8;
-                            w=std::max(1u,w/2);h=std::max(1u,h/2);
-                        }
-                        const size_t bytes=size_t(((w+3)/4+7)&~7u)*(((h+3)/4+7)&~7u)*8;
-                        if(w==base_image.width && h==base_image.height && offset<=detailed.resident_blocks.size() &&
-                           bytes<=detailed.resident_blocks.size()-offset && bytes<=base_image.resident_blocks.size() &&
-                           std::equal(base_image.resident_blocks.begin(),base_image.resident_blocks.begin()+bytes,detailed.resident_blocks.begin()+offset)) {
-                            base_image=std::move(detailed);
-                            upgraded=true;
+                    const bool upgraded=try_upgrade(base_image);
+                    if(trans_ref<mesh.material_textures.size()) {
+                        U2NativeTexturePreview trans_img;
+                        if(u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",mesh_index,trans_ref,&trans_img) &&
+                           u2_native_TextureImageMatchesReference(mesh.material_textures[trans_ref],trans_img) &&
+                           preview_texture_valid(trans_img.pixels)) {
+                            try_upgrade(trans_img);
+                            for(uint32_t y=0;y<base_image.pixels.height;++y) for(uint32_t x=0;x<base_image.pixels.width;++x) {
+                                const uint32_t tx=x*trans_img.pixels.width/base_image.pixels.width;
+                                const uint32_t ty=y*trans_img.pixels.height/base_image.pixels.height;
+                                const uint32_t tp=trans_img.pixels.rgba[size_t(ty)*trans_img.pixels.width+tx];
+                                const uint32_t a=std::max({tp&255u,(tp>>8)&255u,(tp>>16)&255u});
+                                uint32_t &dst=base_image.pixels.rgba[size_t(y)*base_image.pixels.width+x];
+                                dst=(dst&0x00FFFFFFu)|(a<<24);
+                            }
+                            has_alpha_cutout=true;
                         }
                     }
                     color_map=&base_image.pixels;++textured_meshes;
@@ -136,7 +168,7 @@ public:
                     std::array<std::array<float,2>,3> uv{};
                     if(color_map) for(size_t c=0;c<3;++c) uv[c]=mesh.texcoords[triangle[c]];
                     const size_t writes=solid.triangle({clip_vertices[triangle[0]],clip_vertices[triangle[1]],clip_vertices[triangle[2]]},rgba,
-                        {brightness[triangle[0]],brightness[triangle[1]],brightness[triangle[2]]},color_map,uv);
+                        {brightness[triangle[0]],brightness[triangle[1]],brightness[triangle[2]]},color_map,uv,has_alpha_cutout);
                     depth_writes+=writes;if(color_map) textured_writes+=writes;
                 }
             }

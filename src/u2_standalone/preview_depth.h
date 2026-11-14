@@ -37,7 +37,8 @@ public:
     size_t triangle(const std::array<Vertex,3> &vertices,uint32_t color,
                     const std::array<float,3> &brightness={1,1,1},
                     const U2NativeTexturePixels *texture=nullptr,
-                    const std::array<std::array<float,2>,3> &uv={}) {
+                    const std::array<std::array<float,2>,3> &uv={},
+                    bool alpha_cutout=false) {
         if(width<=0 || height<=0 || pixels.size()!=size_t(width)*height || depth.size()!=pixels.size()) return 0;
         if(texture && !preview_texture_valid(*texture)) return 0;
         struct ClipVertex { Vertex position;float brightness;std::array<float,2> uv; };
@@ -99,7 +100,7 @@ public:
             if(!std::isfinite(screen[i].u_over_w) || !std::isfinite(screen[i].v_over_w)) return 0;
         }
         size_t written=0;
-        for(size_t i=1;i+1<count;++i) written+=rasterize(screen[0],screen[i],screen[i+1],color,texture);
+        for(size_t i=1;i+1<count;++i) written+=rasterize(screen[0],screen[i],screen[i+1],color,texture,alpha_cutout);
         return written;
     }
 
@@ -118,7 +119,7 @@ private:
     static float edge(const ScreenVertex &a,const ScreenVertex &b,float x,float y) {
         return (b.x-a.x)*(y-a.y)-(b.y-a.y)*(x-a.x);
     }
-    size_t rasterize(ScreenVertex a,ScreenVertex b,ScreenVertex c,uint32_t color,const U2NativeTexturePixels *texture) {
+    size_t rasterize(ScreenVertex a,ScreenVertex b,ScreenVertex c,uint32_t color,const U2NativeTexturePixels *texture,bool alpha_cutout) {
         float area=edge(a,b,c.x,c.y);
         if(!std::isfinite(area) || area==0) return 0;
         if(area<0) { std::swap(b,c);area=-area; }
@@ -147,6 +148,7 @@ private:
                     const float u=(e0*a.u_over_w+e1*b.u_over_w+e2*c.u_over_w)/denominator;
                     const float v=(e0*a.v_over_w+e1*b.v_over_w+e2*c.v_over_w)/denominator;
                     if(!preview_sample_repeat(*texture,u,v,amount,&shaded)) continue;
+                    if(alpha_cutout && (shaded>>24)<128) continue;
                 } else for(unsigned shift : {0u,8u,16u})
                     shaded|=uint32_t(std::lround(float((color>>shift)&255)*amount))<<shift;
                 depth[pixel]=z;pixels[pixel]=shaded;++written;

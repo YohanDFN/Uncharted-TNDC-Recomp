@@ -141,6 +141,22 @@
       "scenario": "Chantier C1 — BB_NATIVE_CAPTURE_PAGE=ROOT over multi-mesh textured menu-temple",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Scene 3D menu-temple Chantier C1 : 12/13 sous-maillages textures (statue, plafond, fresques, frises) dont 11 mis a niveau depuis chunk-21-tstrm."
+    },
+    {
+      "fichier": "native-menu-temple-c2.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "ae7edc6e5e3662792f4d554ca1888d013a80b19018ce8fd69c797d5304289959",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "18bfd2e",
+      "build_changes": "Chantier C2: decode ThinBGRA8 formats 87/91 (tmp-hanging-vine-color.tga + tmp-hanging-vine-trans.tga) and alpha-cutout depth rasterization (13/13 menu-temple meshes textured)",
+      "executable_sha256": "daade4d62f7e87460e703b64dc5e225a0b2d95bb29240c73e293109bc6620fbf",
+      "scenario": "Chantier C2 — BB_NATIVE_CAPTURE_PAGE=ROOT over 13/13 textured menu-temple with alpha-cutout vines",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Scene 3D menu-temple Chantier C2 : 13/13 sous-maillages textures, y compris les lianes (ThinBGRA8 87/91 + decoupe alpha-cutout)."
     }
   ]
 }

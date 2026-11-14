@@ -41,6 +41,8 @@ bool u2_native_DecodeThinBc1Preview(U2NativeTexturePixels *out,const uint8_t *da
                                     size_t bytes,uint32_t width,uint32_t height,bool srgb);
 bool u2_native_DecodeThinBc4Preview(U2NativeTexturePixels *out,const uint8_t *data,
                                     size_t bytes,uint32_t width,uint32_t height);
+bool u2_native_DecodeThinBgra8Preview(U2NativeTexturePixels *out,const uint8_t *data,
+                                      size_t bytes,uint32_t width,uint32_t height,bool srgb);
 bool u2_native_BuildTitleLogoPreview(U2NativeTexturePixels *out,
     const uint8_t *color,size_t color_bytes,const uint8_t *alpha,size_t alpha_bytes,
     uint32_t width,uint32_t height);

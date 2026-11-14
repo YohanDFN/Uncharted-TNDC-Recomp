@@ -457,8 +457,12 @@ extern "C" bool u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview(const char 
         if(!u2_native_FindDictionaryTextureDescriptor(&descriptor,page.data(),page.size(),read_le32(header.data()+12),name,vram_bytes)) return false;
         auto &image=descriptor.image;
         image.resident_blocks.resize(descriptor.stored_bytes);
-        if(runtime_file_pread(fd,image.resident_blocks.data(),image.resident_blocks.size(),int64_t(vram_start+image.vram_offset))!=int64_t(image.resident_blocks.size()) ||
-           !u2_native_DecodeThinBc1Preview(&image.pixels,image.resident_blocks.data(),image.resident_blocks.size(),image.width,image.height,image.format==72)) return false;
+        const bool is_bgra8=(image.format==87 || image.format==91);
+        if(runtime_file_pread(fd,image.resident_blocks.data(),image.resident_blocks.size(),int64_t(vram_start+image.vram_offset))!=int64_t(image.resident_blocks.size())) return false;
+        const bool ok=is_bgra8
+            ? u2_native_DecodeThinBgra8Preview(&image.pixels,image.resident_blocks.data(),image.resident_blocks.size(),image.width,image.height,image.format==91)
+            : u2_native_DecodeThinBc1Preview(&image.pixels,image.resident_blocks.data(),image.resident_blocks.size(),image.width,image.height,image.format==72);
+        if(!ok) return false;
         *out=std::move(image);return true;
     } catch(const std::bad_alloc &) { return false; }
 }

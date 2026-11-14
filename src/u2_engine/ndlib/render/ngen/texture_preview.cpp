@@ -60,17 +60,23 @@ bool u2_native_ReadTextureTablePreview(std::vector<U2NativeTexturePreview> *out,
             // Large tag-3 images and other formats remain compressed snapshots.
             const bool bc1=(image.format==71 && image.flags==0x01000000) ||
                            (image.format==72 && image.flags==0x010F0000);
-            if(bc1 && image.layers==1 && image.layout_tag==2 && image.width<=64 && image.height<=64 &&
+            const bool bgra8=(image.format==87 && image.flags==0x01000000) ||
+                             (image.format==91 && image.flags==0x010F0000);
+            if((bc1 || bgra8) && image.layers==1 && image.layout_tag==2 && image.width<=64 && image.height<=64 &&
                std::has_single_bit(image.width) && std::has_single_bit(image.height)) {
                 size_t required=0;
                 for(uint32_t mip=0;mip<image.mip_count;++mip) {
                     const size_t w=std::max(1u,image.width>>mip),h=std::max(1u,image.height>>mip);
-                    required+=(((w+3)/4+7)&~size_t{7})*(((h+3)/4+7)&~size_t{7})*8;
+                    if(bc1) required+=(((w+3)/4+7)&~size_t{7})*(((h+3)/4+7)&~size_t{7})*8;
+                    else required+=((w+7)&~size_t{7})*((h+7)&~size_t{7})*4;
                 }
                 const size_t pixels=size_t(image.width)*image.height;
-                if(required!=bytes || pixels>decoded_budget ||
-                   !u2_native_DecodeThinBc1Preview(&image.pixels,image.resident_blocks.data(),bytes,
-                        image.width,image.height,image.format==72)) return false;
+                const bool decoded=bc1
+                    ? u2_native_DecodeThinBc1Preview(&image.pixels,image.resident_blocks.data(),bytes,
+                                                     image.width,image.height,image.format==72)
+                    : u2_native_DecodeThinBgra8Preview(&image.pixels,image.resident_blocks.data(),bytes,
+                                                       image.width,image.height,image.format==91);
+                if(required!=bytes || pixels>decoded_budget || !decoded) return false;
                 decoded_budget-=pixels;
             }
             result.push_back(std::move(image));
@@ -233,6 +239,30 @@ bool u2_native_DecodeThinBc1Preview(U2NativeTexturePixels *out,const uint8_t *da
                 const auto &c=colors[(source[4+by]>>(2*bx))&3];
                 result.rgba[py*width+px]=uint32_t(c[0])|(uint32_t(c[1])<<8)|(uint32_t(c[2])<<16)|(uint32_t(c[3])<<24);
             }
+        }
+        *out=std::move(result);
+        return true;
+    } catch(const std::bad_alloc &) { return false; }
+}
+
+bool u2_native_DecodeThinBgra8Preview(U2NativeTexturePixels *out,const uint8_t *data,
+                                      size_t bytes,uint32_t width,uint32_t height,bool srgb) {
+    if(!out || !data || !width || !height || width>4096 || height>4096) return false;
+    const size_t pitch=(width+7)&~size_t{7},padded_rows=(height+7)&~size_t{7};
+    if(bytes<pitch*padded_rows*4) return false;
+    try {
+        U2NativeTexturePixels result;
+        result.width=width;result.height=height;result.srgb=srgb;
+        result.rgba.resize(size_t(width)*height);
+        for(size_t y=0;y<height;++y) for(size_t x=0;x<width;++x) {
+            size_t morton=0;
+            for(unsigned bit=0;bit<3;++bit) {
+                morton|=((x>>bit)&1)<<(2*bit);
+                morton|=((y>>bit)&1)<<(2*bit+1);
+            }
+            const size_t idx=((y/8)*(pitch/8)+x/8)*64+morton;
+            const auto *s=data+idx*4;
+            result.rgba[y*width+x]=uint32_t(s[2])|(uint32_t(s[1])<<8)|(uint32_t(s[0])<<16)|(uint32_t(s[3])<<24);
         }
         *out=std::move(result);
         return true;

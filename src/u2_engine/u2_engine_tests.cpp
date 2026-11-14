@@ -1059,9 +1059,9 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         }
         {
             const auto *info=u2_cpp_PackageMgr_FindNativeRequest("menu-temple");
-            U2_TEST_ASSERT(info && info->texture_table_loaded && info->texture_images==60 && info->texture_images_decoded==44 &&
+            U2_TEST_ASSERT(info && info->texture_table_loaded && info->texture_images==60 && info->texture_images_decoded==46 &&
                            info->state==U2NativePackageState::Resolved && info->vram_bytes==8763392,
-                           "Real TEXTURE_TABLE loads 60 owned compressed images and decodes 44 supported BC1 previews without claiming engine Ready");
+                           "Real TEXTURE_TABLE loads 60 owned compressed images and decodes 46 supported BC1/BGRA8 previews without claiming engine Ready");
             size_t bytes=0,pixels=0;bool complete=true;
             for(size_t i=0;i<60;++i) {
                 U2NativeTexturePreview image;
@@ -1070,8 +1070,8 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                 complete &= image.uid!=0 && !image.resource_name.empty() && !image.cooked_name.empty() &&
                     image.vram_offset<=info->vram_bytes && image.resident_blocks.size()<=info->vram_bytes-image.vram_offset;
             }
-            U2_TEST_ASSERT(complete && bytes==info->vram_bytes && pixels==177152,
-                           "All 60 image extents cover the declared VRAM bytes and supported first mips own 177152 pixels");
+            U2_TEST_ASSERT(complete && bytes==info->vram_bytes && pixels==181248,
+                           "All 60 image extents cover the declared VRAM bytes and supported first mips own 181248 pixels");
             U2NativeTexturePreview column,unsupported;
             U2_TEST_ASSERT(u2_cpp_PackageMgr_GetNativeTexturePreview("menu-temple",37,&column) && column.format==72 &&
                            column.width==64 && column.height==64 && column.mip_count==7 && column.resident_blocks.size()==5120 &&
@@ -1222,6 +1222,16 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(read_sample && u2_native_DecodeThinBc1Preview(&image,resident.resident_blocks.data(),resident.resident_blocks.size(),64,64,true) &&
                            image.rgba.size()==4096 && image.srgb && image.rgba[0]==0xFF8C8E94,
                            "Real GPU-matched temple column BC1 data decodes to 4096 owned pixels with the expected first RGB565 endpoint");
+            std::vector<uint8_t> bgra(8*8*4,0);
+            bgra[0]=0x10;bgra[1]=0x20;bgra[2]=0x30;bgra[3]=0x80; // pixel (0,0) -> morton 0
+            bgra[4]=0x40;bgra[5]=0x50;bgra[6]=0x60;bgra[7]=0xFF; // pixel (1,0) -> morton 1
+            U2NativeTexturePixels bgra_out;
+            U2_TEST_ASSERT(u2_native_DecodeThinBgra8Preview(&bgra_out,bgra.data(),bgra.size(),8,8,true) &&
+                           bgra_out.srgb && bgra_out.rgba.size()==64 &&
+                           bgra_out.rgba[0]==0x80102030u && bgra_out.rgba[1]==0xFF405060u &&
+                           !u2_native_DecodeThinBgra8Preview(&bgra_out,bgra.data(),bgra.size()-1,8,8,true) &&
+                           !u2_native_DecodeThinBgra8Preview(nullptr,bgra.data(),bgra.size(),8,8,true),
+                           "ThinBGRA8 decoder untiles 8x8 Morton pixels and rejects truncated/null inputs");
         }
         {
             std::vector<uint8_t> blocks(1024);

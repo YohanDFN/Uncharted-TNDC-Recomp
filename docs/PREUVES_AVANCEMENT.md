@@ -5,6 +5,20 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier C2) : `13/13` maillages `menu-temple` texturés (`ThinBGRA8` 87/91 & découpe alpha des lianes)
+
+[Galerie autonome Chantiers A2 à C2](preuves_avancement/2026-11-14/preuves_avancement.html) (**10** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).
+
+![Scène 3D menu-temple Chantier C2 avec 13/13 sous-maillages texturés et lianes découpées par alpha](preuves_avancement/2026-11-14/native-menu-temple-c2.png)
+
+Décodage du 13ᵉ maillage de `menu-temple` (`Submesh26`, lianes suspendues `tmp-hanging-vine-color.tga` + `tmp-hanging-vine-trans.tga`) :
+- **Décodeur `ThinBGRA8` (`87` / `91`)** dans [texture_preview.{h,cpp}](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_engine/ndlib/render/ngen/texture_preview.h) et [package_manager.cpp](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_engine/ndlib/io/package_manager.cpp) : détuilage Morton `8×8` des pixels `BGRA` 32 bits (`46/60` images résidentes décodées dans `menu-temple.pak`).
+- **Masque de transparence & alpha-cutout** dans [temple_preview.h](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_standalone/temple_preview.h) et [preview_depth.h](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_standalone/preview_depth.h) : composition du canal `-trans.` sur l'alpha de `g_tColorMap` et rejet des pixels `alpha < 128` avant écriture du Z-buffer (**13/13 maillages texturés**, `5 803 707` échantillons).
+
+Validation (build basé sur `18bfd2e` + C2, `out/uncharted2-native.exe` SHA-256 `daade4d6...`) :
+- Natif `scratch/run_native_test.ps1 6` : **673/673** assertions C++23 (`EngineTest`), `textured meshes=13`, code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **679/679**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+
 ## 14 novembre (Chantier C1) : texturage multi-maillages `menu-temple` (`12/13` maillages, `11` mis à niveau)
 
 [Galerie autonome Chantiers A2 à C1](preuves_avancement/2026-11-14/preuves_avancement.html) (**9** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).
