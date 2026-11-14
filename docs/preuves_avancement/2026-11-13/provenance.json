@@ -45,18 +45,34 @@
       "scenario": "menu-temple preview plus original title logo 2048x512 and genuine main.fnt glyphs (French prompt, UTF-8 trademark/copyright legal text, status bar)",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (4s); System.Drawing BMP to PNG; no retouching",
       "legende": "Native title screen using proven eboot.elf slot 1 font main.fnt (Adelon-Serial DB, 183 glyphs, 592 kernings, 4-plane B/G/R/A 256x128 atlas). Layout, drawn X button, shadow, logo flip and status bar remain viewer conventions."
+    },
+    {
+      "fichier": "02-menu-apres-x-verifie.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "f28b58aa93c08014d42f03beb732f3b4bc910a2e22890570fe369cff80e8b745",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "deda6fcced00169eeca3ec1269a1c9deb9516071",
+      "build_changes": "verified post-X menu parser (menu.bin + core.psarc:text1/ps4/3.common), PAGE_PROFILE & PAGE_NEWPROFILE viewer preview with main.fnt, and Step 19 unit tests",
+      "executable_sha256": "f840127d33eeb70241f9238697126835857e5d5241230084b41dea07552fac95",
+      "scenario": "menu-temple preview + BC1/BC4 logo + verified post-X pages PAGE_PROFILE (0x82D5C00B, title DÉMARRER, 7 controls incl. spacer & ds 16/0 Continuer/Jouer) and PAGE_NEWPROFILE (0x11FEFB39, 4 controls) rendered with main.fnt",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (4s); Python zlib BMP to PNG; no retouching",
+      "legende": "Verified post-X menu lists parsed from dc1/ps4/menu.bin and raw core.psarc:text1/ps4/3.common, rendered with slot 1 font main.fnt. Two-column card layout, colors, and static display without transitions are viewer conventions."
     }
   ],
   "validation": {
-    "native_assertions": "501/501",
+    "native_assertions": "552/552",
     "native_seconds": 6,
     "native_exit": 0,
-    "hybrid_assertions": "507/507",
+    "hybrid_assertions": "558/558",
     "hybrid_seconds": 30,
     "hybrid_exit": "USER_WINDOW_CLOSE_AFTER_TIMEOUT",
     "selftest": 886,
     "full_body": 831,
-    "toggle_seconds": 8,
+    "toggle_seconds": 6,
     "toggle_observed": [
       "hidden",
       "visible"
@@ -65,8 +81,8 @@
   },
   "limits": [
     "main.fnt proven in eboot.elf slot 1 (0x0144E640 / 0x003F6D0C; MenuDrawer -1 resolved via 0x01450D18 -> 1)",
-    "original UI pipeline and transitions not ported",
-    "layout, drawn circle-cross button (symbol3.fnt unused), text shadow, logo vertical flip and shade remain preview conventions",
+    "post-X branch selection (0x005CB5B7 -> 0x005CB851 PAGE_PROFILE vs 0x005CB807 PAGE_NEWPROFILE), datasource 16/0 (0x005ACAB0) live evaluation, and interactive transitions are not yet wired into live state transitions",
+    "two-column card layout, colors, drawn circle-cross/button tags, text shadow, logo vertical flip and shade remain preview conventions",
     "fresh original framebuffer capture attempts unsuccessful; prior validated reference reused"
   ]
 }

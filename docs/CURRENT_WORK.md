@@ -1,10 +1,12 @@
-# Travail courant
+# État courant
 
-- Cible : Uncharted 2, branche `dev-native` ; itérations unitaires. Vérification binaire et intégration de la police réelle du menu (`main.fnt`), base `bdda25c` ; SHA-256 `out/uncharted2-native.exe` : `03baee316902ef316fabce183341ed75a9f4063f0bc8208129d0f95eb0dd7b24`.
-- État validé : `main.fnt` (`Adelon-Serial DB`, **183** glyphes, **592** paires de crénage, atlas `main_00.tga` 256×128 BGRA32 packé B/G/R/A) rend l'invitation française, les mentions UTF-8 (`™`, `©`) et la barre d'état dans `title_preview.h` sur le décor temple + logo original 2048×512.
-- Preuves : `GameInitInternal` (`0x003F68C0`) remplit `g_apFonts` (`0x0144E640`) avec `main.fnt` en slot 1 (`0x003F6D0C`) ; `MenuDrawer` (`0x005BC2D4`) résout `fontIndex = -1` à `1` via `0x01450D18` / `0x00CDC2A0` / `0x005BC516` / `0x00CC9AF0` (codes ≤ 14 sur `symbol3.fnt` via `0x005DBF18`). `game3.fnt` (`0x003FE000`) n'appartient qu'à la commande debug inutilisée `reloadfont` (`0x003F57D7`) et `game3_00.tga` est absent.
-- Tests : `git diff --check` et build MSYS2 (`-Wall -Wextra -Werror`) réussis. Natif 6 s : **501/501**, full-body **831**, sortie **0** ; F1 (`hidden`/`visible`), sortie **0** ; hybride (`user/last_run.log`) : SelfTest **886**, full-body **831**, **507/507**, 889 détours, 0 crash ni Guest fault jusqu'à fermeture manuelle au-delà de 30 s.
-- Rapport : [écran-titre et preuves `main.fnt`](NATIVE_TITLE_SCREEN_PREVIEW.md). [Capture native réelle](preuves_avancement/2026-11-13/title-screen-main-font-capture.png) (1920×1080, SHA-256 `d307c00b...`), inspectée ; [galerie HTML autonome](preuves_avancement/2026-11-13/preuves_avancement.html) (3 PNG vérifiés par script) et provenance à jour.
-- Limites : disposition, tailles de ligne (`42/32/18`), bouton croix géométrique (`symbol3.fnt` non porté), ombre de texte, inversion verticale du logo et atténuation du décor restent des conventions du viewer. Invitation statique sans transition ni pipeline UI original.
-- Prochaine expérience : relever dans `bb-probe` l'écran après l'appui sur X, ses contrôles et ses textes ; afficher cette liste vérifiée avant de porter la transition et les actions une à une.
-- Préserver : sous-module `gpu/third_party/fsr-vulkan` modifié, `.agents/`, `scratch/diag_baseline_3d5dded/`, trace antérieure `temple-samplers-capture.txt` non commitée.
+- **Branche** : `dev-native` (sur `deda6fc` + aperçu post-X `menu.bin` + `3.common`).
+- **Cible** : Menu d'écran-titre et transition post-X natifs en C++23 sans exécution de code PS4.
+- **État validé** :
+  - `menu_preview.{h,cpp}` décode `dc1/ps4/menu.bin` et `core.psarc:text1/ps4/3.common` (entrée 46, `0x410000`, `87 097` octets non compressés `[0, 21561]`) en streaming borné (`PAGE_ROOT_MAIN` `0x37656388`, `PAGE_PROFILE` `0x82D5C00B` `DÉMARRER` 7 contrôles avec séparateur + `Continuer / Jouer` `16/0`, `PAGE_NEWPROFILE` `0x11FEFB39` 4 contrôles).
+  - `title_preview.h` affiche les deux listes vérifiées sur le décor du temple avec `main.fnt` (`F1` bascule `hidden`/`visible`).
+  - Natif `scratch/run_native_test.ps1 6` (`552/552` dont Étape 19, sortie `0`), capture 1920×1080 `docs/preuves_avancement/2026-11-13/02-menu-apres-x-verifie.png` inspectée et embarquée dans `preuves_avancement.html` (4/4 PNG vérifiés), hybride `bb-probe` (`user/last_run.log` : SelfTest `886`, full-body `831`, `558/558`, `77 824` copies scalaires GPU, sortie propre sur fermeture manuelle après 30 s).
+- **Preuves** : `docs/NATIVE_TITLE_SCREEN_PREVIEW.md`, `docs/PREUVES_AVANCEMENT.md`, `docs/preuves_avancement/2026-11-13/{provenance.json,preuves_avancement.html,02-menu-apres-x-verifie.png}`.
+- **Incertitude** : évaluation dynamique en live de l'état profil/sauvegarde (`0x005CB78D`–`0x005CB851`) et datasource `16/0` (`0x005ACAB0`) pour basculer entre `"Jouer"` et `"Continuer"`.
+- **Prochaine expérience** : câbler la transition interactive `X` / `Entrée` depuis `PAGE_ROOT_MAIN` vers la page active (`PAGE_PROFILE` ou `PAGE_NEWPROFILE`), sélection au curseur et retour `O` / `Échap`.
+- **Travail non enregistré** : aucun fichier de l'itération en attente après commit ; éléments environnementaux préservés (`.agents/`, sous-module `gpu/third_party/fsr-vulkan`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`).

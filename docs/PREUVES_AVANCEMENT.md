@@ -5,6 +5,37 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre : listes du menu après X vérifiées dans `menu.bin` + `core.psarc:3.common`
+
+[Galerie autonome mise à jour](preuves_avancement/2026-11-13/preuves_avancement.html)
+(référence hybride, premier aperçu natif, capture `main.fnt` et listes post-X intégrés — 4 images embarquées).
+
+![Listes du menu après X vérifiées avec main.fnt](preuves_avancement/2026-11-13/02-menu-apres-x-verifie.png)
+
+L'analyse binaire de `out/big2/eboot.elf` (`0x005CB5B7` sur `PAGE_ROOT_MAIN`
+`0x37656388` / `BUTTON_TITLE_START` `0x2BBBB5C5`, puis transition
+`0x005C8DAB` -> `0x005CB990`) établit la bifurcation post-X vers deux pages de
+`dc1/ps4/menu.bin` : **`PAGE_PROFILE`** (`0x82D5C00B` en `0x005CB851` si
+profil/sauvegarde présent, titre `DÉMARRER` `0x317D0541`, **7** contrôles dont
+un séparateur à l'index 2 et la source dynamique `16/0` `0x005ACAB0`
+`Continuer / Jouer`) et **`PAGE_NEWPROFILE`** (`0x11FEFB39` en `0x005CB807` sans
+profil, **4** contrôles dont `Médailles `). Toutes les chaînes françaises et de
+navigation (`[X] SÉLECTIONNER`, `[O] RETOUR`, `Menu titre`) sont lues depuis
+`core.psarc:text1/ps4/3.common` (entrée 46 à `0x410000`, `87 097` octets en
+blocs bruts `[0, 21561]`) et rendues avec `main.fnt` via
+`src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}` et
+`src/u2_standalone/title_preview.h`. La disposition en deux cartes, les couleurs
+et l'affichage statique sans transitions restent des conventions du viewer.
+
+Validation (build basé sur `deda6fc`, `out/uncharted2-native.exe` SHA-256
+`f840127d...`) : natif **552/552** (dont Étape 19), sortie **0** après six
+secondes ; basculement `F1` (`hidden` / `visible`) validé, sortie **0** ; hybride
+**558/558**, SelfTest **886**, full-body **831**, `77 824` copies scalaires GPU,
+zéro crash ni Guest fault jusqu'à fermeture manuelle de la fenêtre au-delà de
+30 s (`user/last_run.log`). Capture SDL 1920×1080 inspectée visuellement (PNG
+`1 698 838` octets, SHA-256 `f28b58aa...`). Voir
+[preuves et limites](NATIVE_TITLE_SCREEN_PREVIEW.md).
+
 ## 14 novembre : police réelle `main.fnt` prouvée dans `eboot.elf` et rendue sur l'écran-titre natif
 
 [Galerie autonome mise à jour](preuves_avancement/2026-11-13/preuves_avancement.html)

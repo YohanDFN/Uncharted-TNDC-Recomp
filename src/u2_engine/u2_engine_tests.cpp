@@ -11,6 +11,7 @@
 #include "game/rendercamera.h"
 #include "ndlib/render/ngen/texture_preview.h"
 #include "ndlib/render/ngen/font_preview.h"
+#include "ndlib/render/ngen/menu_preview.h"
 #include "../u2_standalone/preview_clip.h"
 #include "../u2_standalone/preview_depth.h"
 #include "../u2_standalone/preview_lighting.h"
@@ -2741,6 +2742,223 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            u2_native_LayoutFontText(real_font, "Uncharted\xE2\x84\xA2 2: Among Thieves Remastered \xC2\xA9 2009-2015", 32.0f, &real_legal) &&
                            !real_legal.quads.empty() && real_legal.advance > 100.0f,
                            "LayoutFontText renders title prompt and UTF-8 legal text (TM/copyright) using real main.fnt");
+        }
+    }
+
+    // 19. Verified post-X menu preview: mixed-endian records, UTF-8 and atomic failures.
+    {
+        auto put_be = [](std::vector<uint8_t> &bytes, size_t at, uint64_t value, size_t n) {
+            for(size_t i = 0; i < n; ++i) bytes[at + i] = uint8_t(value >> (8 * (n - 1 - i)));
+        };
+        auto put_le = [](std::vector<uint8_t> &bytes, size_t at, uint64_t value, size_t n) {
+            for(size_t i = 0; i < n; ++i) bytes[at + i] = uint8_t(value >> (8 * i));
+        };
+        auto append_string = [](std::vector<uint8_t> &bytes, const std::string &value) {
+            const size_t offset = bytes.size();
+            bytes.insert(bytes.end(), value.begin(), value.end());bytes.push_back(0);
+            return offset;
+        };
+        const std::map<uint32_t, std::string> strings{
+            {0x338A0580u, "Appuyer sur |ENTER| pour commencer"},
+            {0x317D0541u, "D\xC3\x89MARRER"},
+            {0x68730362u, "S\xC3\x89LECTIONNER"}, {0xD9791B19u, "RETOUR"},
+            {0xFD8B6749u, "Menu titre"}, {0xA947CC78u, "Jouer"}, {0x9D39D946u, "Continuer"},
+            {0x0EA20CBFu, "Chapitres"}, {0xB9EE4F87u, "Nouvelle partie"},
+            {0x7C894F27u, "Charger partie"}, {0xFB08C743u, "Options"},
+            {0x1E87D7B1u, "Bonus"}, {0x44834C35u, "M\xC3\xA9" "dailles "}
+        };
+        auto make_common = [&](const std::map<uint32_t, std::string> &table) {
+            const size_t pool = 4 + table.size() * 8;
+            std::vector<uint8_t> bytes(pool, 0);
+            put_be(bytes, 0, table.size(), 4);
+            size_t i = 0;
+            for(const auto &[id, value] : table) {
+                put_be(bytes, 4 + i * 8, id, 4);
+                const size_t offset = append_string(bytes, value);
+                put_be(bytes, 8 + i * 8, offset - pool, 4);++i;
+            }
+            return bytes;
+        };
+        const auto common = make_common(strings);
+        std::map<uint32_t, std::string> localized{{123u, "preserved"}};
+        U2_TEST_ASSERT(u2_native_ReadLocalizationTable(&localized, common.data(), common.size()) && localized == strings,
+                       "ReadLocalizationTable decodes big-endian IDs, relative pool offsets and French UTF-8");
+        const auto saved_localized = localized;
+        auto rejects_common = [&](const uint8_t *data, size_t size) {
+            return !u2_native_ReadLocalizationTable(&localized, data, size) && localized == saved_localized;
+        };
+        U2_TEST_ASSERT(!u2_native_ReadLocalizationTable(nullptr, common.data(), common.size()) &&
+                       rejects_common(nullptr, common.size()) && rejects_common(common.data(), 3) &&
+                       rejects_common(common.data(), 4 + strings.size() * 8 - 1) &&
+                       rejects_common(common.data(), 8 * 1024 * 1024 + 1),
+                       "ReadLocalizationTable rejects NULL, truncated records and excessive size atomically");
+        auto bad_common = common;
+        put_be(bad_common, 0, 0, 4);
+        U2_TEST_ASSERT(rejects_common(bad_common.data(), bad_common.size()), "Localization rejects zero count atomically");
+        put_be(bad_common, 0, 65537, 4);
+        U2_TEST_ASSERT(rejects_common(bad_common.data(), bad_common.size()), "Localization rejects excessive count atomically");
+        bad_common = common;put_be(bad_common, 8, common.size() - (4 + strings.size() * 8), 4);
+        U2_TEST_ASSERT(rejects_common(bad_common.data(), bad_common.size()), "Localization rejects out-of-bounds string offset atomically");
+        bad_common = common;bad_common.pop_back();
+        U2_TEST_ASSERT(rejects_common(bad_common.data(), bad_common.size()), "Localization requires a terminating NUL atomically");
+        bad_common = common;
+        for(size_t i = 0; i < 4; ++i) bad_common[12 + i] = bad_common[4 + i];
+        U2_TEST_ASSERT(rejects_common(bad_common.data(), bad_common.size()), "Localization rejects duplicate IDs atomically");
+        for(const std::string &invalid : {std::string("\x80"), std::string("\xC0\xAF"), std::string("\xE2\x82"),
+                                        std::string("\xE2\x41\x80"), std::string("\xED\xA0\x80"),
+                                        std::string("\xF4\x90\x80\x80"), std::string("\xF5\x80\x80\x80")}) {
+            const auto malformed = make_common({{1u, invalid}});
+            U2_TEST_ASSERT(rejects_common(malformed.data(), malformed.size()),
+                           "Localization rejects malformed, overlong, surrogate and out-of-range UTF-8 atomically");
+        }
+        const auto overlong_string = make_common({{1u, std::string(4097, 'A')}});
+        U2_TEST_ASSERT(rejects_common(overlong_string.data(), overlong_string.size()), "Localization rejects strings longer than 4096 bytes");
+        const auto max_string = make_common({{1u, std::string(4096, 'A')}});
+        std::map<uint32_t, std::string> boundary_table;
+        U2_TEST_ASSERT(u2_native_ReadLocalizationTable(&boundary_table, max_string.data(), max_string.size()) &&
+                       boundary_table.at(1u).size() == 4096, "Localization accepts the 4096-byte string boundary");
+
+        struct ControlSpec {
+            uint32_t id; const char *name; uint32_t string_id; const char *string_name;
+            const char *label; uint32_t type, subtype, datasource_type, datasource_index;
+        };
+        const std::vector<ControlSpec> root_spec{
+            {0x2BBBB5C5u, "BUTTON_TITLE_START", 0x338A0580u, "MENU_PRESS_START", "Appuyer sur |ENTER| pour commencer", 2, 7, 0, 0}
+        };
+        const std::vector<ControlSpec> profile_spec{
+            {0x161522F1u, "BUTTON_CONTINUE", 0, "", "Continuer / Jouer", 2, 0, 16, 0},
+            {0x96B65D82u, "BUTTON_PROFILE_CHAPTERS", 0x0EA20CBFu, "MENU_CHAPTERS", "Chapitres", 2, 0, 20, 2},
+            {0, "", 0, "", "", 1, 0, 0, 0},
+            {0xB861A261u, "BUTTON_NEWGAME", 0xB9EE4F87u, "MENU_NEWGAME", "Nouvelle partie", 2, 0, 0, 0},
+            {0xF7A5B490u, "BUTTON_LOADGAME", 0x7C894F27u, "MENU_LOADGAME", "Charger partie", 2, 0, 0, 0},
+            {0xFA872AA5u, "BUTTON_OPTIONS", 0xFB08C743u, "MENU_OPTIONS", "Options", 2, 0, 0, 0},
+            {0x1F083A57u, "BUTTON_BONUSES", 0x1E87D7B1u, "MENU_BONUSES", "Bonus", 2, 0, 0, 0}
+        };
+        const std::vector<ControlSpec> new_spec{
+            {0xB861A261u, "BUTTON_NEWGAME", 0xB9EE4F87u, "MENU_NEWGAME", "Nouvelle partie", 2, 2, 0, 0},
+            {0xF7A5B490u, "BUTTON_LOADGAME", 0x7C894F27u, "MENU_LOADGAME", "Charger partie", 2, 2, 20, 8},
+            {0xFA872AA5u, "BUTTON_OPTIONS", 0xFB08C743u, "MENU_OPTIONS", "Options", 2, 2, 0, 0},
+            {0x12B796C6u, "BUTTON_MULTIMEDALS", 0x44834C35u, "MENU_MEDALS", "M\xC3\xA9" "dailles ", 2, 2, 20, 9}
+        };
+        std::vector<uint8_t> menu(0x80 + 3 * 0x70, 0);
+        put_le(menu, 0x50, 3, 8);put_le(menu, 0x58, 0x80, 8);
+        auto make_page = [&](size_t index, uint32_t id, const char *name, uint32_t title_id,
+                             const char *title_name, const std::vector<ControlSpec> &spec) {
+            const size_t p = 0x80 + index * 0x70, header = menu.size(), start = header + 16;
+            menu.resize(start + spec.size() * 0x70, 0);
+            put_le(menu, header, spec.size(), 8);put_le(menu, header + 8, start, 8);
+            put_le(menu, p + 0x38, header, 8);put_le(menu, p + 8, id, 4);put_le(menu, p + 0x18, title_id, 4);
+            const size_t name_offset = append_string(menu, name);put_le(menu, p, name_offset, 8);
+            if(*title_name) {
+                const size_t title_offset = append_string(menu, title_name);put_le(menu, p + 0x10, title_offset, 8);
+            }
+            for(size_t i = 0; i < spec.size(); ++i) {
+                const auto &s = spec[i];const size_t c = start + i * 0x70;
+                if(*s.name) { const size_t o = append_string(menu, s.name);put_le(menu, c, o, 8); }
+                if(*s.string_name) { const size_t o = append_string(menu, s.string_name);put_le(menu, c + 0x20, o, 8); }
+                put_le(menu, c + 8, s.id, 4);put_le(menu, c + 0x10, s.type, 4);put_le(menu, c + 0x14, s.subtype, 4);
+                put_le(menu, c + 0x28, s.string_id, 4);put_le(menu, c + 0x30, s.datasource_type, 4);
+                put_le(menu, c + 0x34, s.datasource_index, 4);
+            }
+            return header;
+        };
+        make_page(0, 0x37656388u, "PAGE_ROOT_MAIN", 0, "", root_spec);
+        const size_t profile_header = make_page(1, 0x82D5C00Bu, "PAGE_PROFILE", 0x317D0541u, "MENU_TITLE_START", profile_spec);
+        make_page(2, 0x11FEFB39u, "PAGE_NEWPROFILE", 0, "", new_spec);
+        auto matches_controls = [](const U2NativeMenuPagePreview &page, const std::vector<ControlSpec> &spec) {
+            if(page.controls.size() != spec.size()) return false;
+            for(size_t i = 0; i < spec.size(); ++i) {
+                const auto &c = page.controls[i];const auto &s = spec[i];
+                if(c.id != s.id || c.name != s.name || c.string_id != s.string_id || c.string_name != s.string_name ||
+                   c.label != s.label || c.type != s.type || c.subtype != s.subtype ||
+                   c.datasource_type != s.datasource_type || c.datasource_index != s.datasource_index ||
+                   c.is_spacer() != (s.id == 0)) return false;
+            }
+            return true;
+        };
+        auto matches_menu = [&](const U2NativePostStartMenuPreview &value) {
+            return value.root_main.id == 0x37656388u && value.root_main.name == "PAGE_ROOT_MAIN" &&
+                value.root_main.title_string_id == 0 && value.root_main.title.empty() && value.root_main.title_string_name.empty() &&
+                matches_controls(value.root_main, root_spec) &&
+                value.profile.id == 0x82D5C00Bu && value.profile.name == "PAGE_PROFILE" &&
+                value.profile.title_string_id == 0x317D0541u && value.profile.title_string_name == "MENU_TITLE_START" &&
+                value.profile.title == "D\xC3\x89MARRER" && matches_controls(value.profile, profile_spec) &&
+                value.new_profile.id == 0x11FEFB39u && value.new_profile.name == "PAGE_NEWPROFILE" &&
+                value.new_profile.title_string_id == 0 && value.new_profile.title.empty() && value.new_profile.title_string_name.empty() &&
+                matches_controls(value.new_profile, new_spec) &&
+                value.select_label == "S\xC3\x89LECTIONNER" && value.back_label == "RETOUR" &&
+                value.title_menu_label == "Menu titre" && value.play_label == "Jouer" && value.continue_label == "Continuer";
+        };
+        U2NativePostStartMenuPreview parsed_menu;
+        U2_TEST_ASSERT(u2_native_ReadPostStartMenuPreview(&parsed_menu, menu.data(), menu.size(), common.data(), common.size()) &&
+                       matches_menu(parsed_menu), "PostStartMenu decodes all three pages, exact French labels, datasource choice and spacer");
+        auto rejects_menu = [&](const uint8_t *data, size_t size, const uint8_t *text, size_t text_size) {
+            return !u2_native_ReadPostStartMenuPreview(&parsed_menu, data, size, text, text_size) && matches_menu(parsed_menu);
+        };
+        auto rejects_menu_bytes = [&](const std::vector<uint8_t> &bytes) {
+            return rejects_menu(bytes.data(), bytes.size(), common.data(), common.size());
+        };
+        U2_TEST_ASSERT(!u2_native_ReadPostStartMenuPreview(nullptr, menu.data(), menu.size(), common.data(), common.size()) &&
+                       rejects_menu(nullptr, menu.size(), common.data(), common.size()) &&
+                       rejects_menu(menu.data(), 0x7F, common.data(), common.size()) &&
+                       rejects_menu(menu.data(), menu.size(), nullptr, common.size()) &&
+                       rejects_menu(menu.data(), menu.size(), common.data(), 3) &&
+                       rejects_menu(menu.data(), 8 * 1024 * 1024 + 1, common.data(), common.size()),
+                       "PostStartMenu rejects NULL, truncation and budget violations without changing any output field");
+        auto bad_menu = menu;put_le(bad_menu, 0x50, 2, 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects missing required page atomically");
+        bad_menu = menu;put_le(bad_menu, 0x80 + 2 * 0x70 + 8, 0x82D5C00Bu, 4);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects duplicate required page atomically");
+        bad_menu = menu;put_le(bad_menu, 0x58, uint64_t(-1), 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects overflowing page offset atomically");
+        bad_menu = menu;put_le(bad_menu, 0x80, 0x5F, 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects page name outside permitted string region atomically");
+        bad_menu = menu;put_le(bad_menu, 0x80 + 0x70 + 0x10, uint64_t(-1), 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects invalid optional title name atomically");
+        bad_menu = menu;put_le(bad_menu, 0x80 + 0x70 + 0x38, uint64_t(-1), 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects invalid controls header atomically");
+        bad_menu = menu;put_le(bad_menu, profile_header + 8, menu.size() + 1, 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects out-of-bounds controls offset atomically");
+        bad_menu = menu;put_le(bad_menu, profile_header, 257, 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects excessive control count atomically");
+        for(uint32_t missing : {0x338A0580u, 0x317D0541u, 0x68730362u, 0xD9791B19u,
+                                0xFD8B6749u, 0xA947CC78u, 0x9D39D946u}) {
+            auto incomplete = strings;incomplete.erase(missing);
+            const auto missing_common = make_common(incomplete);
+            U2_TEST_ASSERT(rejects_menu(menu.data(), menu.size(), missing_common.data(), missing_common.size()),
+                           "PostStartMenu rejects missing control, title, navigation and action string IDs atomically");
+        }
+        U2_TEST_ASSERT(!u2_native_LoadPostStartMenuPreview(nullptr), "PostStartMenu loader rejects NULL output");
+
+        // Real assets are optional in isolated tests. Close every probe, including partial availability.
+        const int menu_fd = int(runtime_file_open("/app0/u2data/build/main/dc1/ps4/menu.bin", 0, 0));
+        const int core_fd = int(runtime_file_open("/app0/u2data/build/main/core.psarc", 0, 0));
+        const int font_fd = int(runtime_file_open("/app0/u2data/data/fonts/ps4/main.fnt", 0, 0));
+        if(menu_fd >= 0) runtime_file_close(menu_fd);
+        if(core_fd >= 0) runtime_file_close(core_fd);
+        if(font_fd >= 0) runtime_file_close(font_fd);
+        if(menu_fd >= 0 && core_fd >= 0 && font_fd >= 0) {
+            U2NativePostStartMenuPreview real_menu;
+            const bool loaded_menu = u2_native_LoadPostStartMenuPreview(&real_menu);
+            U2_TEST_ASSERT(loaded_menu && matches_menu(real_menu),
+                           "Real menu.bin and raw PSARC 3.common match verified root/profile/new-profile IDs, names and French labels");
+            U2NativeFontPreview real_font;
+            const bool loaded_font = u2_native_LoadMainFontPreview(&real_font);
+            U2_TEST_ASSERT(loaded_font, "PostStartMenu loads real main.fnt for glyph coverage");
+            U2NativeFontText layout;
+            U2_TEST_ASSERT(loaded_menu && loaded_font && u2_native_LayoutFontText(real_font, real_menu.profile.title, 28, &layout),
+                           "Real main.fnt lays out the accented profile title");
+            for(const auto *page : {&real_menu.root_main, &real_menu.profile, &real_menu.new_profile}) {
+                for(const auto &control : page->controls) {
+                    if(control.is_spacer()) continue;
+                    U2_TEST_ASSERT(loaded_menu && loaded_font && u2_native_LayoutFontText(real_font, control.label, 30, &layout),
+                                   "Real main.fnt lays out every non-spacer control label");
+                }
+            }
+            for(const auto *label : {&real_menu.select_label, &real_menu.back_label, &real_menu.title_menu_label}) {
+                U2_TEST_ASSERT(loaded_menu && loaded_font && u2_native_LayoutFontText(real_font, *label, 22, &layout),
+                               "Real main.fnt lays out localized navigation labels");
+            }
         }
     }
 

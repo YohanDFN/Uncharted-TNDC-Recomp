@@ -164,3 +164,94 @@ localisation et transitions originales non portés. Ce jalon ne rend pas le jeu 
 Prochaine expérience : relever dans l'original l'écran après l'appui sur X,
 ses contrôles et ses textes, puis afficher cette liste vérifiée avant de
 porter la transition et les actions une par une.
+
+## Menu après l'appui sur X vérifié (`menu.bin` + `3.common`, 14 novembre 2026)
+
+Hypothèse : l'écran suivant l'appui sur X sur `PAGE_ROOT_MAIN` (`0x37656388`)
+peut être reconstruit fidèlement en combinant le graphe binaire vérifié dans
+`out/big2/eboot.elf` et `dc1/ps4/menu.bin` avec la table de localisation
+française non compressée `text1/ps4/3.common` dans `core.psarc`, sans exécuter
+de code PS4 ni inventer de libellés.
+
+Critère : extraction bornée de `menu.bin` et de `3.common`, assertions unitaires
+synthétiques et sur vrais assets (`Étape 19`), affichage lisible des deux
+branches (`PAGE_PROFILE` et `PAGE_NEWPROFILE`) en `main.fnt` sans chevauchement,
+aucune régression native ou hybride.
+
+### Preuves binaires et assets vérifiés
+
+- Dispatch `out/big2/eboot.elf` (`0x005CB5B7`) sur `BUTTON_TITLE_START`
+  (`0x2BBBB5C5`, `MENU_PRESS_START` `0x338A0580` = `"Appuyer sur |ENTER| pour commencer"`) :
+  la branche non-démo (`0x005CB78D`–`0x005CB851`) inspecte `0x01050E68 + 0x1FC`,
+  le pointeur de profil `+0x1D8` et la somme d'octets `+0xCD..+0xD6`, puis
+  transite via `0x005C8DAB` -> `0x005CB990` vers :
+  - **`PAGE_PROFILE`** (`0x82D5C00B` à `menu.bin:0x2B0`, choisi en `0x005CB851`
+    si profil/sauvegarde présent, titre `MENU_TITLE_START` `0x317D0541` ->
+    `"DÉMARRER"`) : **7** contrôles (`0x5748`, stride `0x70`) — `BUTTON_CONTINUE`
+    (`0x161522F1`, `ds=16/0` résolu en `0x005ACAB0` vers `MENU_PLAY` `0xA947CC78`
+    `"Jouer"` ou `MENU_CONTINUE` `0x9D39D946` `"Continuer"`), `BUTTON_PROFILE_CHAPTERS`
+    (`0x96B65D82`, `"Chapitres"`), séparateur anonyme à l'index 2 (`id=0`,
+    `type=1/0`), `BUTTON_NEWGAME` (`0xB861A261`, `"Nouvelle partie"`),
+    `BUTTON_LOADGAME` (`0xF7A5B490`, `"Charger partie"`), `BUTTON_OPTIONS`
+    (`0xFA872AA5`, `"Options"`) et `BUTTON_BONUSES` (`0x1F083A57`, `"Bonus"`).
+  - **`PAGE_NEWPROFILE`** (`0x11FEFB39` à `menu.bin:0xF0`, choisi en `0x005CB807`
+    sans profil, aucun titre de page) : **4** contrôles (`0x5258`, stride `0x70`) —
+    `BUTTON_NEWGAME` (`"Nouvelle partie"`), `BUTTON_LOADGAME` (`"Charger partie"`,
+    `ds=20/8`), `BUTTON_OPTIONS` (`"Options"`) et `BUTTON_MULTIMEDALS`
+    (`0x12B796C6`, `"Médailles "`, `ds=20/9`).
+- Archive `u2data/build/main/core.psarc` : entrée 46 (MD5 `06cf8f049a0bb7d29dd1cfe8fa4ef900`
+  de `TEXT1/PS4/3.COMMON`) à l'offset `0x410000`, `87 097` octets stockés
+  entièrement non compressés (blocs `[0, 21561]`), `2 258` entrées big-endian
+  `(string_id, rel_offset)` vérifiées sans doublon. Les libellés de navigation
+  proviennent des ID `0x68730362` (`"SÉLECTIONNER"`), `0xD9791B19` (`"RETOUR"`)
+  et `0xFD8B6749` (`"Menu titre"`).
+
+### Implémentation et conventions
+
+- Nouveau parseur hôte borné `src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}`
+  (`U2NativeMenuControlPreview`, `U2NativeMenuPagePreview`,
+  `U2NativePostStartMenuPreview`, `u2_native_ReadLocalizationTable`,
+  `u2_native_ReadPostStartMenuPreview`, `u2_native_LoadPostStartMenuPreview`) :
+  lecture streamée de `core.psarc` via `runtime_file_pread` (sans charger toute
+  l'archive en RAM), préservation atomique de `*out` en cas d'échec, zéro
+  allocation/exécution guest.
+- Mise à jour de `src/u2_standalone/title_preview.h` pour afficher les deux
+  listes vérifiées côte à côte avec `main.fnt` sur le décor du temple. La mise en
+  page en deux cartes, les couleurs, la séparation `Continuer / Jouer` et
+  l'affichage statique sans transition restent des conventions du viewer.
+- Étape 19 ajoutée à `src/u2_engine/u2_engine_tests.cpp` (**51** nouvelles
+  assertions : décodage synthétique `.common`/`menu.bin`, validation UTF-8,
+  rejets atomiques sur entrées tronquées ou hors bornes, contrôle des vrais
+  assets `menu.bin` + `core.psarc:3.common` + layout `main.fnt`).
+
+### Validation et résultat
+
+- `git diff --check` propre et build MSYS2 réussi (`-Wall -Wextra -Werror`, `0` erreur/avertissement).
+- Natif six secondes (`scratch/run_native_test.ps1 6`) : **552/552** assertions
+  C++23, sandbox full-body **831**, code **0**, journal
+  `[U2 Native Menu] menu.bin+3.common verified: PAGE_PROFILE (0x82D5C00B, title='DÉMARRER', controls=7) & PAGE_NEWPROFILE (0x11FEFB39, controls=4)`.
+- Capture framebuffer native (`BB_NATIVE_CAPTURE` -> BMP 4 s converti en PNG
+  sans retouche, code **0**) : [capture post-X vérifiée](preuves_avancement/2026-11-13/02-menu-apres-x-verifie.png)
+  (1920×1080, `1 698 838` octets, SHA-256 PNG `f28b58aa93c08014d42f03beb732f3b4bc910a2e22890570fe369cff80e8b745`),
+  inspectée visuellement (logo, `DÉMARRER`, 7 + 4 entrées, accents `É`/`é`,
+  barre de navigation et mentions nets, zéro chevauchement).
+- Test natif `F1` (6 s, `VK_F1` ciblé sur le HWND du PID) : `[U2 Native Title] hidden`
+  puis `visible`, sortie **0**.
+- Hybride (`scratch/run_test.ps1 30`, `user/last_run.log`) : SelfTest **886**,
+  full-body **831**, **558/558** assertions C++23, **889** détours installés,
+  `77 824` copies scalaires GPU sans crash, Guest fault ni nouvelle assertion
+  jusqu'à fermeture manuelle de la fenêtre (`Window closed`).
+- Build basé sur `deda6fc` avec cette itération, SHA-256 `out/uncharted2-native.exe` :
+  `f840127d33eeb70241f9238697126835857e5d5241230084b41dea07552fac95`.
+- [Galerie HTML autonome](preuves_avancement/2026-11-13/preuves_avancement.html)
+  (4 PNG embarqués vérifiés octet par octet contre le disque) et
+  [provenance.json](preuves_avancement/2026-11-13/provenance.json).
+
+Limites : le choix dynamique de branche (`0x005CB851` vs `0x005CB807`),
+l'évaluation vivante du datasource `16/0` (`0x005ACAB0`) et les transitions/actions
+au clavier ou à la manette ne sont pas encore portés dans la boucle d'exécution.
+
+Prochaine expérience : câbler la transition interactive `X` / `Entrée` depuis
+l'écran-titre (`PAGE_ROOT_MAIN`) vers la page active (`PAGE_PROFILE` ou
+`PAGE_NEWPROFILE` selon l'état profil/sauvegarde) et la navigation par curseur
+avec retour `O` / `Échap`.

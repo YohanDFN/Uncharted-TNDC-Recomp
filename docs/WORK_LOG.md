@@ -161,3 +161,23 @@ SHA-256: `8e20c3e8543d8cb11a6abc5b7166f90f0c7319ba472db104dad6d40146e98e08`
 - Journaux : user/diag_title_validated_{build,native,hybrid}.log, user/diag_title_toggle_native.log, user/diag_menu_title_original.log. Premier rejet dû au budget VRAM du lecteur résident ; correction ciblée sans élargir son budget. Diagnostics temporaires retirés.
 
 <!-- End of archived handoff -->
+
+
+---
+
+## 2026-11-14T11:24:49.937339+00:00
+
+SHA-256: `aacf035f930809491b8249621b25ac88622e5eba7e193d10a8568c39aedb27a6`
+
+# Travail courant
+
+- Cible : Uncharted 2, branche `dev-native` ; itérations unitaires. Vérification binaire et intégration de la police réelle du menu (`main.fnt`), base `bdda25c` ; SHA-256 `out/uncharted2-native.exe` : `03baee316902ef316fabce183341ed75a9f4063f0bc8208129d0f95eb0dd7b24`.
+- État validé : `main.fnt` (`Adelon-Serial DB`, **183** glyphes, **592** paires de crénage, atlas `main_00.tga` 256×128 BGRA32 packé B/G/R/A) rend l'invitation française, les mentions UTF-8 (`™`, `©`) et la barre d'état dans `title_preview.h` sur le décor temple + logo original 2048×512.
+- Preuves : `GameInitInternal` (`0x003F68C0`) remplit `g_apFonts` (`0x0144E640`) avec `main.fnt` en slot 1 (`0x003F6D0C`) ; `MenuDrawer` (`0x005BC2D4`) résout `fontIndex = -1` à `1` via `0x01450D18` / `0x00CDC2A0` / `0x005BC516` / `0x00CC9AF0` (codes ≤ 14 sur `symbol3.fnt` via `0x005DBF18`). `game3.fnt` (`0x003FE000`) n'appartient qu'à la commande debug inutilisée `reloadfont` (`0x003F57D7`) et `game3_00.tga` est absent.
+- Tests : `git diff --check` et build MSYS2 (`-Wall -Wextra -Werror`) réussis. Natif 6 s : **501/501**, full-body **831**, sortie **0** ; F1 (`hidden`/`visible`), sortie **0** ; hybride (`user/last_run.log`) : SelfTest **886**, full-body **831**, **507/507**, 889 détours, 0 crash ni Guest fault jusqu'à fermeture manuelle au-delà de 30 s.
+- Rapport : [écran-titre et preuves `main.fnt`](NATIVE_TITLE_SCREEN_PREVIEW.md). [Capture native réelle](preuves_avancement/2026-11-13/title-screen-main-font-capture.png) (1920×1080, SHA-256 `d307c00b...`), inspectée ; [galerie HTML autonome](preuves_avancement/2026-11-13/preuves_avancement.html) (3 PNG vérifiés par script) et provenance à jour.
+- Limites : disposition, tailles de ligne (`42/32/18`), bouton croix géométrique (`symbol3.fnt` non porté), ombre de texte, inversion verticale du logo et atténuation du décor restent des conventions du viewer. Invitation statique sans transition ni pipeline UI original.
+- Prochaine expérience : relever dans `bb-probe` l'écran après l'appui sur X, ses contrôles et ses textes ; afficher cette liste vérifiée avant de porter la transition et les actions une à une.
+- Préserver : sous-module `gpu/third_party/fsr-vulkan` modifié, `.agents/`, `scratch/diag_baseline_3d5dded/`, trace antérieure `temple-samplers-capture.txt` non commitée.
+
+<!-- End of archived handoff -->
