@@ -2957,18 +2957,18 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(!profile_page.shows_title_logo() && profile_page.draws_page_box() &&
                        u2_native_ComputeMenuPageLayout(profile_page,&profile_layout) &&
                        !profile_layout.show_logo && profile_layout.show_box && profile_layout.has_title &&
-                       profile_layout.show_prompts && profile_layout.page_box_rect.w>=580.0f &&
+                       profile_layout.show_prompts && profile_layout.page_box_rect.w>=300.0f &&
                        profile_layout.page_box_rect.w<=680.0f &&
                        profile_layout.page_box_rect.x*2+profile_layout.page_box_rect.w==1280.0f &&
                        profile_layout.page_box_rect.y*2+profile_layout.page_box_rect.h==720.0f &&
-                       profile_layout.title_rect.h==50.0f &&
-                       profile_layout.content_rect.x==profile_layout.page_box_rect.x+20.0f &&
+                       profile_layout.title_rect.h==44.0f &&
+                       profile_layout.content_rect.x==profile_layout.page_box_rect.x+25.0f &&
                        profile_layout.content_rect.y==profile_layout.title_rect.y+profile_layout.title_rect.h &&
-                       profile_layout.content_rect.y+profile_layout.content_rect.h+64.0f<=
+                       profile_layout.content_rect.y+profile_layout.content_rect.h+10.0f==
                            profile_layout.page_box_rect.y+profile_layout.page_box_rect.h &&
                        profile_layout.prompts_y==profile_layout.page_box_rect.y+profile_layout.page_box_rect.h+15.0f &&
                        profile_layout.prompts_right_x==profile_layout.page_box_rect.x+profile_layout.page_box_rect.w,
-                       "Profile centers its panel, separates title/content/notes and anchors prompts below it");
+                       "Profile centers its panel with exact 25px/10px padding and anchors prompts below it");
         U2_TEST_ASSERT(profile_layout.box_fade_top==24.0f && profile_layout.box_fade_bottom==40.0f &&
                        profile_layout.box_alpha==0.65f,
                        "Menu panel uses the DrawBox fade extents and central alpha");
@@ -2989,7 +2989,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(u2_native_ComputeMenuPageLayout(unboxed_page,&profile_layout) &&
                        profile_layout.show_box && !profile_layout.show_prompts && !profile_layout.has_title &&
                        profile_layout.title_rect.h==0.0f &&
-                       profile_layout.content_rect.y==profile_layout.page_box_rect.y+20.0f,
+                       profile_layout.content_rect.y==profile_layout.page_box_rect.y+10.0f,
                        "Untitled pages omit the title band and honor hidden prompts independently of the box");
         bad_menu = menu;put_le(bad_menu, 0x80 + 0x70 + 0x38, uint64_t(-1), 8);
         U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects invalid controls header atomically");
@@ -3140,7 +3140,7 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(!parsed.ingame_options.shows_title_logo() && parsed.ingame_options.draws_page_box() &&
                        u2_native_ComputeMenuPageLayout(parsed.ingame_options,&options_layout) &&
                        !options_layout.show_logo && options_layout.show_box && options_layout.has_title &&
-                       options_layout.show_prompts && options_layout.title_rect.h==50.0f &&
+                       options_layout.show_prompts && options_layout.title_rect.h==44.0f &&
                        options_layout.page_box_rect.x*2+options_layout.page_box_rect.w==1280.0f &&
                        options_layout.page_box_rect.y*2+options_layout.page_box_rect.h==720.0f &&
                        options_layout.content_rect.h>=float(parsed.ingame_options.controls.size())*options_layout.row_step &&

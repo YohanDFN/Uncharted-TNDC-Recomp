@@ -2,7 +2,7 @@
   "date_du_dossier": "2026-11-14",
   "fuseau": "Europe/Paris",
   "build_base_commit": "27079bb",
-  "executable_sha256": "011e3f0b15cf86ae46a78451d0a1367c5e4d0b3e317bcb946fe91e5fea0c503a",
+  "executable_sha256": "e8ec28a3907b8d964c897b6fe5aead55fc2d49842d0603ed1848ef9015779bc4",
   "captures": [
     {
       "fichier": "native-menu-root.png",
@@ -85,11 +85,11 @@
         1920,
         1080
       ],
-      "sha256": "60a7120a353bf88b8207e9a63170fddfeb963732b10e4718efefe52a682eba52",
+      "sha256": "8985297e31328bbe5f674cfbf39d70a9d324babda56556f62468f88c021a3440",
       "capture_date": "2026-11-14",
       "build_base_commit": "27079bb",
-      "build_changes": "Chantier A4: MenuStyle interpolation (0x00E330B0 -> 0x00E32FE0, Cosine ease) and 0.2s Smoothstep page fade",
-      "executable_sha256": "011e3f0b15cf86ae46a78451d0a1367c5e4d0b3e317bcb946fe91e5fea0c503a",
+      "build_changes": "Chantier A4: MenuStyle (0x00E330B0->0x00E32FE0, Cosine 0.2s), Smoothstep page fade, exact 25px/10px DrawBox padding (0x00E33D80/0x00E61C0C), no title underline",
+      "executable_sha256": "e8ec28a3907b8d964c897b6fe5aead55fc2d49842d0603ed1848ef9015779bc4",
       "scenario": "Chantier A4 — BB_NATIVE_CAPTURE_PAGE=PROFILE over menu-temple preview",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Sous-menu PAGE_PROFILE Chantier A4 : selection sable-dore (0x00E32FE0) et entrees inactives parchemin (0x00E330B0) interpolees par MenuStyle."

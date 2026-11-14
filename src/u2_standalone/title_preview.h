@@ -112,11 +112,6 @@ public:
             }
             const int indices[]{0,1,2,1,3,2,2,3,4,3,5,4,4,5,6,5,7,6};
             SDL_RenderGeometry(renderer,nullptr,vertices,8,indices,18);
-            if(m_page_layout.has_title) {
-                SDL_SetRenderDrawColor(renderer,255,255,255,Uint8(90.0f*page_fade));
-                const auto title=project(m_page_layout.title_rect);
-                SDL_RenderLine(renderer,title.x,title.y+title.h,title.x+title.w,title.y+title.h);
-            }
             SDL_SetRenderDrawColor(renderer,previous_color.r,previous_color.g,previous_color.b,previous_color.a);
             SDL_SetRenderDrawBlendMode(renderer,previous_blend);
         }

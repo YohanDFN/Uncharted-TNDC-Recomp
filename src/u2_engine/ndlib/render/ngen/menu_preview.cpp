@@ -31,17 +31,16 @@ bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2Nati
         result.page_box_rect = result.content_rect;
         result.copyright_y = 560.0f;
     } else {
-        // Font metrics and runtime status aren't in page data: fit text in the viewer,
-        // reserving two footer lines so dynamic-list/status notes cannot cover controls.
+        // 0x00E33D80 (-25, -10, +50, +20) and 0x00E61C0C (-10, +20) pad the content bounds.
         size_t longest = page.title.size();
         for(const auto &ctrl : page.controls) longest = std::max(longest, ctrl.label.size());
-        const float width = std::clamp(40.0f + float(longest) * 12.0f, 580.0f, 680.0f);
-        const float title_height = result.has_title ? 50.0f : 0.0f;
-        const float height = 40.0f + title_height + controls_height + 64.0f;
+        const float width = std::clamp(50.0f + float(longest) * 14.0f, 300.0f, 680.0f);
+        const float title_height = result.has_title ? 44.0f : 0.0f;
+        const float height = 20.0f + title_height + controls_height;
         result.page_box_rect = {(1280.0f - width) * 0.5f, (720.0f - height) * 0.5f, width, height};
         const auto &box = result.page_box_rect;
-        result.title_rect = {box.x + 20.0f, box.y + 20.0f, width - 40.0f, title_height};
-        result.content_rect = {box.x + 20.0f, box.y + 20.0f + title_height, width - 40.0f, controls_height};
+        result.title_rect = {box.x + 25.0f, box.y + 10.0f, width - 50.0f, title_height};
+        result.content_rect = {box.x + 25.0f, box.y + 10.0f + title_height, width - 50.0f, controls_height};
     }
     result.prompts_y = result.page_box_rect.y + result.page_box_rect.h + 15.0f;
     result.prompts_right_x = result.page_box_rect.x + result.page_box_rect.w;
