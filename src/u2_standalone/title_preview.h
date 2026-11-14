@@ -21,14 +21,16 @@ public:
     ~TitlePreview() { release_texture(); }
     void release_texture() {
         if(m_logo) SDL_DestroyTexture(m_logo);
-        m_logo=nullptr;m_font.release_texture();m_text.clear();m_hits.clear();m_layout_ready=false;
+        if(m_edge) SDL_DestroyTexture(m_edge);
+        m_logo=nullptr;m_edge=nullptr;m_edge_w=0;m_edge_h=0;
+        m_font.release_texture();m_text.clear();m_hits.clear();m_layout_ready=false;
         m_state=U2NativeMenuStateMachine{};
     }
     bool ready() const { return m_logo && m_layout_ready; }
     bool load(SDL_Renderer *renderer) {
         release_texture();
         try {
-            U2NativeTexturePixels image;
+            U2NativeTexturePixels image,edge_image;
             if(!renderer || !u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(&image) ||
                !m_font.load(renderer) || !u2_native_LoadPostStartMenuPreview(&m_menu) ||
                !u2_native_DetectSavedataStatus(&m_savedata) || !m_state.init(&m_menu,m_savedata)) {
@@ -39,6 +41,16 @@ public:
                !SDL_SetTextureBlendMode(m_logo,SDL_BLENDMODE_BLEND) || !SDL_SetTextureScaleMode(m_logo,SDL_SCALEMODE_LINEAR) ||
                !rebuild_layout()) {
                 release_texture();return false;
+            }
+            if(u2_cpp_PackageMgr_LoadNativeMenuEdgePreview(&edge_image)) {
+                m_edge=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STATIC,int(edge_image.width),int(edge_image.height));
+                if(m_edge && SDL_UpdateTexture(m_edge,nullptr,edge_image.rgba.data(),int(edge_image.width*4)) &&
+                   SDL_SetTextureBlendMode(m_edge,SDL_BLENDMODE_BLEND) && SDL_SetTextureScaleMode(m_edge,SDL_SCALEMODE_LINEAR)) {
+                    m_edge_w=int(edge_image.width);m_edge_h=int(edge_image.height);
+                } else {
+                    if(m_edge) SDL_DestroyTexture(m_edge);
+                    m_edge=nullptr;
+                }
             }
             std::printf("[native-title] state-machine initialized: page=%s (0x%08X) depth=%zu profile=%d campaign=%d\n",
                 current_page()->name.c_str(),current_page()->id,stack_depth(),int(m_savedata.has_profile),int(m_savedata.has_campaign_save));
@@ -112,6 +124,17 @@ public:
             }
             const int indices[]{0,1,2,1,3,2,2,3,4,3,5,4,4,5,6,5,7,6};
             SDL_RenderGeometry(renderer,nullptr,vertices,8,indices,18);
+            if(m_edge && m_edge_w>0) {
+                // DrawBox pass 3 (0x005B8FD0): tiled menu-edge texture tinted by 0xF1AF1CF1 (0x00E33030) with UV 0.0140625f.
+                SDL_SetTextureColorModFloat(m_edge,0.3412f,0.2824f,0.2039f);
+                SDL_SetTextureAlphaModFloat(m_edge,0.4941f*page_fade);
+                const float tile_scale=(sx/0.0140625f)/float(m_edge_w);
+                SDL_RenderTextureTiled(renderer,m_edge,nullptr,tile_scale,&box);
+            }
+            // DrawBox pass 2 (0x005B8E43): subtle warm accent edges (0x18848035).
+            SDL_SetRenderDrawColor(renderer,209,177,138,Uint8(96.0f*page_fade));
+            SDL_RenderLine(renderer,box.x,box.y,box.x+box.w,box.y);
+            SDL_RenderLine(renderer,box.x,box.y+box.h,box.x+box.w,box.y+box.h);
             SDL_SetRenderDrawColor(renderer,previous_color.r,previous_color.g,previous_color.b,previous_color.a);
             SDL_SetRenderDrawBlendMode(renderer,previous_blend);
         }
@@ -291,7 +314,8 @@ private:
         }
         m_layout_ready=ok;return ok;
     }
-    SDL_Texture *m_logo{nullptr};
+    SDL_Texture *m_logo{nullptr},*m_edge{nullptr};
+    int m_edge_w{0},m_edge_h{0};
     BitmapFontPreview m_font;
     U2NativePostStartMenuPreview m_menu;
     U2NativeMenuPageLayout m_page_layout;

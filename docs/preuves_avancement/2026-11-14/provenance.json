@@ -93,6 +93,22 @@
       "scenario": "Chantier A4 — BB_NATIVE_CAPTURE_PAGE=PROFILE over menu-temple preview",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Sous-menu PAGE_PROFILE Chantier A4 : selection sable-dore (0x00E32FE0) et entrees inactives parchemin (0x00E330B0) interpolees par MenuStyle."
+    },
+    {
+      "fichier": "native-menu-profile-a5.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "0fd97bbb6bdc6d425e290b731e4492443b7e6baba996d3da014b1291bec8a6d3",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "8835c11",
+      "build_changes": "Chantier A5: decode menu.pak general/menu/edge-shadow.tga + edge-shadow-alpha.tga (128BB450FF1FC61D / BCB9E15BA819491A); MenuDrawer::DrawBox Pass 2 warm border lines & Pass 3 tiled texture overlay (0xF1AF1CF1, UV scale 0.0140625f)",
+      "executable_sha256": "d69fddfc57c582e7f1b5993a6756241b6c85069249b5c89dbb67a55534ef09ed",
+      "scenario": "Chantier A5 — BB_NATIVE_CAPTURE_PAGE=PROFILE over menu-temple preview",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Sous-menu PAGE_PROFILE Chantier A5 : texture edge-shadow.tga tuilee (0xF1AF1CF1, UV 0.0140625f) et liseres chauds MenuDrawer::DrawBox."
     }
   ]
 }

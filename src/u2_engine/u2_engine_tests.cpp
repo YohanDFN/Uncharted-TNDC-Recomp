@@ -1272,6 +1272,11 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             const auto *menu=u2_cpp_PackageMgr_FindNativeRequest("menu");
             U2_TEST_ASSERT(!u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(nullptr) && menu && menu->state==U2NativePackageState::Resolved,
                            "Title preview rejects a missing output and does not promote the menu package to Ready");
+            U2NativeTexturePixels edge;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_LoadNativeMenuEdgePreview(&edge) && edge.width>0 && edge.height>0 &&
+                           edge.rgba.size()==size_t(edge.width)*size_t(edge.height) &&
+                           !u2_cpp_PackageMgr_LoadNativeMenuEdgePreview(nullptr),
+                           "Real menu package edge-shadow pair produces owned RGBA pixels and rejects nullptr");
         }
         {
             std::vector<uint8_t> page(1024);

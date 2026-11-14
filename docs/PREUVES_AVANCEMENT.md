@@ -5,6 +5,21 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier A5) : texture `edge-shadow` et passes `MenuDrawer::DrawBox`
+
+[Galerie autonome Chantiers A2 à A5](preuves_avancement/2026-11-14/preuves_avancement.html) (**7** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).
+
+![Sous-menu PAGE_PROFILE Chantier A5 avec texture edge-shadow tuilée et liserés chauds MenuDrawer::DrawBox](preuves_avancement/2026-11-14/native-menu-profile-a5.png)
+
+Ajout des passes manquantes de `MenuDrawer::DrawBox` (`out/big2/eboot.elf` `0x005B8710`) dans `src/u2_engine/ndlib/io/package_manager.{h,cpp}` et `src/u2_standalone/title_preview.h` :
+- **Décodage de `general/menu/menu-edge`** depuis `menu.pak` `TEXTURE_TABLE` : paire `art/general/menu/edge-shadow.tga/128BB450FF1FC61D.ndb` (couleur) + `art/general/menu/edge-shadow-alpha.tga/BCB9E15BA819491A.ndb` (alpha) via `u2_cpp_PackageMgr_LoadNativeMenuEdgePreview`.
+- **Passe 2 (`0x005B8E43–0x005B8F3D`)** : liserés supérieur et inférieur chauds (`#D1B18A` / `0x18848035`).
+- **Passe 3 (`0x005B8FD0–0x005B917E`)** : quad tuilé `SDL_RenderTextureTiled` avec facteur UV `0.0140625f` (`0x00E61D6C`) et teinte `0xF1AF1CF1` (`0.3412, 0.2824, 0.2039, 0.4941` depuis `0x00E33030`).
+
+Validation (build basé sur `8835c11` + A5, `out/uncharted2-native.exe` SHA-256 `d69fddfc...`) :
+- Natif `scratch/run_native_test.ps1 6` : **668/668** assertions C++23 (`EngineTest`), code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **674/674**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+
 ## 14 novembre (Chantier A4) : palette `MenuStyle` (`0x005796B0`), courbes d'easing `0..5` et transitions fluides `0.2s`
 
 [Galerie autonome Chantiers A2, A3 &amp; A4](preuves_avancement/2026-11-14/preuves_avancement.html) (**6** captures framebuffer 1920×1080 embarquées).

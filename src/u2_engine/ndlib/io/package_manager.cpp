@@ -325,7 +325,8 @@ extern "C" bool u2_cpp_PackageMgr_InspectVramExtent(const uint8_t *header,size_t
     *offset=end;*bytes=length;return true;
 }
 
-extern "C" bool u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(U2NativeTexturePixels *out) {
+static bool load_menu_pak_texture_pair(const char *const cooked[2], uint32_t expected_w, uint32_t expected_h,
+                                       U2NativeTexturePixels *out) {
     if(!out) return false;
     const int fd=runtime_file_open("/app0/u2data/build/main/pak22/ps4/menu.pak",0,0);
     if(fd<0) return false;
@@ -367,9 +368,7 @@ extern "C" bool u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(U2NativeTexturePixe
            !u2_cpp_PackageMgr_RelocatePages(header.data(),header.size(),pages[0].data(),pages[0].size(),pages[1].data(),pages[1].size(),&relocated)) return false;
         const auto *root=pages[read_le32(header.data()+8)].data()+read_le32(header.data()+12);
         std::array<std::vector<uint8_t>,2> blocks;
-        const char *cooked[]={
-            "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2.tga/3DA08A9F6983BA12.ndb",
-            "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-alpha.tga/4C70F66839038231.ndb"};
+        uint32_t width=expected_w,height=expected_h;
         for(size_t login=0;login<types.size();++login) {
             if(types[login]!="TEXTURE_TABLE") continue;
             const uint32_t pi=read_le32(root+0x28+login*8),md=read_le32(root+0x2C+login*8);
@@ -394,18 +393,35 @@ extern "C" bool u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(U2NativeTexturePixe
                     if(std::strcmp(reinterpret_cast<const char*>(page.data()+name),cooked[slot])) continue;
                     if(!blocks[slot].empty()) return false;
                     const uint64_t offset=u64(d+8);const uint32_t bytes=read_le32(d+0x10);
+                    const uint32_t w=read_le32(d+0x28),h=read_le32(d+0x2C);
                     if(read_le32(d+0x14)!=read_le32(page.data()+keys+i*4) || read_le32(d+0x18)!=1 ||
                        read_le32(d+0x1C)!=(slot==0 ? 71u : 80u) || read_le32(d+0x20)!=0x01000000 ||
-                       read_le32(d+0x24)!=12 || read_le32(d+0x28)!=2048 || read_le32(d+0x2C)!=512 ||
-                       read_le32(d+0x34)!=3 || bytes!=702464 || offset>vram_bytes || bytes>vram_bytes-offset) return false;
+                       w<4 || h<4 || w>4096 || h>4096 || bytes==0 || bytes>4*1024*1024 ||
+                       read_le32(d+0x34)!=3 || offset>vram_bytes || bytes>vram_bytes-offset) return false;
+                    if(width==0 && height==0) { width=w;height=h; }
+                    else if(w!=width || h!=height) return false;
                     blocks[slot].resize(bytes);
                     if(runtime_file_pread(fd,blocks[slot].data(),bytes,int64_t(vram_start+offset))!=int64_t(bytes)) return false;
                 }
             }
         }
-        if(blocks[0].empty() || blocks[1].empty()) return false;
-        return u2_native_BuildTitleLogoPreview(out,blocks[0].data(),blocks[0].size(),blocks[1].data(),blocks[1].size(),2048,512);
+        if(blocks[0].empty() || blocks[1].empty() || width==0 || height==0) return false;
+        return u2_native_BuildTitleLogoPreview(out,blocks[0].data(),blocks[0].size(),blocks[1].data(),blocks[1].size(),width,height);
     } catch(const std::bad_alloc &) { return false; }
+}
+
+extern "C" bool u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(U2NativeTexturePixels *out) {
+    static const char *const cooked[]={
+        "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2.tga/3DA08A9F6983BA12.ndb",
+        "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/logo2-alpha.tga/4C70F66839038231.ndb"};
+    return load_menu_pak_texture_pair(cooked,2048,512,out);
+}
+
+extern "C" bool u2_cpp_PackageMgr_LoadNativeMenuEdgePreview(U2NativeTexturePixels *out) {
+    static const char *const cooked[]={
+        "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/edge-shadow.tga/128BB450FF1FC61D.ndb",
+        "d:/dev/CP9/Data/U2/CookData/ND/build/texture2/art/general/menu/edge-shadow-alpha.tga/BCB9E15BA819491A.ndb"};
+    return load_menu_pak_texture_pair(cooked,0,0,out);
 }
 
 extern "C" bool u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview(const char *dictionary,const char *name,

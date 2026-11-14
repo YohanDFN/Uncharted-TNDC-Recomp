@@ -61,6 +61,8 @@ bool u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview(const char *dictionary
                                                          U2NativeTexturePreview *out);
 // Captured menu logo2 BC1 + BC4 mask pair, owned first-mip preview only.
 bool u2_cpp_PackageMgr_LoadNativeTitleLogoPreview(U2NativeTexturePixels *out);
+// Captured menu-edge (edge-shadow) BC1 + BC4 mask pair, owned first-mip preview only.
+bool u2_cpp_PackageMgr_LoadNativeMenuEdgePreview(U2NativeTexturePixels *out);
 bool u2_cpp_PackageMgr_GetNativeMaterialTexturePreview(const char *package,size_t mesh,size_t reference,
                                                       U2NativeTexturePreview *out);
 bool u2_cpp_PackageMgr_GetNativeGeometryPreview(const char *package, std::vector<U2NativeMeshPreview> *out);
