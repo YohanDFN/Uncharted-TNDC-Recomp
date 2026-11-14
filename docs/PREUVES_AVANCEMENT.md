@@ -5,6 +5,24 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier A2) : géométrie `1280×720` `MenuPage`, masquage du logo hors titre et panneau `DrawBox`
+
+[Galerie autonome Chantier A2](preuves_avancement/2026-11-14/preuves_avancement.html) (**2** captures framebuffer 1920×1080 embarquées).
+
+![Écran-titre natif en repère virtuel 1280×720 avec logo 1024×256 et mentions légales](preuves_avancement/2026-11-14/native-menu-root.png)
+
+![Sous-menu PAGE_PROFILE sans grand logo avec panneau sombre centré et invites ancrées](preuves_avancement/2026-11-14/native-menu-profile.png)
+
+Le calcul de géométrie `u2_native_ComputeMenuPageLayout` (`src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}`) et le rendu dans `src/u2_standalone/title_preview.h` appliquent les règles extraites de `out/big2/eboot.elf` :
+- **Repère virtuel `1280.0f × 720.0f`** (`MenuHost::Draw` `0x005D130D–0x005D1370`) mis à l'échelle vers la sortie (`1920×1080`).
+- **Visibilité du logo** (`MenuPage::DrawSinglePage` `0x005A611E` & `MenuDrawer::BuildIcon` `0x005BC6B6`) : `general/menu/menu-logo` (`1024×256` en `(128, 25)` 720p) n'est affiché que sur `PAGE_ROOT_MAIN` (`0x37656388`), et masqué sur `PAGE_PROFILE` et ses sous-pages.
+- **Panneau centré `MenuDrawer::DrawBox`** (`0x005A2670`, `0x005A6341`, `0x005B8710`) : lorsque `(page_flags & 0x81000) == 0` hors écran-titre, la boîte sombre semi-transparente est centrée dans `1280×720` avec bandeau de titre de `50.0f` et séparateur, et les invites `|X|` / `|C|` (`MenuPage::DrawPrompts` `0x005A50F2`) sont ancrées juste sous le bord inférieur droit du panneau (`prompts_y = page_box_rect.y + page_box_rect.h + 15.0f`).
+
+Validation (build basé sur `395a205`, `out/uncharted2-native.exe` SHA-256 `fb1f6feb...`) :
+- Natif `scratch/run_native_test.ps1 6` : **650/650** assertions C++23 (`EngineTest`), code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **656/656**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+- Captures SDL 1920×1080 inspectées visuellement (`native-menu-root.png` SHA-256 `b82b0b8a...` ; `native-menu-profile.png` SHA-256 `80224a8c...`).
+
 ## 14 novembre (Chantier A) : habillage fidèle `MenuDrawer` et icônes `symbol3.fnt`
 
 [Galerie autonome mise à jour](preuves_avancement/2026-11-13/preuves_avancement.html)

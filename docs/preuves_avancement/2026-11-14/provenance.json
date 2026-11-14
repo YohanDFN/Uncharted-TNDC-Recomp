@@ -1,0 +1,42 @@
+{
+  "date_du_dossier": "2026-11-14",
+  "fuseau": "Europe/Paris",
+  "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
+  "executable_sha256": "fb1f6feb076d9c468afb9fc4b0d84afefe4d443baf93618bd26d206a48e151a7",
+  "captures": [
+    {
+      "fichier": "native-menu-root.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "b82b0b8ae16d57e15b90aa48dbf0b3443f6cc11270750c0faec342e497a12b0a",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
+      "build_changes": "Chantier A2: virtual 1280x720 MenuPage layout (u2_native_ComputeMenuPageLayout), verified 1024x256 logo rect at (128,25), centered controls and wrapped legal text",
+      "executable_sha256": "fb1f6feb076d9c468afb9fc4b0d84afefe4d443baf93618bd26d206a48e151a7",
+      "scenario": "BB_NATIVE_CAPTURE_PAGE=ROOT — PAGE_ROOT_MAIN (0x37656388) over menu-temple preview",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "limites": "Metriques d'ombres, couleurs et fond de panneau restent des approximations du viewer ; bb-probe.exe a echoue sur error 487 (reservation memoire Windows ASLR 0x1000000000)",
+      "legende": "Ecran-titre natif en repere virtuel 1280x720 mis a l'echelle 1920x1080 : logo 1024x256 (128,25), invite Appuyer sur [Croix bleue] pour commencer centree, mentions legales enveloppees en bas."
+    },
+    {
+      "fichier": "native-menu-profile.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "80224a8c7abecce5eea688006c87a8833326b21e340be588cf20e6d75117c050",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
+      "build_changes": "Chantier A2: title logo hidden off PAGE_ROOT_MAIN (0x005A611E), centered 1280x720 dark translucent MenuDrawer::DrawBox panel, title separator and prompts anchored below bottom-right corner",
+      "executable_sha256": "fb1f6feb076d9c468afb9fc4b0d84afefe4d443baf93618bd26d206a48e151a7",
+      "scenario": "BB_NATIVE_CAPTURE_PAGE=PROFILE — PAGE_PROFILE (DEMARRER) over menu-temple preview",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "limites": "Couleur/opacite exacte du panneau et polices/tailles de rendu restent des conventions du viewer ; sous-pages dynamiques non portees.",
+      "legende": "Sous-menu PAGE_PROFILE sans grand logo, panneau semi-transparent centre en 1280x720 avec titre DEMARRER, separateur, entree doree Continuer, espaceur et invites [X] SELECTIONNER / [O] RETOUR sous le coin inferieur droit."
+    }
+  ]
+}

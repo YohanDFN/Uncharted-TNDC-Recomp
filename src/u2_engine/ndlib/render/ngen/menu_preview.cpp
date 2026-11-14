@@ -7,6 +7,46 @@
 #include <string_view>
 #include <utility>
 
+bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2NativeMenuPageLayout *out) {
+    if(!out) return false;
+    U2NativeMenuPageLayout result;
+    result.show_logo = page.shows_title_logo();
+    result.show_box = page.draws_page_box();
+    result.has_title = !result.show_logo && !page.title.empty();
+    result.show_prompts = !page.hides_standard_prompts();
+    // MenuHost::Draw and MenuDrawer::BuildIcon use this virtual frame and logo rect.
+    result.logo_rect = {128.0f, 25.0f, 1024.0f, 256.0f};
+    const float rows = float(std::max(size_t{1}, page.controls.size()));
+    result.row_step = std::min(32.0f, (result.show_logo ? 160.0f : 360.0f) / rows);
+    result.row_height = result.row_step;
+    result.font_height = std::min(20.0f, result.row_step * 0.75f);
+    result.selected_font_height = std::min(21.0f, result.row_step * 0.8f);
+    result.shadow_offset = 1.5f;
+    const float controls_height = rows * result.row_step;
+    if(result.show_logo) {
+        result.content_rect = {80.0f, std::min(469.5f, 649.5f - controls_height * 0.5f) - controls_height * 0.5f,
+                               1120.0f, controls_height};
+        result.page_box_rect = result.content_rect;
+        result.copyright_y = 560.0f;
+    } else {
+        // Font metrics and runtime status aren't in page data: fit text in the viewer,
+        // reserving two footer lines so dynamic-list/status notes cannot cover controls.
+        size_t longest = page.title.size();
+        for(const auto &ctrl : page.controls) longest = std::max(longest, ctrl.label.size());
+        const float width = std::clamp(40.0f + float(longest) * 12.0f, 580.0f, 680.0f);
+        const float title_height = result.has_title ? 50.0f : 0.0f;
+        const float height = 40.0f + title_height + controls_height + 64.0f;
+        result.page_box_rect = {(1280.0f - width) * 0.5f, (720.0f - height) * 0.5f, width, height};
+        const auto &box = result.page_box_rect;
+        result.title_rect = {box.x + 20.0f, box.y + 20.0f, width - 40.0f, title_height};
+        result.content_rect = {box.x + 20.0f, box.y + 20.0f + title_height, width - 40.0f, controls_height};
+    }
+    result.prompts_y = result.page_box_rect.y + result.page_box_rect.h + 15.0f;
+    result.prompts_right_x = result.page_box_rect.x + result.page_box_rect.w;
+    *out = result;
+    return true;
+}
+
 namespace {
 constexpr size_t kBudget = 8 * 1024 * 1024;
 uint64_t be(const uint8_t *p, size_t n) {

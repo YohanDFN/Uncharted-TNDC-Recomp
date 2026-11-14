@@ -2938,6 +2938,51 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        presentation_menu.root_main.hides_standard_prompts() &&
                        presentation_menu.root_main.layout_x==-40 && presentation_menu.root_main.layout_y==34,
                        "PostStartMenu decodes subtitle, prompt flags and signed presentation coordinates");
+        U2NativeMenuPageLayout root_layout, profile_layout;
+        const auto &root_page=presentation_menu.root_main;
+        const auto &profile_page=presentation_menu.profile;
+        U2_TEST_ASSERT(!u2_native_ComputeMenuPageLayout(root_page,nullptr),
+                       "Menu layout rejects a NULL output");
+        U2_TEST_ASSERT(root_page.shows_title_logo() && !root_page.draws_page_box() &&
+                       u2_native_ComputeMenuPageLayout(root_page,&root_layout) &&
+                       root_layout.virtual_width==1280.0f && root_layout.virtual_height==720.0f &&
+                       root_layout.show_logo && !root_layout.show_box && !root_layout.show_prompts &&
+                       root_layout.logo_rect.x==128.0f && root_layout.logo_rect.y==25.0f &&
+                       root_layout.logo_rect.w==1024.0f && root_layout.logo_rect.h==256.0f &&
+                       root_layout.content_rect.x+root_layout.content_rect.w*0.5f==640.0f &&
+                       root_layout.content_rect.y+root_layout.content_rect.h*0.5f==469.5f &&
+                       root_layout.content_rect.y+root_layout.content_rect.h<=649.5f &&
+                       root_layout.copyright_y>=560.0f && root_layout.copyright_y<=660.0f,
+                       "Root uses the verified logo and centered 720p controls without box or prompts");
+        U2_TEST_ASSERT(!profile_page.shows_title_logo() && profile_page.draws_page_box() &&
+                       u2_native_ComputeMenuPageLayout(profile_page,&profile_layout) &&
+                       !profile_layout.show_logo && profile_layout.show_box && profile_layout.has_title &&
+                       profile_layout.show_prompts && profile_layout.page_box_rect.w>=580.0f &&
+                       profile_layout.page_box_rect.w<=680.0f &&
+                       profile_layout.page_box_rect.x*2+profile_layout.page_box_rect.w==1280.0f &&
+                       profile_layout.page_box_rect.y*2+profile_layout.page_box_rect.h==720.0f &&
+                       profile_layout.title_rect.h==50.0f &&
+                       profile_layout.content_rect.x==profile_layout.page_box_rect.x+20.0f &&
+                       profile_layout.content_rect.y==profile_layout.title_rect.y+profile_layout.title_rect.h &&
+                       profile_layout.content_rect.y+profile_layout.content_rect.h+64.0f<=
+                           profile_layout.page_box_rect.y+profile_layout.page_box_rect.h &&
+                       profile_layout.prompts_y==profile_layout.page_box_rect.y+profile_layout.page_box_rect.h+15.0f &&
+                       profile_layout.prompts_right_x==profile_layout.page_box_rect.x+profile_layout.page_box_rect.w,
+                       "Profile centers its panel, separates title/content/notes and anchors prompts below it");
+        auto unboxed_page=profile_page;
+        for(uint32_t flag : {0x1000u,0x80000u}) {
+            unboxed_page.page_flags=flag;
+            U2_TEST_ASSERT(!unboxed_page.draws_page_box() &&
+                           u2_native_ComputeMenuPageLayout(unboxed_page,&profile_layout) && !profile_layout.show_box,
+                           "Menu box suppression honors both verified mask bits");
+        }
+        unboxed_page.page_flags=1;
+        unboxed_page.title.clear();
+        U2_TEST_ASSERT(u2_native_ComputeMenuPageLayout(unboxed_page,&profile_layout) &&
+                       profile_layout.show_box && !profile_layout.show_prompts && !profile_layout.has_title &&
+                       profile_layout.title_rect.h==0.0f &&
+                       profile_layout.content_rect.y==profile_layout.page_box_rect.y+20.0f,
+                       "Untitled pages omit the title band and honor hidden prompts independently of the box");
         bad_menu = menu;put_le(bad_menu, 0x80 + 0x70 + 0x38, uint64_t(-1), 8);
         U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects invalid controls header atomically");
         bad_menu = menu;put_le(bad_menu, profile_header + 8, menu.size() + 1, 8);
@@ -3083,6 +3128,18 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        parsed.chapters.id==0xBE2C8B4Bu && parsed.chapters.controls.size()==6 &&
                        parsed.multimedals.id==0xACE1A9D5u && parsed.multimedals.controls.size()==1,
                        "Step20 fixture decodes all four optional subpages");
+        U2NativeMenuPageLayout options_layout;
+        U2_TEST_ASSERT(!parsed.ingame_options.shows_title_logo() && parsed.ingame_options.draws_page_box() &&
+                       u2_native_ComputeMenuPageLayout(parsed.ingame_options,&options_layout) &&
+                       !options_layout.show_logo && options_layout.show_box && options_layout.has_title &&
+                       options_layout.show_prompts && options_layout.title_rect.h==50.0f &&
+                       options_layout.page_box_rect.x*2+options_layout.page_box_rect.w==1280.0f &&
+                       options_layout.page_box_rect.y*2+options_layout.page_box_rect.h==720.0f &&
+                       options_layout.content_rect.h>=float(parsed.ingame_options.controls.size())*options_layout.row_step &&
+                       options_layout.selected_font_height<=options_layout.row_height &&
+                       options_layout.font_height<=options_layout.selected_font_height &&
+                       options_layout.prompts_y==options_layout.page_box_rect.y+options_layout.page_box_rect.h+15.0f,
+                       "Ingame options has a centered titled panel with room for every control and external prompts");
         U2_TEST_ASSERT(decoded && parsed.profile.controls.size()==7 &&
                        parsed.profile.controls[1].target_page_id==0xBE2C8B4Bu &&
                        parsed.profile.controls[1].target_page_name=="PAGE_CHAPTERS",

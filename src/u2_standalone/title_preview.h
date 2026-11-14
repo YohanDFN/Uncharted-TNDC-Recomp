@@ -12,7 +12,7 @@
 #include "ndlib/render/ngen/menu_preview.h"
 
 namespace u2::standalone {
-// Host state and verified page data; placement, colors and hit rectangles are viewer conventions.
+// Host state and verified virtual anchors; text metrics, colors and hits are viewer conventions.
 class TitlePreview {
 public:
     TitlePreview()=default;
@@ -82,11 +82,37 @@ public:
         if(!m_logo) return;
         int w=0,h=0;
         if(!SDL_GetCurrentRenderOutputSize(renderer,&w,&h) || !resize_layout(w,h)) return;
-        const float sx=float(w)/1920.0f,sy=float(h)/1080.0f;
-        const SDL_FRect logo{250*sx,115*sy,1420*sx,355*sy};
-        SDL_RenderTextureRotated(renderer,m_logo,nullptr,&logo,0,nullptr,SDL_FLIP_VERTICAL);
-        for(const auto &item : m_text)
-            m_font.draw_with_shadow(renderer,item.layout,item.x,item.y,item.color,item.shadow_offset);
+        const float sx=float(m_width)/1280.0f,sy=float(m_height)/720.0f;
+        auto project=[&](const U2NativeMenuRect &rect) {
+            return SDL_FRect{rect.x*sx,rect.y*sy,rect.w*sx,rect.h*sy};
+        };
+        if(m_page_layout.show_logo) {
+            const auto logo=project(m_page_layout.logo_rect);
+            SDL_RenderTextureRotated(renderer,m_logo,nullptr,&logo,0,nullptr,SDL_FLIP_VERTICAL);
+        }
+        if(m_page_layout.show_box) {
+            SDL_BlendMode previous_blend;
+            SDL_Color previous_color;
+            if(!SDL_GetRenderDrawBlendMode(renderer,&previous_blend) ||
+               !SDL_GetRenderDrawColor(renderer,&previous_color.r,&previous_color.g,&previous_color.b,&previous_color.a)) return;
+            SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+            const auto box=project(m_page_layout.page_box_rect);
+            SDL_SetRenderDrawColor(renderer,12,15,20,195);
+            SDL_RenderFillRect(renderer,&box);
+            SDL_SetRenderDrawColor(renderer,170,165,145,150);
+            SDL_RenderRect(renderer,&box);
+            if(m_page_layout.has_title) {
+                const auto title=project(m_page_layout.title_rect);
+                SDL_RenderLine(renderer,title.x,title.y+title.h,title.x+title.w,title.y+title.h);
+            }
+            SDL_SetRenderDrawColor(renderer,previous_color.r,previous_color.g,previous_color.b,previous_color.a);
+            SDL_SetRenderDrawBlendMode(renderer,previous_blend);
+        }
+        for(const auto &item : m_text) {
+            m_font.draw(renderer,item.layout,item.x+item.shadow_offset*sx,item.y+item.shadow_offset*sy,
+                {0,0,0,Uint8((int(item.color.a)*195)/255)},true);
+            m_font.draw(renderer,item.layout,item.x,item.y,item.color);
+        }
     }
 private:
     struct Text { U2NativeFontText layout; float x{0},y{0}; SDL_Color color{255,255,255,255}; float shadow_offset{2.0f}; };
@@ -139,33 +165,53 @@ private:
     bool rebuild_layout() {
         m_text.clear();m_hits.clear();m_layout_ready=false;
         const auto *page=current_page();
-        if(!page || m_width<=0 || m_height<=0) return false;
-        const float sx=float(m_width)/1920.0f,sy=float(m_height)/1080.0f;
+        if(!page || m_width<=0 || m_height<=0 || !u2_native_ComputeMenuPageLayout(*page,&m_page_layout)) return false;
+        const float sx=float(m_width)/1280.0f,sy=float(m_height)/720.0f;
+        const auto &geometry=m_page_layout;
+        const auto &content=geometry.content_rect;
         const SDL_Color gold{240,200,40,255},muted{165,170,180,205};
         auto layout=[&](std::string_view value,float height,U2NativeFontText *out) {
-            return u2_native_LayoutFontTextWithSymbols(m_font.data(),m_font.symbol_data(),font_text(value),height*sy,out);
+            return u2_native_LayoutFontTextWithSymbols(m_font.data(),m_font.symbol_data(),font_text(value),height,out);
         };
-        auto add=[&](std::string_view value,float x,float width,float y,float height,SDL_Color color,float shadow) {
-            Text item;
-            if(!layout(value,height,&item.layout)) return false;
-            if(item.layout.advance>width*sx &&
-               !layout(value,height*width*sx/item.layout.advance,&item.layout)) return false;
-            item.x=x*sx+(width*sx-item.layout.advance)*0.5f;item.y=y*sy;item.color=color;item.shadow_offset=shadow*sy;
-            m_text.push_back(std::move(item));return true;
-        };
-        auto hit=[&](size_t index,float y,float height) {
-            const auto &item=m_text.back();
-            const float width=(std::max)(720*sx,item.layout.advance+40*sx);
-            m_hits.push_back({{(float(m_width)-width)*0.5f,y*sy,width,height*sy},index});
-        };
-        bool ok=true;
-        if(page->id==0x37656388u) {
-            if(!page->controls.empty()) {
-                ok=add(m_state.display_control_label(page->controls[0]),80,1760,665,32,{236,236,236,255},2);
-                if(ok) hit(0,660,44);
+        auto project_text=[&](U2NativeFontText &text) {
+            text.advance*=sx;
+            for(auto &quad : text.quads) {
+                quad.x*=sx;quad.width*=sx;quad.y*=sy;quad.height*=sy;
             }
+        };
+        auto add=[&](std::string_view value,const U2NativeMenuRect &rect,float height,SDL_Color color) {
+            Text item;
+            height=std::min(height,rect.h-2*geometry.shadow_offset);
+            if(!layout(value,height,&item.layout)) return false;
+            if(item.layout.advance>rect.w-2*geometry.shadow_offset) {
+                height*=(rect.w-2*geometry.shadow_offset)/item.layout.advance;
+                if(!layout(value,height,&item.layout)) return false;
+            }
+            item.x=(rect.x+(rect.w-item.layout.advance)*0.5f)*sx;
+            item.y=(rect.y+(rect.h-height)*0.5f)*sy;
+            item.color=color;item.shadow_offset=geometry.shadow_offset;
+            project_text(item.layout);m_text.push_back(std::move(item));return true;
+        };
+        bool ok=true,selectable=false;
+        if(geometry.has_title) ok=add(page->title,geometry.title_rect,22,{230,218,175,248});
+        for(size_t i=0;i<page->controls.size();++i) {
+            const auto &ctrl=page->controls[i];
+            if(ctrl.is_spacer() || ctrl.label.empty()) continue;
+            const U2NativeMenuRect row{content.x,content.y+float(i)*geometry.row_step,content.w,geometry.row_height};
+            const bool selected=i==current_cursor();
+            const bool added=add(m_state.display_control_label(ctrl),row,
+                selected ? geometry.selected_font_height : geometry.font_height,
+                ctrl.is_selectable() ? (selected ? gold : SDL_Color{236,236,232,238}) : muted);
+            ok=ok && added;
+            if(ctrl.is_selectable()) {
+                selectable=true;
+                if(added) m_hits.push_back({{row.x*sx,row.y*sy,row.w*sx,row.h*sy},i});
+            }
+        }
+        if(geometry.show_logo) {
+            // Wrap with actual font metrics, then fit all legal lines in the 560..660 band.
+            std::vector<std::string> lines;
             std::string line;
-            float y=830;
             for(size_t at=0;at<page->subtitle.size();) {
                 while(at<page->subtitle.size() && page->subtitle[at]==' ') ++at;
                 if(at==page->subtitle.size()) break;
@@ -174,42 +220,41 @@ private:
                 const std::string word=page->subtitle.substr(at,next-at);
                 const std::string candidate=line.empty() ? word : line+" "+word;
                 U2NativeFontText measured;
-                if(!layout(candidate,22.5f,&measured)) { ok=false;break; }
-                if(!line.empty() && measured.advance>1660*sx) {
-                    ok=ok && add(line,130,1660,y,22.5f,{218,218,218,238},1.8f);y+=30;line=word;
+                if(!layout(candidate,15,&measured)) { ok=false;break; }
+                if(!line.empty() && measured.advance>content.w) {
+                    lines.push_back(std::move(line));line=word;
                 } else line=candidate;
                 at=next;
             }
-            if(!line.empty()) ok=ok && add(line,130,1660,y,22.5f,{218,218,218,238},1.8f);
+            if(!line.empty()) lines.push_back(std::move(line));
+            const float step=std::min(20.0f,100.0f/float(std::max(size_t{1},lines.size())));
+            for(size_t i=0;i<lines.size();++i)
+                ok=add(lines[i],{content.x,geometry.copyright_y+float(i)*step,content.w,step},
+                       std::min(15.0f,step*0.75f),{218,218,218,238}) && ok;
         } else {
-            if(!page->title.empty()) ok=add(page->title,80,1760,490,32,{230,218,175,248},2);
-            float y=page->layout_y>0 ? 1080.0f*(0.17f+float(page->layout_y)*0.01f) : 540.0f;
-            const float row=page->controls.empty() ? 44.0f : (std::min)(46.0f,340.0f/float(page->controls.size()));
-            bool selectable=false;
-            for(size_t i=0;i<page->controls.size();++i) {
-                const auto &ctrl=page->controls[i];
-                if(ctrl.is_spacer()) { y+=row;continue; }
-                if(ctrl.is_selectable()) {
-                    selectable=true;
-                    const bool selected=i==current_cursor();
-                    const bool added=add(m_state.display_control_label(ctrl),80,1760,y,selected ? 31.5f : 29.0f,
-                        selected ? gold : SDL_Color{236,236,232,238},selected ? 2.5f : 2.0f);
-                    ok=ok && added;
-                    if(added) hit(i,y-3,row);
-                } else if(!ctrl.label.empty()) ok=ok && add(ctrl.label,80,1760,y,25,muted,2);
-                y+=row;
-            }
-            if(!selectable) ok=ok && add("Liste dynamique non portee",80,1760,820,25,muted,2);
-            if(!m_state.last_status_note().empty()) ok=ok && add(m_state.last_status_note(),80,1760,900,22,{240,200,40,235},2);
-            if(!page->hides_standard_prompts()) {
-                const std::string select="|X| "+m_menu.select_label,back="|C| "+m_menu.back_label;
-                U2NativeFontText select_text,back_text;
-                if(!layout(select,25.5f,&select_text) || (m_state.can_go_back() && !layout(back,25.5f,&back_text))) ok=false;
+            const float note_y=content.y+content.h+12.0f;
+            if(!selectable) ok=add("Liste dynamique non portee",{content.x,note_y,content.w,20},16,muted) && ok;
+            if(!m_state.last_status_note().empty())
+                ok=add(m_state.last_status_note(),{content.x,note_y+24,content.w,20},15,{240,200,40,235}) && ok;
+        }
+        if(geometry.show_prompts) {
+            const std::string select="|X| "+m_menu.select_label,back="|C| "+m_menu.back_label;
+            U2NativeFontText select_text,back_text;
+            auto prompts=[&](float height) {
+                return layout(select,height,&select_text) && (!m_state.can_go_back() || layout(back,height,&back_text));
+            };
+            if(!prompts(17)) ok=false;
+            else {
+                const float gap=m_state.can_go_back() ? 28.0f : 0.0f;
+                const float width=select_text.advance+back_text.advance+gap;
+                const float available=geometry.page_box_rect.w;
+                if(width>available && !prompts(17*std::max(0.0f,available-gap)/(width-gap))) ok=false;
                 else {
-                    float right=1760*sx;
+                    float right=geometry.prompts_right_x;
                     auto prompt=[&](U2NativeFontText text) {
-                        Text item;item.x=right-text.advance;item.y=975*sy;item.color={235,235,235,245};item.shadow_offset=2*sy;
-                        right=item.x-42*sx;item.layout=std::move(text);m_text.push_back(std::move(item));
+                        Text item;item.x=(right-text.advance)*sx;item.y=geometry.prompts_y*sy;
+                        right-=text.advance+gap;item.color={235,235,235,245};item.shadow_offset=geometry.shadow_offset;
+                        project_text(text);item.layout=std::move(text);m_text.push_back(std::move(item));
                     };
                     if(m_state.can_go_back()) prompt(std::move(back_text));
                     prompt(std::move(select_text));
@@ -221,6 +266,7 @@ private:
     SDL_Texture *m_logo{nullptr};
     BitmapFontPreview m_font;
     U2NativePostStartMenuPreview m_menu;
+    U2NativeMenuPageLayout m_page_layout;
     U2NativeSavedataStatus m_savedata;
     U2NativeMenuStateMachine m_state;
     std::vector<Text> m_text;

@@ -24,7 +24,21 @@ struct U2NativeMenuPagePreview {
     std::string subtitle_string_name, subtitle;
     std::vector<U2NativeMenuControlPreview> controls;
     bool hides_standard_prompts() const { return (page_flags & 0x1u) != 0u; }
+    bool shows_title_logo() const { return id == 0x37656388u; }
+    bool draws_page_box() const { return !shows_title_logo() && (page_flags & 0x81000u) == 0u; }
 };
+struct U2NativeMenuRect {
+    float x{0}, y{0}, w{0}, h{0};
+};
+struct U2NativeMenuPageLayout {
+    float virtual_width{1280.0f}, virtual_height{720.0f};
+    bool show_logo{false}, show_box{false}, has_title{false}, show_prompts{false};
+    U2NativeMenuRect logo_rect, page_box_rect, title_rect, content_rect;
+    float row_height{0}, row_step{0}, font_height{0}, selected_font_height{0};
+    float shadow_offset{0}, prompts_y{0}, prompts_right_x{0}, copyright_y{0};
+};
+// Host layout only: verified virtual frame/anchors, viewer text sizing and note reserve.
+bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2NativeMenuPageLayout *out);
 struct U2NativePostStartMenuPreview {
     U2NativeMenuPagePreview root_main, profile, new_profile;
     U2NativeMenuPagePreview ingame_options, bonuses, chapters, multimedals;

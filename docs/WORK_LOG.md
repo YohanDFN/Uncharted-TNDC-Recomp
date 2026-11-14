@@ -225,3 +225,54 @@ SHA-256: `a1928b4b24f2b95b5817e752bbf876fed61c92a1e8343104c1019286148888c8`
 - **Travail non enregistré** : éléments environnementaux préservés uniquement (`.agents/`, sous-module `gpu/third_party/fsr-vulkan`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`).
 
 <!-- End of archived handoff -->
+
+
+---
+
+## 2026-11-14T13:38:25.165533+00:00
+
+SHA-256: `f7c0e0ff931329f29bc00e087d77599ff09fb8beb3c2961e0624cf0c981d12b8`
+
+# État courant
+
+- **Branche** : `dev-native` (sur `23bba9a` + Chantier A : habillage fidèle `MenuDrawer` et icônes `symbol3.fnt`).
+- **Cible** : Habillage fidèle du menu principal natif (`MenuDrawer` + `symbol3.fnt`) sans exécution de code PS4.
+- **État validé** :
+  - `font_preview.{h,cpp}` décode `u2data/data/fonts/ps4/symbol3.fnt` (`packed=0`, 32 glyphes RGBA32 512×512 origine bas-gauche `tga[17]=0x08`) et substitue les balises `|ENTER|`, `|X|`, `|C|`, `|BACK|`, `|S|`, `|T|` (`Font::DrawText` `0x00CCB270–0x00CCB450`).
+  - `menu_preview.{h,cpp}` décode `subtitle_string_name`/`id` (`+0x20/+0x28`, `MENU_LEGAL_COPYRIGHT` `0xC313D6F2`), `page_flags` (`+0x34`, bit `0x1` masquant les invites sur `PAGE_ROOT_MAIN`), et `layout_x`/`layout_y` (`+0x40/+0x44`).
+  - `src/u2_standalone/{bitmap_font_preview,title_preview,engine_context}.h` rend `PAGE_ROOT_MAIN` épuré (logo + `"Appuyer sur [Croix bleue] pour commencer"` + mention légale enveloppée, sans boîte ni barre) et les sous-pages flottantes avec sélection dorée et invites `|X| SÉLECTIONNER` / `|C| RETOUR` en bas à droite (`BB_NATIVE_CAPTURE_PAGE=ROOT|PROFILE`).
+  - Natif `scratch/run_native_test.ps1 6` (**643/643** dont Étape 21, code `0`), hybride `scratch/run_test.ps1 6` (`SelfTest 886`, `full-body 831`, `EngineTest 649/649`, `STOPPED_AFTER_TIMEOUT`), captures réelles `04-menu-fidele-ecran-titre-symbol3.png` et `05-menu-fidele-page-profil-symbol3.png` (1920×1080) inspectées et embarquées 7/7 dans `preuves_avancement.html`.
+- **Preuves** : `docs/NATIVE_TITLE_SCREEN_PREVIEW.md`, `docs/PREUVES_AVANCEMENT.md`, `docs/preuves_avancement/2026-11-13/{provenance.json,preuves_avancement.html,04-menu-fidele-ecran-titre-symbol3.png,05-menu-fidele-page-profil-symbol3.png}`.
+- **Incertitude** : placement pixel par pixel des textes/ombres sur SDL, pipeline shaders/foliage/éclairage du temple 3D, persistance des sous-pages d'options (`PAGE_CONTROLS`, `PAGE_VIDEO`, `PAGE_AUDIO`) et chargement de niveau depuis les actions différées (`Continuer / Jouer`, `Nouvelle partie`, `Charger partie`, `Commencer chapitre`).
+- **Prochaine expérience** : porter les contrôles/valeurs d'options (`PAGE_INGAME_OPTIONS`) ou relier l'action différée `Continuer / Jouer` au chargement de niveau natif.
+- **Travail non enregistré** : éléments environnementaux préservés uniquement (`.agents/`, sous-module `gpu/third_party/fsr-vulkan`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`).
+
+<!-- End of archived handoff -->
+
+
+---
+
+## 2026-11-14T13:40:11.454186+00:00
+
+SHA-256: `326dd78531942512c217e0324b6e127e97d70d367c9efe0686bffe1eb4c46bfb`
+
+# Suivi courant
+
+- **Cible actuelle** : Chantier A2 validé — géométrie 2D `1280×720` de `MenuPage` (`u2_native_ComputeMenuPageLayout`), masquage du logo hors `PAGE_ROOT_MAIN`, panneau centré `MenuDrawer::DrawBox` et invites `|X|` / `|C|` ancrées sous le panneau.
+- **État validé** :
+  - `src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}`, `src/u2_standalone/title_preview.h` et `src/u2_engine/u2_engine_tests.cpp` compilés via `scratch/build_msys2.ps1` (`out/uncharted2-native.exe` SHA-256 `fb1f6feb...`).
+  - `scratch/run_native_test.ps1 6` : **650/650** assertions `EngineTest` passées, sortie `0`.
+  - Captures visuelles réelles inspectées (`docs/preuves_avancement/2026-11-14/native-menu-root.png` et `native-menu-profile.png`), galerie HTML autonome et `provenance.json` générés, `docs/PREUVES_AVANCEMENT.md` mis à jour.
+- **Preuves clés** :
+  - `MenuHost::Draw` (`0x005D130D–0x005D1370`) : repère virtuel `1280×720`.
+  - `MenuDrawer::BuildIcon` (`0x005BC6B6`) & `MenuPage::DrawSinglePage` (`0x005A611E`) : logo `1024×256` en `(128, 25)` uniquement sur `PAGE_ROOT_MAIN` (`0x37656388`), sauté sur `PAGE_PROFILE` et sous-pages.
+  - `MenuPage::ComputeLayout` (`0x005A2670`), `MenuDrawer::DrawBox` (`0x005B8710`) & `MenuPage::DrawPrompts` (`0x005A50F2`).
+- **Incertitude / Limite** :
+  - `scratch/run_test.ps1 6` (`bb-probe.exe`) a échoué au boot sur `error 487` lors de la réservation Windows de la plage PS4 `0x1000000000` (ASLR Windows, non lié aux changements `menu_preview`).
+  - Les couleurs/opacités exactes du panneau `DrawBox`, des ombres et des sous-pages dynamiques non portées restent des approximations du viewer.
+- **Prochaine expérience** :
+  - Étape suivante du menu fidèle ou rendu temple (`textures/matériaux`/`shaders` ou `U2NativeMenu` transitions/animations).
+- **Travail non enregistré** :
+  - `.agents/`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`, sous-module `gpu/third_party/fsr-vulkan` (à préserver, ne jamais committer).
+
+<!-- End of archived handoff -->
