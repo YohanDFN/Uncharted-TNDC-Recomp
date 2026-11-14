@@ -125,6 +125,22 @@
       "scenario": "Chantier B1 — BB_NATIVE_CAPTURE_PAGE=CONTROLS over menu-temple preview",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Sous-menu PAGE_CONTROLS Chantier B1 : en-tetes de section (type=0), curseur/slider 50% (type=5), toggles Oui/Non (type=3) et defilement 10 lignes."
+    },
+    {
+      "fichier": "native-menu-temple-c1.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "72653247446fb2227ed7805d2ba16aeddb1b1def483c191376d1115501581d90",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "62f271d",
+      "build_changes": "Chantier C1: generalize g_tColorMap resolution and chunk-21-tstrm dictionary upgrade across all menu-temple meshes (12/13 textured, 11 upgraded)",
+      "executable_sha256": "239752087be9b36f8fd00e16c5a65e56af5c417ce161d125eb066be67a07032d",
+      "scenario": "Chantier C1 — BB_NATIVE_CAPTURE_PAGE=ROOT over multi-mesh textured menu-temple",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Scene 3D menu-temple Chantier C1 : 12/13 sous-maillages textures (statue, plafond, fresques, frises) dont 11 mis a niveau depuis chunk-21-tstrm."
     }
   ]
 }

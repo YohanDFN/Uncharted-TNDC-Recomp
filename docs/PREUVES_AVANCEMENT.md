@@ -5,6 +5,21 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier C1) : texturage multi-maillages `menu-temple` (`12/13` maillages, `11` mis à niveau)
+
+[Galerie autonome Chantiers A2 à C1](preuves_avancement/2026-11-14/preuves_avancement.html) (**9** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).
+
+![Scène 3D menu-temple Chantier C1 avec 12/13 sous-maillages texturés en haute résolution](preuves_avancement/2026-11-14/native-menu-temple-c1.png)
+
+Généralisation de la résolution `g_tColorMap` et de la mise à niveau `chunk-21-tstrm` à tous les sous-maillages de `menu-temple` dans [temple_preview.h](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_standalone/temple_preview.h) :
+- **Suppression du filtre `Submesh21`** : chaque maillage ayant ses UVs et une référence `g_tColorMap` BC1 valide (`71` / `72`) est texturé (**12/13 maillages**, `5 514 708` échantillons texturés).
+- **Mise à niveau dictionnaire générique** : **11/12** maillages texturés sont passés automatiquement en haute résolution (`256×256`, `512×512`, `1024×1024`) depuis `chunk-21-tstrm` avec vérification octet pour octet du mip résident.
+- **Repli propre** : le dernier maillage (bannières verticales non BC1) conserve l'éclairage Gouraud uni.
+
+Validation (build basé sur `62f271d` + C1, `out/uncharted2-native.exe` SHA-256 `23975208...`) :
+- Natif `scratch/run_native_test.ps1 6` : **672/672** assertions C++23 (`EngineTest`), code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **678/678**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+
 ## 14 novembre (Chantier B1) : 110 pages de `menu.bin`, contrôles d'options (`type=0/3/5/6`) et défilement
 
 [Galerie autonome Chantiers A2 à B1](preuves_avancement/2026-11-14/preuves_avancement.html) (**8** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).

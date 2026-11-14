@@ -60,43 +60,42 @@ public:
         size_t visible=0,total=0,visible_edges=0,triangles=0;
         for (size_t mesh_index=0;mesh_index<meshes.size();++mesh_index) {
             const auto &mesh=meshes[mesh_index];
-            U2NativeTexturePreview column_image;
+            U2NativeTexturePreview base_image;
             const U2NativeTexturePixels *color_map=nullptr;
-            // Deliberately scoped to the mesh whose original UV/image/sampler
-            // path was captured. Other materials require separate evidence.
-            if(mesh.name=="menu-temple.Prototype0.Submesh21" && mesh.texcoords.size()==mesh.positions.size()) {
-                size_t matches=0,reference=0;
-                for(size_t r=0;r<mesh.material_textures.size();++r)
-                    if(mesh.material_textures[r].parameter_name=="g_tColorMap") { ++matches;reference=r; }
-                if(matches==1 && u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",mesh_index,reference,&column_image) &&
-                   u2_native_TextureImageMatchesReference(mesh.material_textures[reference],column_image) &&
-                   column_image.format==72 && column_image.width==64 && column_image.height==64 &&
-                   preview_texture_valid(column_image.pixels) &&
-                   std::all_of(column_image.pixels.rgba.begin(),column_image.pixels.rgba.end(),[](uint32_t p) { return (p>>24)==255; })) {
+            if(mesh.texcoords.size()==mesh.positions.size()) {
+                size_t reference=mesh.material_textures.size();
+                for(size_t r=0;r<mesh.material_textures.size();++r) {
+                    if(mesh.material_textures[r].parameter_name=="g_tColorMap") { reference=r;break; }
+                }
+                if(reference<mesh.material_textures.size() &&
+                   u2_cpp_PackageMgr_GetNativeMaterialTexturePreview("menu-temple",mesh_index,reference,&base_image) &&
+                   u2_native_TextureImageMatchesReference(mesh.material_textures[reference],base_image) &&
+                   preview_texture_valid(base_image.pixels)) {
                     U2NativeTexturePreview detailed;
-                    // The exact cooked resource is also present in chunk-21's
-                    // dictionary. This on-demand preview is not engine streaming.
-                    if(u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm",column_image.cooked_name.c_str(),&detailed) &&
-                       detailed.uid==column_image.uid && detailed.format==column_image.format &&
-                       detailed.width==1024 && detailed.height==1024 && preview_texture_valid(detailed.pixels) &&
-                       std::all_of(detailed.pixels.rgba.begin(),detailed.pixels.rgba.end(),[](uint32_t p) { return (p>>24)==255; })) {
+                    bool upgraded=false;
+                    if(!base_image.cooked_name.empty() &&
+                       u2_cpp_PackageMgr_LoadNativeDictionaryTexturePreview("chunk-21-tstrm",base_image.cooked_name.c_str(),&detailed) &&
+                       detailed.uid==base_image.uid && detailed.format==base_image.format &&
+                       detailed.width>=base_image.width && detailed.height>=base_image.height &&
+                       preview_texture_valid(detailed.pixels)) {
                         size_t offset=0;uint32_t w=detailed.width,h=detailed.height;
-                        while(w>column_image.width || h>column_image.height) {
+                        while(w>base_image.width || h>base_image.height) {
                             offset+=size_t(((w+3)/4+7)&~7u)*(((h+3)/4+7)&~7u)*8;
                             w=std::max(1u,w/2);h=std::max(1u,h/2);
                         }
                         const size_t bytes=size_t(((w+3)/4+7)&~7u)*(((h+3)/4+7)&~7u)*8;
-                        if(w==column_image.width && h==column_image.height && offset<=detailed.resident_blocks.size() &&
-                           bytes<=detailed.resident_blocks.size()-offset && bytes<=column_image.resident_blocks.size() &&
-                           std::equal(column_image.resident_blocks.begin(),column_image.resident_blocks.begin()+bytes,detailed.resident_blocks.begin()+offset)) {
-                            column_image=std::move(detailed);
-                            std::printf("[U2 Native Preview] dictionary color-map upgraded=1024x1024 resident-mip-match=64x64 (owned first-mip preview; no streaming state)\n");
+                        if(w==base_image.width && h==base_image.height && offset<=detailed.resident_blocks.size() &&
+                           bytes<=detailed.resident_blocks.size()-offset && bytes<=base_image.resident_blocks.size() &&
+                           std::equal(base_image.resident_blocks.begin(),base_image.resident_blocks.begin()+bytes,detailed.resident_blocks.begin()+offset)) {
+                            base_image=std::move(detailed);
+                            upgraded=true;
                         }
                     }
-                    color_map=&column_image.pixels;++textured_meshes;
-                    std::printf("[U2 Native Preview] color-map mesh='%s' reference=%zu image=%d size=%ux%u (repeat bilinear first mip; linear-space lighting)\n",
-                        mesh.name.c_str(),reference,mesh.material_textures[reference].image_index,column_image.width,column_image.height);
-                } else std::printf("[U2 Native Preview] column color-map unavailable; keeping preview colors\n");
+                    color_map=&base_image.pixels;++textured_meshes;
+                    std::printf("[U2 Native Preview] color-map mesh='%s' reference=%zu image=%d size=%ux%u%s\n",
+                        mesh.name.c_str(),reference,mesh.material_textures[reference].image_index,
+                        base_image.width,base_image.height,upgraded ? " (dictionary-upgraded)" : "");
+                }
             }
             auto &points=batches.emplace_back();
             auto &wire=wire_batches.emplace_back();
