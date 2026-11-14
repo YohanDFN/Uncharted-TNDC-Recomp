@@ -10,6 +10,7 @@
 #include "game/camera/camera_position.h"
 #include "game/rendercamera.h"
 #include "ndlib/render/ngen/texture_preview.h"
+#include "ndlib/render/ngen/font_preview.h"
 #include "../u2_standalone/preview_clip.h"
 #include "../u2_standalone/preview_depth.h"
 #include "../u2_standalone/preview_lighting.h"
@@ -2595,6 +2596,152 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         // Test C: Module lookup returns valid pointer
         void *res_mod = fn_lookup_mod(0x74FFCEEBu, 0x12345678u);
         U2_TEST_ASSERT(res_mod != nullptr, "ScriptManager::LookupPointerInModule returns valid non-null pointer");
+    }
+
+    // 18. Test Bitmap Font Preview Parser & UTF-8 Layout (ndlib/render/ngen/font_preview.cpp)
+    {
+        std::vector<uint8_t> tga(18 + 2 * 2 * 4, 0);
+        tga[2] = 2;    // Uncompressed true-color
+        tga[12] = 2;   // width = 2
+        tga[14] = 2;   // height = 2
+        tga[16] = 32;  // 32 bpp
+        tga[17] = 0x20; // Top-left origin
+        const uint8_t px[16] = {
+            11, 22, 33, 44,
+            55, 66, 77, 88,
+            99, 110, 121, 132,
+            143, 154, 165, 176
+        };
+        std::memcpy(tga.data() + 18, px, sizeof(px));
+
+        const char *fnt_desc =
+            "info face=\"Test\" size=20\n"
+            "common lineHeight=20 base=16 scaleW=2 scaleH=2 pages=1 packed=1\n"
+            "page id=0 file=\"main_00.tga\"\n"
+            "chars count=2\n"
+            "char id=65 x=0 y=0 width=1 height=2 xoffset=1 yoffset=2 xadvance=10 page=0 chnl=1\n"
+            "char id=66 x=1 y=0 width=1 height=2 xoffset=-1 yoffset=3 xadvance=8 page=0 chnl=4\n"
+            "kernings count=1\n"
+            "kerning first=65 second=66 amount=-2\n";
+
+        U2NativeFontPreview font;
+        const bool parsed = u2_native_ReadMainFontPreview(&font, fnt_desc, tga.data(), tga.size());
+        U2_TEST_ASSERT(parsed &&
+                       font.line_height == 20 &&
+                       font.baseline == 16 &&
+                       font.atlas_width == 2 &&
+                       font.atlas_height == 2 &&
+                       font.atlas.width == 2 &&
+                       font.atlas.height == 8 &&
+                       font.atlas.rgba.size() == 16 &&
+                       font.glyphs.size() == 2 &&
+                       font.kernings.size() == 1,
+                       "ReadMainFontPreview decodes BMFont metadata and 4-plane B/G/R/A atlas");
+        U2_TEST_ASSERT(parsed &&
+                       font.atlas.rgba[0] == (0xFFFFFFu | (11u << 24)) &&
+                       font.atlas.rgba[4] == (0xFFFFFFu | (22u << 24)) &&
+                       font.atlas.rgba[8] == (0xFFFFFFu | (33u << 24)) &&
+                       font.atlas.rgba[12] == (0xFFFFFFu | (44u << 24)),
+                       "ReadMainFontPreview unpacks B, G, R, A channels into distinct vertical white alpha planes");
+
+        U2NativeFontText layout1;
+        const bool laid_out_1 = u2_native_LayoutFontText(font, "AB", 20.0f, &layout1);
+        U2_TEST_ASSERT(laid_out_1 &&
+                       layout1.quads.size() == 2 &&
+                       std::fabs(layout1.quads[0].x - 1.0f) < 1e-4f &&
+                       std::fabs(layout1.quads[0].y - 2.0f) < 1e-4f &&
+                       layout1.quads[0].source_x == 0 &&
+                       layout1.quads[0].source_y == 0 &&
+                       std::fabs(layout1.quads[1].x - 7.0f) < 1e-4f &&
+                       std::fabs(layout1.quads[1].y - 3.0f) < 1e-4f &&
+                       layout1.quads[1].source_x == 1 &&
+                       layout1.quads[1].source_y == 4 &&
+                       std::fabs(layout1.advance - 16.0f) < 1e-4f,
+                       "LayoutFontText applies packed channel offsets and kerning at 1.0x scale");
+
+        U2NativeFontText layout_half;
+        const bool laid_out_half = u2_native_LayoutFontText(font, "AB", 10.0f, &layout_half);
+        U2_TEST_ASSERT(laid_out_half &&
+                       layout_half.quads.size() == 2 &&
+                       std::fabs(layout_half.quads[0].x - 0.5f) < 1e-4f &&
+                       std::fabs(layout_half.quads[0].width - 0.5f) < 1e-4f &&
+                       std::fabs(layout_half.quads[0].height - 1.0f) < 1e-4f &&
+                       std::fabs(layout_half.quads[1].x - 3.5f) < 1e-4f &&
+                       std::fabs(layout_half.advance - 8.0f) < 1e-4f,
+                       "LayoutFontText scales positions, sizes, kerning, and total advance proportionally");
+
+        // Atomic failure preservation on ReadMainFontPreview
+        const auto saved_rgba = font.atlas.rgba;
+        const size_t saved_glyph_count = font.glyphs.size();
+        const size_t saved_kern_count = font.kernings.size();
+        std::vector<uint8_t> bad_origin = tga;
+        bad_origin[17] = 0x00;
+        U2_TEST_ASSERT(!u2_native_ReadMainFontPreview(nullptr, fnt_desc, tga.data(), tga.size()) &&
+                       !u2_native_ReadMainFontPreview(&font, fnt_desc, tga.data(), tga.size() - 1) &&
+                       !u2_native_ReadMainFontPreview(&font, fnt_desc, bad_origin.data(), bad_origin.size()) &&
+                       !u2_native_ReadMainFontPreview(&font,
+                           "common lineHeight=20 base=16 scaleW=2 scaleH=2 pages=1 packed=1\n"
+                           "page id=0 file=\"other_00.tga\"\nchars count=1\n"
+                           "char id=65 x=0 y=0 width=1 height=2 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=1\n",
+                           tga.data(), tga.size()) &&
+                       !u2_native_ReadMainFontPreview(&font,
+                           "common lineHeight=20 base=16 scaleW=2 scaleH=2 pages=1 packed=1\n"
+                           "page id=0 file=\"main_00.tga\"\nchars count=1\n"
+                           "char id=65 x=0 y=0 width=1 height=2 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=3\n",
+                           tga.data(), tga.size()) &&
+                       !u2_native_ReadMainFontPreview(&font,
+                           "common lineHeight=20 base=16 scaleW=2 scaleH=2 pages=1 packed=1\n"
+                           "page id=0 file=\"main_00.tga\"\nchars count=2\n"
+                           "char id=65 x=0 y=0 width=1 height=2 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=1\n",
+                           tga.data(), tga.size()) &&
+                       !u2_native_ReadMainFontPreview(&font,
+                           "common lineHeight=20 base=16 scaleW=2 scaleH=2 pages=1 packed=1\n"
+                           "page id=0 file=\"main_00.tga\"\nchars count=1\n"
+                           "char id=65 x=0 y=0 width=1 height=2 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=1\n"
+                           "kernings count=1\nkerning first=65 second=67 amount=-1\n",
+                           tga.data(), tga.size()) &&
+                       font.atlas.rgba == saved_rgba &&
+                       font.glyphs.size() == saved_glyph_count &&
+                       font.kernings.size() == saved_kern_count,
+                       "ReadMainFontPreview rejects invalid/inconsistent inputs atomically without mutating output");
+
+        // Atomic failure preservation on LayoutFontText
+        const size_t saved_quad_count = layout1.quads.size();
+        const float saved_adv = layout1.advance;
+        U2_TEST_ASSERT(!u2_native_LayoutFontText(font, "AB", 20.0f, nullptr) &&
+                       !u2_native_LayoutFontText(font, "\xFF", 20.0f, &layout1) &&
+                       !u2_native_LayoutFontText(font, "\xC0\xAF", 20.0f, &layout1) &&
+                       !u2_native_LayoutFontText(font, "\xE2\x82", 20.0f, &layout1) &&
+                       !u2_native_LayoutFontText(font, "AC", 20.0f, &layout1) &&
+                       !u2_native_LayoutFontText(font, "AB", 0.0f, &layout1) &&
+                       !u2_native_LayoutFontText(font, "AB", -5.0f, &layout1) &&
+                       layout1.quads.size() == saved_quad_count &&
+                       std::fabs(layout1.advance - saved_adv) < 1e-6f,
+                       "LayoutFontText rejects malformed UTF-8, missing glyphs, and invalid heights without mutating output");
+
+        // Real PS4 game font asset check (/app0/u2data/data/fonts/ps4/main.fnt + main_00.tga)
+        const int font_fd = int(runtime_file_open("/app0/u2data/data/fonts/ps4/main.fnt", 0, 0));
+        if (font_fd >= 0) {
+            runtime_file_close(font_fd);
+            U2NativeFontPreview real_font;
+            const bool loaded_real = u2_native_LoadMainFontPreview(&real_font);
+            U2_TEST_ASSERT(loaded_real &&
+                           real_font.line_height == 42 &&
+                           real_font.baseline == 34 &&
+                           real_font.atlas_width == 256 &&
+                           real_font.atlas_height == 128 &&
+                           real_font.atlas.width == 256 &&
+                           real_font.atlas.height == 512 &&
+                           real_font.glyphs.size() == 183 &&
+                           real_font.kernings.size() == 592,
+                           "LoadMainFontPreview loads real game main.fnt (183 glyphs, 592 kernings, 256x128 -> 256x512)");
+            U2NativeFontText real_prompt, real_legal;
+            U2_TEST_ASSERT(u2_native_LayoutFontText(real_font, "Appuyer sur  pour commencer.", 42.0f, &real_prompt) &&
+                           !real_prompt.quads.empty() && real_prompt.advance > 100.0f &&
+                           u2_native_LayoutFontText(real_font, "Uncharted\xE2\x84\xA2 2: Among Thieves Remastered \xC2\xA9 2009-2015", 32.0f, &real_legal) &&
+                           !real_legal.quads.empty() && real_legal.advance > 100.0f,
+                           "LayoutFontText renders title prompt and UTF-8 legal text (TM/copyright) using real main.fnt");
+        }
     }
 
     g_u2_image_base = saved_base;

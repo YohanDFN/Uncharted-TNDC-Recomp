@@ -1,9 +1,34 @@
 # Preuves d'avancement — Uncharted 2 natif
 
-Historique des **12 et 13 novembre 2026**, fuseau Europe/Paris.
+Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
+
+## 14 novembre : police réelle `main.fnt` prouvée dans `eboot.elf` et rendue sur l'écran-titre natif
+
+[Galerie autonome mise à jour](preuves_avancement/2026-11-13/preuves_avancement.html)
+(référence hybride, premier aperçu natif et capture `main.fnt` intégrés).
+
+![Écran-titre natif avec la police réelle main.fnt](preuves_avancement/2026-11-13/title-screen-main-font-capture.png)
+
+L'analyse binaire de `out/big2/eboot.elf` prouve que le menu utilise réellement
+`main.fnt` (`Adelon-Serial DB`, **183** glyphes, **592** paires de crénage,
+atlas `main_00.tga` 256×128 packé sur 4 plans B/G/R/A, chargée en slot 1 de
+`g_apFonts` `0x0144E640` par `0x003F68C0`). `game3.fnt` (`0x003FE000`) n'est
+lié qu'à la commande debug `reloadfont` (`0` appelant direct, texture absente).
+Le texte UTF-8 (`™`, `©`, invitation française et barre d'état) est désormais
+rendu par cet atlas réel dans `title_preview.h`, tandis que le placement, l'icône
+croix géométrique (`symbol3.fnt` réservé aux codes ≤ 14), l'ombre et l'inversion
+verticale du logo restent des conventions du viewer.
+
+Validation (build basé sur `bdda25c`, `out/uncharted2-native.exe` SHA-256
+`03baee31...`) : natif **501/501**, sortie **0** après six secondes ; basculement
+`F1` (`hidden` / `visible`) validé, sortie **0** ; hybride **507/507**, SelfTest
+**886**, sandbox **831**, zéro crash ni Guest fault jusqu'à fermeture manuelle
+de la fenêtre au-delà de 30 s (`user/last_run.log`). Capture SDL 1920×1080
+inspectée visuellement (PNG SHA-256 `d307c00b...`). Voir
+[preuves et limites](NATIVE_TITLE_SCREEN_PREVIEW.md).
 
 ## 13 novembre : premier écran-titre sur le temple natif
 

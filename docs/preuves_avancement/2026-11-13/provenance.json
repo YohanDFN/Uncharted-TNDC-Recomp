@@ -29,18 +29,34 @@
       "scenario": "menu-temple preview plus original title logo, observed French prompt and legal text",
       "conversion": "SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Static native title screen. Original logo pixels; temporary SDL font, reference-derived layout, vertical image flip and readability shade. No menu transition."
+    },
+    {
+      "fichier": "title-screen-main-font-capture.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "d307c00bafaa72bb160e99a1418b191f592aa8f14f781f2213eb7120cd34846a",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "bdda25c1b0639adaebcf85591d56ac274af8de7a",
+      "build_changes": "verified main.fnt slot 1 menu/UI bitmap font proof, UTF-8/kerning/UTF-16-independent glyph rendering, and Step 18 unit tests",
+      "executable_sha256": "03baee316902ef316fabce183341ed75a9f4063f0bc8208129d0f95eb0dd7b24",
+      "scenario": "menu-temple preview plus original title logo 2048x512 and genuine main.fnt glyphs (French prompt, UTF-8 trademark/copyright legal text, status bar)",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (4s); System.Drawing BMP to PNG; no retouching",
+      "legende": "Native title screen using proven eboot.elf slot 1 font main.fnt (Adelon-Serial DB, 183 glyphs, 592 kernings, 4-plane B/G/R/A 256x128 atlas). Layout, drawn X button, shadow, logo flip and status bar remain viewer conventions."
     }
   ],
   "validation": {
-    "native_assertions": "493/493",
+    "native_assertions": "501/501",
     "native_seconds": 6,
     "native_exit": 0,
-    "hybrid_assertions": "499/499",
+    "hybrid_assertions": "507/507",
     "hybrid_seconds": 30,
-    "hybrid_exit": "STOPPED_AFTER_TIMEOUT",
+    "hybrid_exit": "USER_WINDOW_CLOSE_AFTER_TIMEOUT",
     "selftest": 886,
     "full_body": 831,
-    "toggle_seconds": 12,
+    "toggle_seconds": 8,
     "toggle_observed": [
       "hidden",
       "visible"
@@ -48,9 +64,9 @@
     "toggle_exit": 0
   },
   "limits": [
+    "main.fnt proven in eboot.elf slot 1 (0x0144E640 / 0x003F6D0C; MenuDrawer -1 resolved via 0x01450D18 -> 1)",
     "original UI pipeline and transitions not ported",
-    "font, layout, prompt symbol and shade are preview conventions",
-    "fresh original framebuffer capture attempts unsuccessful; prior validated reference reused",
-    "HTML display not checked at user request"
+    "layout, drawn circle-cross button (symbol3.fnt unused), text shadow, logo vertical flip and shade remain preview conventions",
+    "fresh original framebuffer capture attempts unsuccessful; prior validated reference reused"
   ]
 }

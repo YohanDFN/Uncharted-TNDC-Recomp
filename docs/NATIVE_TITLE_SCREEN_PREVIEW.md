@@ -89,11 +89,37 @@ dans `user/diag_title_final.bmp`.
 
 Le logo est composé sur le temple existant. Le placement est mesuré
 approximativement depuis la référence, dans l'espace 1920×1080 du viewer,
-pas récupéré des contrôles UI originaux. Invitation française et mentions
-relevées sont affichées avec une police SDL provisoire, des équivalents ASCII
-pour les symboles légaux et un bouton X dessiné. Ombre de texte et atténuation
-du décor sont des conventions de lisibilité. Pas de nouvelle liste d'options,
-de particules ou de dague inventée ajoutée au décor.
+pas récupéré des contrôles UI originaux. Invitation française, mentions
+légales UTF-8 (`™`, `©`) et barre d'état utilisent désormais la police bitmap
+réelle **`main.fnt`** (`Adelon-Serial DB`, taille 42, `lineHeight=42`, `base=34`,
+**183** glyphes, **592** paires de crénage) et son atlas `main_00.tga`
+256×128 BGRA32 packé sur 4 plans (`chnl` 1/2/4/8), décodés et testés par
+`src/u2_engine/ndlib/render/ngen/font_preview.{h,cpp}` et rendus via
+`src/u2_standalone/bitmap_font_preview.h` / `title_preview.h`.
+
+Preuve binaire (`out/big2/eboot.elf`) établissant `main.fnt` contre l'hypothèse
+initiale :
+- `GameInitInternal` (`0x003F68C0`, enregistré en `0x003F5833`) charge
+  `g_apFonts` (`0x0144E640`) via `0x00CC1B90` (`"/app0/u2data/data/fonts/ps4/%s"`) :
+  slot 0 `test2.fnt` (`0x003F6B97`, overlay FPS `0x003F900D`), slot 1
+  **`main.fnt`** (`0x003F6D0C`), slot 2 `symbol3.fnt` (`0x003F6E81`, codes 1..32),
+  slots 3..6 `japanese.fnt`, `korean.fnt`, `chinese.fnt`, `russian.fnt`.
+- `0x003FE000` (qui référence `game3.fnt` en slot 1 à `0x003FE2EF`) n'a aucun
+  appelant direct et n'est que le callback console `"reloadfont"` (`0x003F57D7`) ;
+  de plus `game3_00.tga` est absent sur disque et des archives `menu.pak`/`bin.pak`.
+- `MenuDrawer` initialise `fontIndex = -1` (`0x005BC2D4`). À l'affichage et
+  à la mesure (`0x005BC516`, `0x005BE038`, `Font::DrawText` `0x00CC9A70` ->
+  `0x00CC9AF0`), `-1` lit l'index de langue (`0x01450D18 + 0x604`) puis le slot
+  `+0x0C` rempli à **`1`** (`main.fnt`) par `0x00CDC2A0` (`ENGLISH`, `FRENCH`,
+  `ITALIAN`, etc.) ; les glyphes `<= 14` (`0x005DBF18`) basculent vers `symbol3.fnt`.
+
+Distinction faits prouvés vs conventions du viewer : l'atlas `main.fnt`, son
+décompactage 4 plans et les 592 crénages appartiennent aux données originales,
+avec 0 glyphe manquant sur les chaînes de l'écran-titre. En revanche, les tailles
+de ligne (`42/32/18`), l'icône cercle + croix dessinée géométriquement (au lieu
+de `symbol3.fnt`), l'ombre de texte et l'atténuation du décor restent des
+conventions du viewer. Pas de nouvelle liste d'options, de particules ou de
+dague inventée ajoutée au décor.
 
 L'invitation est statique : Entrée, clic et X ne lancent aucune transition.
 Le pied de page signale explicitement cette limite. F1 masque/réaffiche
@@ -103,31 +129,37 @@ ne sont pas invoqués dans ce chemin. Aucun nouveau détour ni code PS4 exécut�
 
 ## Validation et résultat
 
-- `git diff --check`, build et déploiement MSYS2 réussis.
-- Natif six secondes : **493/493**, full-body **831**, code **0**,
-  logo BC1+BC4 2048×512 réellement chargé, capture réussie et inspectée.
-- Hybride trente secondes : SelfTest **886**, full-body **831**, **499/499**,
-  **STOPPED_AFTER_TIMEOUT**, aucun crash, Guest fault ou nouvelle assertion.
-- Test natif de F1, douze secondes : masquage puis réaffichage observés dans
-  le journal, **493/493**, code **0**. Messages de touches limités à la fenêtre
-  `uncharted2-native.exe` du workspace.
-- Neuf assertions ajoutées : palettes BC4, detiling, bords partiels, entrées
-  invalides et absence de mutation, composition RGB/alpha, échec atomique,
-  vraie ressource et transparence, absence de promotion du package.
+- `git diff --check`, build et déploiement MSYS2 réussis (`-Wall -Wextra -Werror`).
+- Natif six secondes (`scratch/run_native_test.ps1 6`) : **501/501** assertions
+  C++23, full-body **831**, code **0**,
+  `[U2 Native Font] main.fnt glyphs=183 kernings=592 line-height=42 base=34 atlas=256x128 packed B/G/R/A (proven slot 1 menu/UI font)`.
+- Capture framebuffer native (`BB_NATIVE_CAPTURE` -> BMP 4 s converti en PNG
+  sans retouche, code **0**) : [capture main.fnt](preuves_avancement/2026-11-13/title-screen-main-font-capture.png)
+  (1920×1080, 2 070 791 octets, SHA-256 PNG `d307c00bafaa72bb160e99a1418b191f592aa8f14f781f2213eb7120cd34846a`),
+  inspectée visuellement (glyphes français, `™`, `©` et barre d'état nets).
+- Test natif de `F1` (budget 8 s, messages `VK_F1` ciblés sur le HWND du PID) :
+  **501/501**, `[U2 Native Title] hidden` puis `visible`, code **0**.
+- Hybride (`scratch/run_test.ps1 30`, `user/last_run.log`) : SelfTest **886**,
+  full-body **831**, **507/507** assertions C++23, **889** détours installés,
+  exécution au-delà de 30 s (`180 224` copies scalaires GPU) sans crash,
+  Guest fault ni nouvelle assertion, arrêté proprement à la fermeture manuelle
+  de la fenêtre (`Window closed`).
+- 8 assertions ajoutées dans `u2_engine_tests.cpp` (Étape 18) : parsing synthétique
+  BMFont/TGA + décompactage B/G/R/A, layout avec crénage et facteur d'échelle,
+  préservation atomique sur erreur et chargement réel de `main.fnt` (183 glyphes,
+  592 crénages, 256×512).
 
-[Capture native finale](preuves_avancement/2026-11-13/01-ecran-titre-natif.png),
-[journal natif](preuves_avancement/2026-11-13/validation-titre-native.txt),
-[journal hybride](preuves_avancement/2026-11-13/validation-titre-hybrid.txt),
-[test F1](preuves_avancement/2026-11-13/validation-titre-f1.txt).
-Build basé sur `ad88d7b` avec cette itération, SHA-256 natif :
-`40c35ed58507b4de52e4bf8eb7a6add1d616578bc686f5fca50d4711ea194b22`.
-Framebuffer SDL 1920×1080 converti de BMP en PNG sans retouche ; aucune image
-générée. Galerie et provenance du dossier du 13 novembre mises à jour sans
-contrôle de l'affichage HTML, à la demande de l'utilisateur.
+[Capture native précédente](preuves_avancement/2026-11-13/01-ecran-titre-natif.png),
+[capture main.fnt](preuves_avancement/2026-11-13/title-screen-main-font-capture.png),
+[galerie HTML autonome](preuves_avancement/2026-11-13/preuves_avancement.html),
+[provenance.json](preuves_avancement/2026-11-13/provenance.json).
+Build basé sur `bdda25c` avec cette itération, SHA-256 `out/uncharted2-native.exe` :
+`03baee316902ef316fabce183341ed75a9f4063f0bc8208129d0f95eb0dd7b24`.
+Intégration base64 des 3 PNG dans l'HTML vérifiée par script Python.
 
 Limites : premier écran statique sur un décor encore partiellement texturé,
-police et disposition provisoires, pipeline UI, animations, localisation
-et transitions originales non portés. Ce jalon ne rend pas le jeu jouable.
+disposition/icône X/ombre provisoires, `symbol3.fnt`, pipeline UI, animations,
+localisation et transitions originales non portés. Ce jalon ne rend pas le jeu jouable.
 
 Prochaine expérience : relever dans l'original l'écran après l'appui sur X,
 ses contrôles et ses textes, puis afficher cette liste vérifiée avant de
