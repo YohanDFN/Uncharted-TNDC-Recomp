@@ -124,6 +124,14 @@ public:
                     m_title_preview.press_select();
                     const auto *page=m_title_preview.current_page();
                     native_log(std::string("[native-title] capture preset page=")+(page ? page->name : "none")+"\n");
+                } else if(preset=="OPTIONS" || preset=="CONTROLS") {
+                    m_title_preview.press_select();
+                    m_title_preview.state_machine().transition_to_page(0xB793B4B2u,false);
+                    if(preset=="CONTROLS") m_title_preview.state_machine().transition_to_page(0x5C717AADu,false);
+                    m_title_preview.state_machine().snap_animations();
+                    m_title_preview.move_cursor(1);m_title_preview.move_cursor(-1);
+                    const auto *page=m_title_preview.current_page();
+                    native_log(std::string("[native-title] capture preset page=")+(page ? page->name : "none")+"\n");
                 } else if(preset=="ROOT" || preset=="PAGE_ROOT_MAIN") m_title_preview.reset_to_root();
             }
         } else {
@@ -166,6 +174,9 @@ public:
                             if(key==SDLK_UP || key==SDLK_W || key==SDLK_DOWN || key==SDLK_S) {
                                 if(m_title_preview.move_cursor(key==SDLK_UP || key==SDLK_W ? -1 : 1))
                                     native_log("[native-title] cursor="+std::to_string(m_title_preview.current_cursor())+"\n");
+                            } else if(key==SDLK_LEFT || key==SDLK_A || key==SDLK_RIGHT || key==SDLK_D) {
+                                if(m_title_preview.adjust_control(key==SDLK_LEFT || key==SDLK_A ? -1 : 1))
+                                    native_log("[native-title] adjust cursor="+std::to_string(m_title_preview.current_cursor())+"\n");
                             } else if(!ev.key.repeat && (key==SDLK_RETURN || key==SDLK_KP_ENTER || key==SDLK_SPACE)) {
                                 m_title_preview.press_select();log_page("select");
                             } else if(!ev.key.repeat && (key==SDLK_BACKSPACE || (key==SDLK_ESCAPE && m_title_preview.stack_depth()>1))) {

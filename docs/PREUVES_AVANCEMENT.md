@@ -5,6 +5,21 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier B1) : 110 pages de `menu.bin`, contrôles d'options (`type=0/3/5/6`) et défilement
+
+[Galerie autonome Chantiers A2 à B1](preuves_avancement/2026-11-14/preuves_avancement.html) (**8** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).
+
+![Sous-menu PAGE_CONTROLS Chantier B1 avec en-têtes type=0, slider 50% type=5 et toggles type=3](preuves_avancement/2026-11-14/native-menu-controls-b1.png)
+
+Ouverture complète de l'arborescence de `menu.bin` et prise en charge des contrôles d'options dans [menu_preview.{h,cpp}](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_engine/ndlib/render/ngen/menu_preview.h), [title_preview.h](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_standalone/title_preview.h) et [engine_context.h](file:///C:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_standalone/engine_context.h) :
+- **110 pages chargées** depuis `menu.bin` (toutes les sous-pages `Options`, `Bonus`, `Chapitres`, `Audio`, `Vidéo`, `Commandes`, `Jouabilité` `0x8917D4AD`).
+- **Contrôles `type=0/3/5/6`** : en-têtes de section (`type=0` non sélectionnables), toggles `< Oui > / < Non >` (`type=3`), sliders `0%..100%` (`type=5`) et combos multi-valeurs (`type=6`), pilotables aux flèches Gauche/Droite (`A`/`D`).
+- **Défilement vertical** : fenêtrage à `10` lignes visibles dans `DrawBox` pour les pages longues (`PAGE_CONTROLS`, `PAGE_AUDIO_OUTPUT`).
+
+Validation (build basé sur `021d8a5` + B1, `out/uncharted2-native.exe` SHA-256 `a3c58ec3...`) :
+- Natif `scratch/run_native_test.ps1 6` : **672/672** assertions C++23 (`EngineTest`), code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **678/678**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+
 ## 14 novembre (Chantier A5) : texture `edge-shadow` et passes `MenuDrawer::DrawBox`
 
 [Galerie autonome Chantiers A2 à A5](preuves_avancement/2026-11-14/preuves_avancement.html) (**7** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).

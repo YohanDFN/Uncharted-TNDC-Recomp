@@ -62,6 +62,11 @@ public:
         if(moved) rebuild_layout();
         return moved;
     }
+    bool adjust_control(int delta) {
+        const bool adjusted=m_state.adjust_control(delta);
+        if(adjusted) rebuild_layout();
+        return adjusted;
+    }
     U2NativeMenuTransitionResult press_select() {
         auto result=m_state.press_select();rebuild_layout();return result;
     }
@@ -224,7 +229,7 @@ private:
             }
         };
         auto add=[&](std::string_view value,const U2NativeMenuRect &rect,float height,SDL_Color color,
-                     float shadow_offset=-1.0f,int control_index=-1) {
+                     float shadow_offset=-1.0f,int control_index=-1,int align=0) {
             Text item;
             if(shadow_offset<0.0f) shadow_offset=geometry.shadow_offset;
             height=std::min(height,rect.h-2*shadow_offset);
@@ -233,24 +238,43 @@ private:
                 height*=(rect.w-2*shadow_offset)/item.layout.advance;
                 if(!layout(value,height,&item.layout)) return false;
             }
-            item.x=(rect.x+(rect.w-item.layout.advance)*0.5f)*sx;
+            if(align<0) item.x=rect.x*sx;
+            else if(align>0) item.x=(rect.x+rect.w-item.layout.advance)*sx;
+            else item.x=(rect.x+(rect.w-item.layout.advance)*0.5f)*sx;
             item.y=(rect.y+(rect.h-height)*0.5f)*sy;
             item.color=color;item.shadow_offset=shadow_offset;item.control_index=control_index;
             project_text(item.layout);m_text.push_back(std::move(item));return true;
         };
-        bool ok=true,selectable=false;
+        bool ok=true,selectable=false,has_adjustable=false;
+        for(const auto &c : page->controls) if(c.is_adjustable()) has_adjustable=true;
         if(geometry.has_title) ok=add(page->title,geometry.title_rect,
             std::min(geometry.font_height*geometry.title_scale,geometry.title_rect.h),{255,255,255,255});
-        for(size_t i=0;i<page->controls.size();++i) {
+        const size_t total=page->controls.size();
+        const size_t vis=geometry.visible_rows>0 ? std::min(total,geometry.visible_rows) : total;
+        size_t scroll_top=0;
+        if(geometry.needs_scroll && current_cursor()>=vis) scroll_top=std::min(current_cursor()-vis+1,total-vis);
+        const size_t scroll_end=std::min(total,scroll_top+vis);
+        for(size_t i=scroll_top;i<scroll_end;++i) {
             const auto &ctrl=page->controls[i];
             if(ctrl.is_spacer() || ctrl.label.empty()) continue;
-            const U2NativeMenuRect row{content.x,content.y+float(i)*geometry.row_step,content.w,geometry.row_height};
+            const U2NativeMenuRect row{content.x,content.y+float(i-scroll_top)*geometry.row_step,content.w,geometry.row_height};
             const bool selected=i==current_cursor();
-            const bool added=add(m_state.display_control_label(ctrl),row,
-                selected ? geometry.selected_font_height : geometry.font_height,
-                ctrl.is_selectable() ? (selected ? accent : muted) : muted,
-                geometry.control_shadow_offset,ctrl.is_selectable() ? int(i) : -1);
+            const bool is_header=(ctrl.type==0);
+            const SDL_Color header_color{209,177,138,210};
+            const SDL_Color row_color=is_header ? header_color : (ctrl.is_selectable() ? (selected ? accent : muted) : muted);
+            const float row_h=is_header ? geometry.font_height*0.85f : (selected ? geometry.selected_font_height : geometry.font_height);
+            const int row_align=(has_adjustable && ctrl.type!=2) ? -1 : 0;
+            const U2NativeMenuRect label_rect=ctrl.is_adjustable() ? U2NativeMenuRect{row.x,row.y,row.w*0.62f,row.h} : row;
+            const bool added=add(m_state.display_control_label(ctrl),label_rect,row_h,row_color,
+                geometry.control_shadow_offset,ctrl.is_selectable() ? int(i) : -1,row_align);
             ok=ok && added;
+            if(ctrl.is_adjustable()) {
+                const std::string val=m_state.format_control_value(ctrl);
+                if(!val.empty()) {
+                    const U2NativeMenuRect val_rect{row.x+row.w*0.62f,row.y,row.w*0.38f,row.h};
+                    ok=add(val,val_rect,row_h,selected ? accent : muted,geometry.control_shadow_offset,int(i),1) && ok;
+                }
+            }
             if(ctrl.is_selectable()) {
                 selectable=true;
                 if(added) m_hits.push_back({{row.x*sx,row.y*sy,row.w*sx,row.h*sy},i});

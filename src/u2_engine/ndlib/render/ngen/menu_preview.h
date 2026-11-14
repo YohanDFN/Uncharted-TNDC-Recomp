@@ -10,7 +10,10 @@ struct U2NativeMenuControlPreview {
     std::string name, string_name, label;
     uint32_t target_page_id{0};
     std::string target_page_name;
-    bool is_selectable() const { return type == 2 && !is_spacer() && !label.empty(); }
+    bool is_selectable() const {
+        return (type == 2 || type == 3 || type == 5 || type == 6) && !is_spacer() && !label.empty();
+    }
+    bool is_adjustable() const { return type == 3 || type == 5 || type == 6; }
     bool is_spacer() const {
         return id == 0 && type == 1 && subtype == 0 && string_id == 0 &&
                datasource_type == 0 && datasource_index == 0;
@@ -38,12 +41,15 @@ struct U2NativeMenuPageLayout {
     float shadow_offset{0}, prompts_y{0}, prompts_right_x{0}, copyright_y{0};
     float box_fade_top{24.0f}, box_fade_bottom{40.0f}, box_alpha{0.65f};
     float title_scale{1.25f}, copyright_bottom_y{642.0f}, copyright_scale{0.65f}, control_shadow_offset{4.0f};
+    size_t visible_rows{0};
+    bool needs_scroll{false};
 };
 // Host layout only: verified virtual frame/anchors, viewer text sizing and note reserve.
 bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2NativeMenuPageLayout *out);
 struct U2NativePostStartMenuPreview {
     U2NativeMenuPagePreview root_main, profile, new_profile;
     U2NativeMenuPagePreview ingame_options, bonuses, chapters, multimedals;
+    std::vector<U2NativeMenuPagePreview> pages;
     std::string select_label, back_label, title_menu_label, play_label, continue_label;
 };
 
@@ -134,6 +140,9 @@ public:
     const std::string &last_status_note() const { return m_last_status_note; }
     const std::string &status_message() const { return m_last_status_note; }
     std::string display_control_label(const U2NativeMenuControlPreview &ctrl) const;
+    std::string format_control_value(const U2NativeMenuControlPreview &ctrl) const;
+    int control_value(const U2NativeMenuControlPreview &ctrl) const;
+    bool adjust_control(int delta);
     bool set_cursor(size_t index);
     bool move_cursor(int delta);
     // Advance page fade and per-control focus interpolation by dt_sec.
@@ -155,4 +164,5 @@ private:
     std::string m_last_status_note;
     float m_page_fade{1.0f};
     std::vector<float> m_control_focus;
+    std::map<uint64_t, int> m_control_values;
 };

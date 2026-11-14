@@ -3209,18 +3209,45 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            "MenuHost cursor wraps across both ends");
             U2_TEST_ASSERT(select_id(0xFA872AA5u) && state.press_select().handled && state.current_page()==&value.ingame_options,
                            "MenuHost OPTIONS dispatch pushes PAGE_INGAME_OPTIONS");
-            U2_TEST_ASSERT(select_id(0xC79A65B5u) && state.press_select().action==U2NativeMenuActionKind::DeferredGameplayOptions &&
-                           state.stack_depth()==3 && !state.last_status_note().empty(),
-                           "MenuHost gameplay options are explicitly deferred without changing the stack");
-            U2_TEST_ASSERT(state.set_cursor(1) && state.press_select().handled && state.stack_depth()==3 &&
-                           state.last_status_note().find("Sous-menu non porte : PAGE_CONTROLS")==0,
-                           "MenuHost missing target subpage reports a bounded deferred status");
+            if(value.pages.size()<=7) {
+                U2_TEST_ASSERT(select_id(0xC79A65B5u) && state.press_select().action==U2NativeMenuActionKind::DeferredGameplayOptions &&
+                               state.stack_depth()==3 && !state.last_status_note().empty(),
+                               "MenuHost gameplay options are explicitly deferred without changing the stack");
+                U2_TEST_ASSERT(state.set_cursor(1) && state.press_select().handled && state.stack_depth()==3 &&
+                               state.last_status_note().find("Sous-menu non porte : PAGE_CONTROLS")==0,
+                               "MenuHost missing target subpage reports a bounded deferred status");
+            } else {
+                U2_TEST_ASSERT(value.pages.size()>=100, "Full menu.bin decodes all pages");
+                U2_TEST_ASSERT(select_id(0xC79A65B5u) && state.press_select().handled &&
+                               state.current_page() && state.current_page()->id==0x8917D4ADu &&
+                               state.adjust_control(1) && state.format_control_value(*state.selected_control())=="< Non >" &&
+                               state.press_back().handled,
+                               "MenuHost opens PAGE_GAMEPLAY and toggles type=3 option");
+                U2_TEST_ASSERT(state.set_cursor(1) && state.press_select().handled &&
+                               state.current_page() && state.current_page()->id==0x5C717AADu &&
+                               state.current_cursor()==1 && state.selected_control()->type==5 &&
+                               state.format_control_value(*state.selected_control())=="50%" &&
+                               state.adjust_control(1) && state.format_control_value(*state.selected_control())=="60%",
+                               "MenuHost opens PAGE_CONTROLS, skips type=0 header and adjusts type=5 slider");
+                U2NativeMenuPageLayout controls_layout;
+                U2_TEST_ASSERT(u2_native_ComputeMenuPageLayout(*state.current_page(),&controls_layout) &&
+                               controls_layout.needs_scroll && controls_layout.visible_rows==10,
+                               "Long options page clamps visible_rows to 10 with scrolling");
+                U2_TEST_ASSERT(state.press_back().handled && state.current_page()==&value.ingame_options,
+                               "MenuHost back from PAGE_CONTROLS returns to PAGE_INGAME_OPTIONS");
+            }
             U2_TEST_ASSERT(state.press_back().handled && select_id(0x1F083A57u) && state.press_select().handled &&
                            state.current_page()==&value.bonuses, "MenuHost follows the verified BONUS target");
             U2_TEST_ASSERT(state.press_back().handled && select_id(0x96B65D82u) && state.press_select().handled &&
-                           state.current_page()==&value.chapters && state.current_cursor()==5 && state.selected_control() &&
+                           state.current_page()==&value.chapters && select_id(0x131BA09Bu) && state.selected_control() &&
                            state.selected_control()->id==0x131BA09Bu,
-                           "MenuHost chapter cursor skips all headers and the spacer to index five");
+                           "MenuHost chapter page selects start button at index five");
+            if(value.pages.size()>7) {
+                U2_TEST_ASSERT(state.set_cursor(1) && state.selected_control()->type==6 &&
+                               state.adjust_control(1) && state.format_control_value(*state.selected_control())=="< Facile >" &&
+                               select_id(0x131BA09Bu),
+                               "MenuHost chapter difficulty combo cycles values");
+            }
             U2_TEST_ASSERT(state.press_select().action==U2NativeMenuActionKind::DeferredContinueOrPlay && state.stack_depth()==3,
                            "MenuHost chapter start is deferred without pretending to load gameplay");
             U2_TEST_ASSERT(state.transition_to_page(value.profile.id,false).action==U2NativeMenuActionKind::TransitionPop &&

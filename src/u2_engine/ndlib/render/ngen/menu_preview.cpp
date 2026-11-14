@@ -17,7 +17,11 @@ bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2Nati
     result.show_prompts = !page.hides_standard_prompts();
     // MenuHost::Draw and MenuDrawer::BuildIcon use this virtual frame and logo rect.
     result.logo_rect = {128.0f, 25.0f, 1024.0f, 256.0f};
-    const float rows = float(std::max(size_t{1}, page.controls.size()));
+    const size_t total_rows = std::max(size_t{1}, page.controls.size());
+    const size_t visible = result.show_logo ? total_rows : std::min<size_t>(total_rows, 10);
+    result.visible_rows = visible;
+    result.needs_scroll = !result.show_logo && total_rows > 10;
+    const float rows = float(visible);
     result.row_step = std::min(32.0f, (result.show_logo ? 160.0f : 360.0f) / rows);
     result.row_height = result.row_step;
     result.font_height = std::min(20.0f, result.row_step * 0.75f);
@@ -33,8 +37,11 @@ bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2Nati
     } else {
         // 0x00E33D80 (-25, -10, +50, +20) and 0x00E61C0C (-10, +20) pad the content bounds.
         size_t longest = page.title.size();
-        for(const auto &ctrl : page.controls) longest = std::max(longest, ctrl.label.size());
-        const float width = std::clamp(50.0f + float(longest) * 14.0f, 300.0f, 680.0f);
+        for(const auto &ctrl : page.controls) {
+            const size_t extra = ctrl.is_adjustable() ? 14 : 0;
+            longest = std::max(longest, ctrl.label.size() + extra);
+        }
+        const float width = std::clamp(50.0f + float(longest) * 14.0f, 300.0f, 720.0f);
         const float title_height = result.has_title ? 44.0f : 0.0f;
         const float height = 20.0f + title_height + controls_height;
         result.page_box_rect = {(1280.0f - width) * 0.5f, (720.0f - height) * 0.5f, width, height};
@@ -145,35 +152,42 @@ bool u2_native_ReadPostStartMenuPreview(U2NativePostStartMenuPreview *out,
         for(size_t i = 0; i < count; ++i) {
             const uint8_t *p = menu_bin + size_t(offset) + i * 0x70;
             const uint32_t id = uint32_t(le(p + 8, 4));
-            U2NativeMenuPagePreview *page = nullptr; const char *name = nullptr;
-            if(id == 0x37656388u) { page = &result.root_main; name = "PAGE_ROOT_MAIN"; }
-            else if(id == 0x82D5C00Bu) { page = &result.profile; name = "PAGE_PROFILE"; }
-            else if(id == 0x11FEFB39u) { page = &result.new_profile; name = "PAGE_NEWPROFILE"; }
-            else if(id == 0xB793B4B2u) { page = &result.ingame_options; name = "PAGE_INGAME_OPTIONS"; }
-            else if(id == 0x22D667C0u) { page = &result.bonuses; name = "PAGE_BONUSES"; }
-            else if(id == 0xBE2C8B4Bu) { page = &result.chapters; name = "PAGE_CHAPTERS"; }
-            else if(id == 0xACE1A9D5u) { page = &result.multimedals; name = "PAGE_MULTIMEDALS"; }
-            else continue;
-            if(page->id != 0) return false;
-            page->id = id;
-            if(!cstring(menu_bin, menu_size, le(p, 8), 0x60, 256, page->name) || page->name != name) return false;
+            U2NativeMenuPagePreview *known = nullptr; const char *expected_name = nullptr;
+            if(id == 0x37656388u) { known = &result.root_main; expected_name = "PAGE_ROOT_MAIN"; }
+            else if(id == 0x82D5C00Bu) { known = &result.profile; expected_name = "PAGE_PROFILE"; }
+            else if(id == 0x11FEFB39u) { known = &result.new_profile; expected_name = "PAGE_NEWPROFILE"; }
+            else if(id == 0xB793B4B2u) { known = &result.ingame_options; expected_name = "PAGE_INGAME_OPTIONS"; }
+            else if(id == 0x22D667C0u) { known = &result.bonuses; expected_name = "PAGE_BONUSES"; }
+            else if(id == 0xBE2C8B4Bu) { known = &result.chapters; expected_name = "PAGE_CHAPTERS"; }
+            else if(id == 0xACE1A9D5u) { known = &result.multimedals; expected_name = "PAGE_MULTIMEDALS"; }
+            if(known && known->id != 0) return false;
+            U2NativeMenuPagePreview parsed_page;
+            parsed_page.id = id;
+            if(!cstring(menu_bin, menu_size, le(p, 8), 0x60, 256, parsed_page.name)) return false;
+            if(expected_name && parsed_page.name != expected_name) return false;
             const uint64_t title_name = le(p + 0x10, 8);
-            if(title_name && !cstring(menu_bin, menu_size, title_name, 0x60, 256, page->title_string_name)) return false;
-            page->title_string_id = uint32_t(le(p + 0x18, 4));
-            if(page->title_string_id && !resolve(table, page->title_string_id, page->title)) return false;
+            if(title_name && !cstring(menu_bin, menu_size, title_name, 0x60, 256, parsed_page.title_string_name)) return false;
+            parsed_page.title_string_id = uint32_t(le(p + 0x18, 4));
+            if(parsed_page.title_string_id && !resolve(table, parsed_page.title_string_id, parsed_page.title)) {
+                if(known) return false;
+                parsed_page.title = parsed_page.title_string_name;
+            }
             const uint64_t subtitle_name = le(p + 0x20, 8);
-            if(subtitle_name && !cstring(menu_bin, menu_size, subtitle_name, 0x60, 256, page->subtitle_string_name)) return false;
-            page->subtitle_string_id = uint32_t(le(p + 0x28, 4));
-            if(page->subtitle_string_id && !resolve(table, page->subtitle_string_id, page->subtitle)) return false;
-            page->page_flags = uint32_t(le(p + 0x34, 4));
-            page->layout_x = int32_t(uint32_t(le(p + 0x40, 4)));
-            page->layout_y = int32_t(uint32_t(le(p + 0x44, 4)));
+            if(subtitle_name && !cstring(menu_bin, menu_size, subtitle_name, 0x60, 256, parsed_page.subtitle_string_name)) return false;
+            parsed_page.subtitle_string_id = uint32_t(le(p + 0x28, 4));
+            if(parsed_page.subtitle_string_id && !resolve(table, parsed_page.subtitle_string_id, parsed_page.subtitle)) {
+                if(known) return false;
+                parsed_page.subtitle = parsed_page.subtitle_string_name;
+            }
+            parsed_page.page_flags = uint32_t(le(p + 0x34, 4));
+            parsed_page.layout_x = int32_t(uint32_t(le(p + 0x40, 4)));
+            parsed_page.layout_y = int32_t(uint32_t(le(p + 0x44, 4)));
             const uint64_t header = le(p + 0x38, 8);
             if(header < 0x60 || header > menu_size - 16) return false;
             const uint64_t controls = le(menu_bin + size_t(header), 8);
             const uint64_t start = le(menu_bin + size_t(header) + 8, 8);
             if(controls > 256 || start < 0x60 || start > menu_size || controls > (menu_size - start) / 0x70) return false;
-            page->controls.reserve(size_t(controls));
+            parsed_page.controls.reserve(size_t(controls));
             for(size_t j = 0; j < controls; ++j) {
                 const uint8_t *c = menu_bin + size_t(start) + j * 0x70;
                 U2NativeMenuControlPreview control;
@@ -190,13 +204,18 @@ bool u2_native_ReadPostStartMenuPreview(U2NativePostStartMenuPreview *out,
                 if(target_name && !cstring(menu_bin, menu_size, target_name, 0x60, 256, control.target_page_name)) return false;
                 control.target_page_id = uint32_t(le(c + 0x50, 4));
                 if(control.string_id) {
-                    if(!resolve(table, control.string_id, control.label)) return false;
+                    if(!resolve(table, control.string_id, control.label)) {
+                        if(known) return false;
+                        control.label = control.string_name;
+                    }
                 } else if(control.id == 0x161522F1u && control.datasource_type == 16 && control.datasource_index == 0) {
                     // ELF 0x005ACAB0 chooses MENU_CONTINUE or MENU_PLAY; no save state is inferred here.
                     control.label = result.continue_label + " / " + result.play_label;
                 }
-                page->controls.push_back(std::move(control));
+                parsed_page.controls.push_back(std::move(control));
             }
+            if(known) *known = parsed_page;
+            result.pages.push_back(std::move(parsed_page));
         }
         if(!result.root_main.id || !result.profile.id || !result.new_profile.id) return false;
         *out = std::move(result); return true;
@@ -291,6 +310,26 @@ size_t first_selectable(const U2NativeMenuPagePreview &page) {
     for(size_t i = 0; i < page.controls.size(); ++i) if(page.controls[i].is_selectable()) return i;
     return 0;
 }
+uint64_t control_key(const U2NativeMenuControlPreview &ctrl) {
+    return (uint64_t(ctrl.id) << 32) | uint64_t(ctrl.datasource_index ^ ctrl.string_id);
+}
+const std::vector<const char *> &combo_choices(const U2NativeMenuControlPreview &ctrl) {
+    static const std::vector<const char *> kDiff{"Tres facile", "Facile", "Normal", "Difficile", "Extreme"};
+    static const std::vector<const char *> kBool{"Desactive", "Active"};
+    static const std::vector<const char *> kChan{"Stereo", "5.1", "7.1"};
+    static const std::vector<const char *> kDev{"HDMI", "Optique", "Casque"};
+    static const std::vector<const char *> kDyn{"Normal", "Nuit", "Cinema"};
+    static const std::vector<const char *> kLang{"Francais", "English"};
+    static const std::vector<const char *> kDef{"Option 1", "Option 2", "Option 3"};
+    if(ctrl.string_name == "MENU_DIFFICULTY") return kDiff;
+    if(ctrl.string_name == "MENU_MOTIONBLUR" || ctrl.name == "COMBO_MOTIONBLUR") return kBool;
+    if(ctrl.string_name == "MENU_AUDIO_CHANNELS") return kChan;
+    if(ctrl.string_name == "MENU_AUDIO_DEVICE") return kDev;
+    if(ctrl.string_name == "MENU_AUDIO_DYNAMIC_RANGE") return kDyn;
+    if(ctrl.string_name == "MENU_TEXTLANGUAGE" || ctrl.string_name == "MENU_SUBTITLESLANGUAGE" ||
+       ctrl.string_name == "MENU_SPEECHLANGUAGE") return kLang;
+    return kDef;
+}
 }
 
 bool U2NativeMenuStateMachine::init(const U2NativePostStartMenuPreview *menu, const U2NativeSavedataStatus &save) {
@@ -298,6 +337,7 @@ bool U2NativeMenuStateMachine::init(const U2NativePostStartMenuPreview *menu, co
     std::vector<U2NativeMenuStackEntry> initial{{&menu->root_main, menu->root_main.id, first_selectable(menu->root_main)}};
     m_stack = std::move(initial);m_menu = menu;m_save = save;
     m_transition_state = U2NativeMenuTransitionState::Reset;m_last_status_note.clear();
+    m_control_values.clear();
     reset_page_animation(true);return true;
 }
 const U2NativeMenuPagePreview *U2NativeMenuStateMachine::find_page(uint32_t id) const {
@@ -305,6 +345,9 @@ const U2NativeMenuPagePreview *U2NativeMenuStateMachine::find_page(uint32_t id) 
     for(const auto *page : {&m_menu->root_main, &m_menu->profile, &m_menu->new_profile,
                            &m_menu->ingame_options, &m_menu->bonuses, &m_menu->chapters, &m_menu->multimedals}) {
         if(page->id == id) return page;
+    }
+    for(const auto &page : m_menu->pages) {
+        if(page.id == id) return &page;
     }
     return nullptr;
 }
@@ -317,6 +360,42 @@ std::string U2NativeMenuStateMachine::display_control_label(const U2NativeMenuCo
         if(!label.empty()) return label;
     }
     return ctrl.label;
+}
+int U2NativeMenuStateMachine::control_value(const U2NativeMenuControlPreview &ctrl) const {
+    const auto it = m_control_values.find(control_key(ctrl));
+    if(it != m_control_values.end()) return it->second;
+    if(ctrl.type == 5) return 5;
+    if(ctrl.type == 3 && (ctrl.string_name == "MENU_SUBTITLES" || ctrl.string_name == "MENU_HINTS")) return 1;
+    return 0;
+}
+std::string U2NativeMenuStateMachine::format_control_value(const U2NativeMenuControlPreview &ctrl) const {
+    const int val = control_value(ctrl);
+    if(ctrl.type == 3) return val ? "< Oui >" : "< Non >";
+    if(ctrl.type == 5) return std::to_string(std::clamp(val, 0, 10) * 10) + "%";
+    if(ctrl.type == 6) {
+        const auto &choices = combo_choices(ctrl);
+        const size_t idx = choices.empty() ? 0 : size_t(std::clamp(val, 0, int(choices.size()) - 1));
+        return choices.empty() ? "" : (std::string("< ") + choices[idx] + " >");
+    }
+    return "";
+}
+bool U2NativeMenuStateMachine::adjust_control(int delta) {
+    const auto *ctrl = selected_control();
+    if(!ctrl || !ctrl->is_adjustable() || delta == 0) return false;
+    const uint64_t key = control_key(*ctrl);
+    const int cur = control_value(*ctrl);
+    int next = cur;
+    if(ctrl->type == 3) {
+        next = cur ? 0 : 1;
+    } else if(ctrl->type == 5) {
+        next = std::clamp(cur + (delta > 0 ? 1 : -1), 0, 10);
+    } else if(ctrl->type == 6) {
+        const int n = int(combo_choices(*ctrl).size());
+        if(n <= 0) return false;
+        next = (cur + (delta > 0 ? 1 : n - 1)) % n;
+    }
+    m_control_values[key] = next;
+    return true;
 }
 bool U2NativeMenuStateMachine::set_cursor(size_t index) {
     const auto *page = current_page();
@@ -371,10 +450,18 @@ U2NativeMenuTransitionResult U2NativeMenuStateMachine::press_select() {
     const uint32_t id = current_page() ? current_page()->id : 0;
     const auto *ctrl = selected_control();
     if(!ctrl) return {false, U2NativeMenuActionKind::None, id, id, ""};
+    if(ctrl->type == 3 || ctrl->type == 6) {
+        adjust_control(1);
+        m_last_status_note.clear();
+        return {true, U2NativeMenuActionKind::None, id, id, ""};
+    }
     U2NativeMenuTransitionResult result{true, U2NativeMenuActionKind::None, id, id, ""};
     if(ctrl->target_page_id) {
         if(find_page(ctrl->target_page_id)) return transition_to_page(ctrl->target_page_id, false);
         result.status_note = "Sous-menu non porte : " + (ctrl->target_page_name.empty() ? std::to_string(ctrl->target_page_id) : ctrl->target_page_name);
+    } else if(ctrl->name.find("RESET") != std::string::npos && current_page()) {
+        for(const auto &c : current_page()->controls) m_control_values.erase(control_key(c));
+        result.status_note = "Parametres par defaut restaures";
     } else {
         switch(ctrl->id) {
         case 0x2BBBB5C5u: return transition_to_page(m_save.has_profile ? 0x82D5C00Bu : 0x11FEFB39u, false);
@@ -382,6 +469,7 @@ U2NativeMenuTransitionResult U2NativeMenuStateMachine::press_select() {
             if(find_page(0xB793B4B2u)) return transition_to_page(0xB793B4B2u, false);
             [[fallthrough]];
         case 0xC79A65B5u:
+            if(find_page(0x8917D4ADu)) return transition_to_page(0x8917D4ADu, false);
             result.action = U2NativeMenuActionKind::DeferredGameplayOptions;
             result.status_note = "Action differee : Options de jeu";break;
         case 0xB861A261u:

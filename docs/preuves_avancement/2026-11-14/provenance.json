@@ -109,6 +109,22 @@
       "scenario": "Chantier A5 — BB_NATIVE_CAPTURE_PAGE=PROFILE over menu-temple preview",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Sous-menu PAGE_PROFILE Chantier A5 : texture edge-shadow.tga tuilee (0xF1AF1CF1, UV 0.0140625f) et liseres chauds MenuDrawer::DrawBox."
+    },
+    {
+      "fichier": "native-menu-controls-b1.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "6beb0ccd9474f10565737475a0c2e5bfe40339b94bbf5650f7c244f22991a2ed",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "021d8a5",
+      "build_changes": "Chantier B1: decode all 110 menu.bin pages, PAGE_GAMEPLAY dispatch, type=0/3/5/6 controls, left/right value adjustment, 10-row vertical scroll clamp",
+      "executable_sha256": "a3c58ec31f8b5a936395aecfe0cc1ca6815933fbe3a32dff2ad7c8f9852e5b06",
+      "scenario": "Chantier B1 — BB_NATIVE_CAPTURE_PAGE=CONTROLS over menu-temple preview",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Sous-menu PAGE_CONTROLS Chantier B1 : en-tetes de section (type=0), curseur/slider 50% (type=5), toggles Oui/Non (type=3) et defilement 10 lignes."
     }
   ]
 }
