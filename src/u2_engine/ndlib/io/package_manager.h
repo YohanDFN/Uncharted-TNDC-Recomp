@@ -52,6 +52,8 @@ struct U2NativePackageInfo {
 };
 
 extern "C" {
+// Owned snapshot, safe across request reset and page release.
+bool u2_cpp_PackageMgr_GetLightTable(const char *package, U2NativeLightTable *out);
 bool u2_cpp_PackageMgr_InspectVramExtent(const uint8_t *header,size_t header_size,uint64_t file_size,
                                        uint64_t *offset,uint64_t *bytes);
 bool u2_cpp_PackageMgr_GetNativeTexturePreview(const char *package,size_t index,U2NativeTexturePreview *out);

@@ -1405,6 +1405,54 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                            "On-demand detailed preview does not mutate the package's resident snapshot or streaming state");
         }
         {
+            {
+                using Image=u2::standalone::PreviewDepthImage;
+                U2NativeLightTable lights;lights.decoded=true;lights.probes.resize(5);
+                for(size_t i=0;i<5;++i) {
+                    lights.probes[i].position[0]=float(i*2);
+                    lights.probes[i].sh_direct[0]=float(i+1);
+                    lights.probes[i].sh_indirect[0]=float(i+1);
+                }
+                const auto exact=Image::probe_coefficients(lights,{4,0,0});
+                U2_TEST_ASSERT(exact[0]==6,"SH interpolation retains exact probe and sums direct and indirect");
+                const auto middle=Image::probe_coefficients(lights,{3,0,0});
+                U2_TEST_ASSERT(std::abs(middle[0]-5)<1e-6f,"SH interpolation weights four nearest probes symmetrically");
+                lights.probes[4].sh_direct[0]=1000000;
+                U2_TEST_ASSERT(Image::probe_coefficients(lights,{3,0,0})==middle,
+                               "SH interpolation excludes the fifth nearest probe");
+                Image::SH coefficients{};coefficients[0]=1/0.2820947918f;
+                auto irradiance=Image::sh_irradiance(coefficients,{0,0,1});
+                U2_TEST_ASSERT(std::abs(irradiance[0]-1)<1e-6f && irradiance[1]==0 && irradiance[2]==0,
+                               "SH DC irradiance preserves RGB channels");
+                coefficients={};coefficients[6]=1/0.4886025119f;
+                U2_TEST_ASSERT(Image::sh_irradiance(coefficients,{0,0,1})[0]>0.99f &&
+                               Image::sh_irradiance(coefficients,{0,0,-1})[0]==0,
+                               "SH directional evaluation follows normal and clamps negative irradiance");
+                coefficients={};coefficients[18]=1/0.3153915653f;
+                U2_TEST_ASSERT(Image::sh_irradiance(coefficients,{0,0,1})[0]>1.99f &&
+                               Image::sh_irradiance(coefficients,{1,0,0})[0]==0,
+                               "SH L2 quadratic term varies with surface direction");
+                Image image;image.reset(8,8,0);
+                Image::NormalLighting lighting;lighting.probes_available=true;
+                for(size_t i=0;i<3;++i) {
+                    lighting.normals[i]={0,0,1};
+                    lighting.sh[i][0]=1/0.2820947918f;
+                }
+                const std::array<Image::Vertex,3> face{{{-1,-1,0.5f,1},{1,-1,0.5f,1},{0,1,0.5f,1}}};
+                image.triangle(face,0xFFFFFFFF,{1,1,1},nullptr,{},false,nullptr,lighting);
+                U2_TEST_ASSERT(image.pixels[4*8+4]==0xFF0000BC,
+                               "SH pixel lighting tone maps linear unit red to sRGB without white saturation");
+                lighting.tangent={1,0,0};lighting.bitangent={0,1,0};
+                for(auto &sh : lighting.sh) { sh={};sh[6]=8; }
+                U2NativeTexturePixels forward{1,1,false,{0xFFFF8080}},side{1,1,false,{0xFF8080FF}};
+                image.reset(8,8,0);
+                image.triangle(face,0xFFFFFFFF,{1,1,1},nullptr,{},false,&forward,lighting);
+                const uint32_t forward_red=image.pixels[4*8+4]&255;
+                image.reset(8,8,0);
+                image.triangle(face,0xFFFFFFFF,{1,1,1},nullptr,{},false,&side,lighting);
+                U2_TEST_ASSERT(forward_red>(image.pixels[4*8+4]&255)+100,
+                               "SH per-pixel evaluation responds to tangent-space normal map direction");
+            }
             using u2::standalone::preview_light_intensity;
             float brightness=-1;
             U2_TEST_ASSERT(preview_light_intensity({0,1,0},{0,1,0},&brightness) && brightness==1,
@@ -2045,6 +2093,90 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(invalid_fov && !u2_native_BuildCenteredPerspective(simple, nullptr) &&
                            !u2_native_PerspectiveFromHorizontalFov(1,1,1,11,nullptr),
                            "Perspective validates FOV domain and missing output");
+        }
+        {
+            U2NativeLightTable actual;
+            U2_TEST_ASSERT(u2_cpp_PackageMgr_GetLightTable("menu-temple",&actual) && actual.decoded &&
+                           actual.probes.size()==874 && actual.dynamic_light_count==0,
+                           "Real LIGHT_TABLE_1 decodes 874 probes and zero dynamic lights");
+            bool finite=true;
+            for(const auto &probe : actual.probes) {
+                for(float x : probe.position) finite &= std::isfinite(x);
+                for(float x : probe.sh_direct) finite &= std::isfinite(x);
+                for(float x : probe.sh_indirect) finite &= std::isfinite(x);
+                for(float x : probe.sky_visibility) finite &= std::isfinite(x);
+            }
+            U2_TEST_ASSERT(finite,"Real light probe positions, SH and sky visibility are finite");
+            U2_TEST_ASSERT(!u2_cpp_PackageMgr_GetLightTable(nullptr,&actual) &&
+                           !u2_cpp_PackageMgr_GetLightTable("missing",&actual) &&
+                           !u2_cpp_PackageMgr_GetLightTable("menu-temple",nullptr),
+                           "Light table snapshot rejects missing package or output");
+        }
+        {
+            uint8_t page[640]{};
+            auto put32=[&](size_t off,uint32_t v) {
+                for(unsigned i=0;i<4;++i) page[off+i]=uint8_t(v>>(8*i));
+            };
+            auto put64=[&](size_t off,uint64_t v) {
+                for(unsigned i=0;i<8;++i) page[off+i]=uint8_t(v>>(8*i));
+            };
+            put64(8,112);std::memcpy(page+112,"LIGHT_TABLE_1",sizeof("LIGHT_TABLE_1"));
+            put32(0x14,0x12345);put32(0x3C,2);
+            put64(0x68,reinterpret_cast<uintptr_t>(page+160));
+            for(size_t j=0;j<120;++j) put32(160+j*4,std::bit_cast<uint32_t>(float(j)-30));
+            U2NativeLightTable table;
+            U2_TEST_ASSERT(u2_native_ReadLightTable(&table,page,sizeof(page),0) && table.decoded &&
+                           table.probes.size()==2 && table.dynamic_light_count==0 &&
+                           table.probes[0].position[0]==-30 && table.probes[0].sh_direct[0]==-27 &&
+                           table.probes[0].sh_indirect[0]==0 && table.probes[0].sky_visibility[2]==29 &&
+                           table.probes[1].position[0]==30 && table.probes[1].sky_visibility[2]==89,
+                           "Light decoder reads all fields, signed floats and 240-byte stride");
+            put32(0x14,0);
+            U2_TEST_ASSERT(!u2_native_ReadLightTable(&table,page,sizeof(page),0) && table.probes.size()==2,
+                           "Light decoder rejects invalid magic atomically");
+            put32(0x14,0x12345);page[112]='X';
+            U2_TEST_ASSERT(!u2_native_ReadLightTable(&table,page,sizeof(page),0),"Light decoder rejects invalid type");
+            page[112]='L';page[125]='X';
+            U2_TEST_ASSERT(!u2_native_ReadLightTable(&table,page,sizeof(page),0),"Light decoder requires terminated type");
+            page[125]=0;
+            put64(8,635);
+            U2_TEST_ASSERT(!u2_native_ReadLightTable(&table,page,sizeof(page),0),"Light decoder bounds type string");
+            put64(8,112);
+            bool bad_pointers=true;
+            for(uint64_t address : {uint64_t(0),uint64_t(reinterpret_cast<uintptr_t>(page)-1),
+                                   uint64_t(reinterpret_cast<uintptr_t>(page+161)),UINT64_MAX}) {
+                put64(0x68,address);
+                bad_pointers &= !u2_native_ReadLightTable(&table,page,sizeof(page),0);
+            }
+            U2_TEST_ASSERT(bad_pointers,"Light decoder rejects null, foreign and truncated probe extents");
+            put64(0x68,reinterpret_cast<uintptr_t>(page+160));
+            put32(0x3C,UINT32_MAX);
+            U2_TEST_ASSERT(!u2_native_ReadLightTable(&table,page,sizeof(page),0),"Light decoder bounds count without multiplication overflow");
+            put32(0x3C,2);
+            bool nonfinite=true;
+            for(size_t j=0;j<120;++j) for(uint32_t bits : {0x7FC00000u,0x7F800000u,0xFF800000u}) {
+                put32(160+j*4,bits);
+                nonfinite &= !u2_native_ReadLightTable(&table,page,sizeof(page),0) && table.probes.size()==2 &&
+                             table.probes[0].position[0]==-30;
+                put32(160+j*4,std::bit_cast<uint32_t>(float(j)-30));
+            }
+            U2_TEST_ASSERT(nonfinite,"Light decoder rejects NaN and both infinities in every float atomically");
+            put64(0x20,reinterpret_cast<uintptr_t>(page+128));page[128]=0;
+            U2_TEST_ASSERT(u2_native_ReadLightTable(&table,page,sizeof(page),0) && table.dynamic_light_count==0,
+                           "Light decoder accepts zero dynamic count byte");
+            page[128]=7;
+            U2_TEST_ASSERT(u2_native_ReadLightTable(&table,page,sizeof(page),0) && table.dynamic_light_count==7,
+                           "Light decoder reads nonzero dynamic count byte");
+            put64(0x20,reinterpret_cast<uintptr_t>(page+640));
+            U2_TEST_ASSERT(!u2_native_ReadLightTable(&table,page,sizeof(page),0),"Light decoder bounds dynamic pointer");
+            put64(0x20,0);put32(0x3C,0);put64(0x68,0);
+            U2_TEST_ASSERT(u2_native_ReadLightTable(&table,page,sizeof(page),0) && table.probes.empty() &&
+                           table.dynamic_light_count==0,"Light decoder accepts empty table and replaces prior snapshot");
+            U2_TEST_ASSERT(!u2_native_ReadLightTable(nullptr,page,sizeof(page),0) &&
+                           !u2_native_ReadLightTable(&table,nullptr,sizeof(page),0) &&
+                           !u2_native_ReadLightTable(&table,page,0x6F,0) &&
+                           !u2_native_ReadLightTable(&table,page,sizeof(page),SIZE_MAX),
+                           "Light decoder rejects absent inputs, short metadata and offset overflow");
         }
         U2NativeLevelOffset actual_offset;
         const std::array<float, 3> no_translation{};

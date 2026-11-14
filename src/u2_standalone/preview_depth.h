@@ -9,6 +9,7 @@
 #include <vector>
 #include "preview_texture.h"
 #include "preview_lighting.h"
+#include "game/loading/level_resources.h"
 
 namespace u2::standalone {
 
@@ -18,10 +19,60 @@ class PreviewDepthImage {
 public:
     using Vertex=std::array<float,4>;
     using Vec3=std::array<float,3>;
+    using SH=std::array<float,27>;
+    // Viewer convention: real SH basis [1,y,z,x,xy,yz,3z?-1,xz,x?-y?],
+    // interleaved RGB, direct + indirect treated as irradiance coefficients.
+    // This does not establish the original shader's basis or exposure.
+    static SH probe_coefficients(const U2NativeLightTable &table,const Vec3 &position) {
+        std::array<double,4> distances;
+        distances.fill(std::numeric_limits<double>::infinity());
+        std::array<const U2NativeLightProbe *,4> nearest{};
+        for(const auto &probe : table.probes) {
+            double d=0;
+            for(size_t axis=0;axis<3;++axis) {
+                const double delta=double(position[axis])-probe.position[axis];d+=delta*delta;
+            }
+            for(size_t k=0;k<4;++k) if(d<distances[k]) {
+                for(size_t j=3;j>k;--j) { distances[j]=distances[j-1];nearest[j]=nearest[j-1]; }
+                distances[k]=d;nearest[k]=&probe;break;
+            }
+        }
+        std::array<double,27> sum{};double total=0;
+        for(size_t k=0;k<4;++k) if(nearest[k]) {
+            const double weight=1/std::max(std::sqrt(distances[k]),1e-6);
+            total+=weight;
+            for(size_t j=0;j<27;++j) sum[j]+=weight*(double(nearest[k]->sh_direct[j])+nearest[k]->sh_indirect[j]);
+            if(distances[k]==0) { // An exact sample must retain its own coefficients.
+                total=1;
+                for(size_t j=0;j<27;++j) sum[j]=double(nearest[k]->sh_direct[j])+nearest[k]->sh_indirect[j];
+                break;
+            }
+        }
+        SH result{};
+        if(total>0) for(size_t j=0;j<27;++j)
+            result[j]=float(std::clamp(sum[j]/total,-double(std::numeric_limits<float>::max()),double(std::numeric_limits<float>::max())));
+        return result;
+    }
+    static Vec3 sh_irradiance(const SH &coefficients,Vec3 n) {
+        if(!normalize(n)) return {};
+        const double x=n[0],y=n[1],z=n[2];
+        const double basis[9]={0.2820947918,0.4886025119*y,0.4886025119*z,0.4886025119*x,
+            1.0925484306*x*y,1.0925484306*y*z,0.3153915653*(3*z*z-1),
+            1.0925484306*x*z,0.5462742153*(x*x-y*y)};
+        Vec3 result{};
+        for(size_t c=0;c<3;++c) {
+            double value=0;
+            for(size_t j=0;j<9;++j) value+=basis[j]*coefficients[j*3+c];
+            result[c]=float(std::clamp(value,0.0,double(std::numeric_limits<float>::max())));
+        }
+        return result;
+    }
     struct NormalLighting {
         std::array<Vec3,3> normals;
         Vec3 tangent,bitangent,toward_light;
-        NormalLighting() : normals{},tangent{},bitangent{},toward_light{} {}
+        bool probes_available;
+        std::array<SH,3> sh;
+        NormalLighting() : normals{},tangent{},bitangent{},toward_light{},probes_available(false),sh{} {}
     };
     // UV-derived frame in asset coordinates. A degenerate UV triangle uses Gouraud.
     static bool tangent_frame(const std::array<Vec3,3> &p,
@@ -65,15 +116,15 @@ public:
         if(width<=0 || height<=0 || pixels.size()!=size_t(width)*height || depth.size()!=pixels.size()) return 0;
         if(texture && !preview_texture_valid(*texture)) return 0;
         if(normal_map && !preview_texture_valid(*normal_map)) return 0;
-        struct ClipVertex { Vertex position;float brightness;std::array<float,2> uv;Vec3 normal; };
+        struct ClipVertex { Vertex position;float brightness;std::array<float,2> uv;Vec3 normal;SH sh; };
         std::array<ClipVertex,12> polygon{},clipped{};
         size_t count=3;
         for(size_t i=0;i<3;++i) {
             for(float value : vertices[i]) if(!std::isfinite(value)) return 0;
             if(!std::isfinite(brightness[i]) || brightness[i]<0 || brightness[i]>1) return 0;
             if(texture || normal_map) for(float value : uv[i]) if(!std::isfinite(value)) return 0;
-            polygon[i]={vertices[i],brightness[i],(texture || normal_map) ? uv[i] : std::array<float,2>{},lighting.normals[i]};
-            if(normal_map) for(float value : lighting.normals[i]) if(!std::isfinite(value)) return 0;
+            polygon[i]={vertices[i],brightness[i],(texture || normal_map) ? uv[i] : std::array<float,2>{},lighting.normals[i],lighting.sh[i]};
+            if(normal_map || lighting.probes_available) for(float value : lighting.normals[i]) if(!std::isfinite(value)) return 0;
         }
         for(size_t plane=0;plane<6;++plane) {
             size_t next_count=0;
@@ -101,6 +152,8 @@ public:
                     }
                     for(size_t axis=0;axis<3;++axis)
                         intersection.normal[axis]=previous.normal[axis]+t*(current.normal[axis]-previous.normal[axis]);
+                    for(size_t j=0;j<27;++j)
+                        intersection.sh[j]=float(double(previous.sh[j])*(1-t)+double(current.sh[j])*t);
                     clipped[next_count++]=intersection;
                 }
                 if(current_distance>=0) {
@@ -125,6 +178,7 @@ public:
                        inverse_w,polygon[i].brightness*inverse_w,
                        polygon[i].uv[0]*inverse_w,polygon[i].uv[1]*inverse_w,
                        {polygon[i].normal[0]*inverse_w,polygon[i].normal[1]*inverse_w,polygon[i].normal[2]*inverse_w}};
+            for(size_t j=0;j<27;++j) screen[i].sh_over_w[j]=polygon[i].sh[j]*inverse_w;
             if(!std::isfinite(screen[i].u_over_w) || !std::isfinite(screen[i].v_over_w)) return 0;
         }
         size_t written=0;
@@ -133,7 +187,7 @@ public:
     }
 
 private:
-    struct ScreenVertex { float x,y,z,inverse_w,brightness_over_w,u_over_w,v_over_w;Vec3 normal_over_w; };
+    struct ScreenVertex { float x,y,z,inverse_w,brightness_over_w,u_over_w,v_over_w;Vec3 normal_over_w;SH sh_over_w{}; };
     static bool normalize(Vec3 &v) {
         const float length=std::hypot(v[0],v[1],v[2]);
         if(!std::isfinite(length) || !(length>1e-12f)) return false;
@@ -180,8 +234,11 @@ private:
                 float amount=std::clamp(brightness,0.0f,1.0f);
                 const float u=(e0*a.u_over_w+e1*b.u_over_w+e2*c.u_over_w)/denominator;
                 const float v=(e0*a.v_over_w+e1*b.v_over_w+e2*c.v_over_w)/denominator;
+                Vec3 surface_normal{};
+                for(size_t i=0;i<3;++i)
+                    surface_normal[i]=(e0*a.normal_over_w[i]+e1*b.normal_over_w[i]+e2*c.normal_over_w[i])/denominator;
                 if(normal_map) {
-                    Vec3 n{},t=lighting.tangent;
+                    Vec3 n=surface_normal,t=lighting.tangent;
                     for(size_t i=0;i<3;++i)
                         n[i]=(e0*a.normal_over_w[i]+e1*b.normal_over_w[i]+e2*c.normal_over_w[i])/denominator;
                     if(normalize(n)) {
@@ -198,6 +255,7 @@ private:
                                 const float nz=float((sample>>16)&255)*(2.0f/255)-1;
                                 Vec3 mapped{};
                                 for(size_t i=0;i<3;++i) mapped[i]=t[i]*nx+bvec[i]*ny+n[i]*nz;
+                                surface_normal=mapped;
                                 preview_light_intensity(mapped,lighting.toward_light,&amount);
                             }
                         }
@@ -205,10 +263,25 @@ private:
                 }
                 uint32_t shaded=color&0xFF000000u;
                 if(texture) {
-                    if(!preview_sample_repeat(*texture,u,v,amount,&shaded)) continue;
+                    if(!preview_sample_repeat(*texture,u,v,lighting.probes_available ? 1 : amount,&shaded)) continue;
                     if(alpha_cutout && (shaded>>24)<128) continue;
                 } else for(unsigned shift : {0u,8u,16u})
-                    shaded|=uint32_t(std::lround(float((color>>shift)&255)*amount))<<shift;
+                    shaded|=uint32_t(std::lround(float((color>>shift)&255)*(lighting.probes_available ? 1 : amount)))<<shift;
+                if(lighting.probes_available) {
+                    SH coefficients{};
+                    for(size_t j=0;j<27;++j)
+                        coefficients[j]=float((double(e0)*a.sh_over_w[j]+double(e1)*b.sh_over_w[j]+double(e2)*c.sh_over_w[j])/denominator);
+                    const auto irradiance=sh_irradiance(coefficients,surface_normal);
+                    uint32_t mapped=shaded&0xFF000000u;
+                    for(size_t channel=0;channel<3;++channel) {
+                        float albedo=float((shaded>>(8*channel))&255)/255;
+                        if(!texture || texture->srgb) albedo=preview_srgb_decode(albedo);
+                        const double linear=double(albedo)*irradiance[channel];
+                        const float display=preview_srgb_encode(float(linear/(1+linear)));
+                        mapped|=uint32_t(std::lround(std::clamp(display,0.0f,1.0f)*255))<<(8*channel);
+                    }
+                    shaded=mapped;
+                }
                 depth[pixel]=z;pixels[pixel]=shaded;++written;
             }
         }

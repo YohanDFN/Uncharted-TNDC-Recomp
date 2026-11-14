@@ -48,3 +48,18 @@ struct U2NativeCameraDefinition {
 bool u2_native_ReadCameraDefinitions(std::vector<U2NativeCameraDefinition> *out,
                                      const uint8_t *page, size_t page_size,
                                      size_t metadata_offset);
+
+// Owned LIGHT_TABLE_1 snapshot; no relocated page pointers escape the reader.
+struct U2NativeLightProbe {
+    float position[3]{};
+    float sh_direct[27]{};
+    float sh_indirect[27]{};
+    float sky_visibility[3]{};
+};
+struct U2NativeLightTable {
+    bool decoded{false};
+    uint32_t dynamic_light_count{0};
+    std::vector<U2NativeLightProbe> probes;
+};
+bool u2_native_ReadLightTable(U2NativeLightTable *out, const uint8_t *page,
+                              size_t page_size, size_t metadata_offset);

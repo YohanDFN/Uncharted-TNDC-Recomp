@@ -40,6 +40,7 @@ struct NativePackageRequest {
     std::vector<std::string> login_types;
     U2NativeLevelInfo level_info;
     U2NativeLevelOffset level_offset;
+    U2NativeLightTable light_table;
     bool cameras_decoded{false};
     std::vector<U2NativeCameraDefinition> cameras;
     bool geometry_preview_decoded{false};
@@ -201,6 +202,15 @@ bool resolve_package_file(NativePackageRequest &request) {
                                         if (u2_native_ReadLevelOffset(&request.level_offset, pages[page_index], sizes[page_index], metadata))
                                             std::printf("[U2 Native Level] LEVEL_OFFSET_1 decoded translation=(%.9f, %.9f, %.9f) (engine login pending)\n",
                                                 request.level_offset.translation[0], request.level_offset.translation[1], request.level_offset.translation[2]);
+                                    }
+                                    for (size_t i=0;i<request.login_types.size();++i) {
+                                        if(request.login_types[i]!="LIGHT_TABLE_1") continue;
+                                        const uint32_t page_index=read_le32(root+0x28+i*8);
+                                        const uint32_t metadata=read_le32(root+0x2C+i*8);
+                                        const bool decoded=u2_native_ReadLightTable(&request.light_table,
+                                            pages[page_index],sizes[page_index],metadata);
+                                        std::printf("[U2 Native Light] LIGHT_TABLE_1 decoded=%u probes=%zu dynamic=%u\n",
+                                            unsigned(decoded),request.light_table.probes.size(),request.light_table.dynamic_light_count);
                                     }
                                     for (size_t i = 0; i < request.login_types.size(); ++i) {
                                         if (request.login_types[i] != "CAMERA_TABLE_1") continue;
@@ -554,6 +564,17 @@ extern "C" bool u2_cpp_PackageMgr_GetNativeLevelOffset(const char *package, U2Na
     if (!request || !request->level_offset.decoded) return false;
     *out = request->level_offset;
     return true;
+}
+
+extern "C" bool u2_cpp_PackageMgr_GetLightTable(const char *package, U2NativeLightTable *out) {
+    if(!package || !*package || !out) return false;
+    std::lock_guard lock(s_request_mutex);
+    const auto *request=find_request(string_id(package));
+    if(!request || !request->light_table.decoded) return false;
+    try {
+        auto result=request->light_table;
+        *out=std::move(result);return true;
+    } catch(const std::bad_alloc &) { return false; }
 }
 
 extern "C" bool u2_cpp_PackageMgr_GetNativeCamera(const char *package, size_t index,

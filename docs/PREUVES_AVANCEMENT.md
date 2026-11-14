@@ -5,6 +5,20 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier C4) : `LIGHT_TABLE_1` (`874` light probes SH L2) sur `menu-temple`
+
+[Galerie autonome Chantiers A2 à C4](preuves_avancement/2026-11-14/preuves_avancement.html) (**12** captures framebuffer 1920×1080 embarquées, ordre chronologique croissant).
+
+![Scène 3D menu-temple Chantier C4 éclairée par les 874 light probes SH L2 de LIGHT_TABLE_1](preuves_avancement/2026-11-14/native-menu-temple-c4.png)
+
+Décodage de `LIGHT_TABLE_1` dans `menu-temple.pak` (`login[8]`, magic `0x00012345`) et intégration à l'aperçu natif :
+- **Décodeur `u2_native_ReadLightTable`** ([level_resources.{h,cpp}](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_engine/game/loading/level_resources.h), [package_manager.{h,cpp}](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_engine/ndlib/io/package_manager.cpp)) : lecture des **874 light probes** (`240` octets / `60` floats : position monde, deux jeux SH L2 RGB de `27` floats et `3` floats de visibilité ciel), `dynamic_light_count == 0`, validation des bornes et de la finitude.
+- **Irradiance SH L2 par pixel** ([temple_preview.h](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_standalone/temple_preview.h), [preview_depth.h](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/src/u2_standalone/preview_depth.h)) : interpolation des `K=4` probes les plus proches en distance inverse par sommet, évaluation SH L2 avec les normales BC5 par pixel et tone-mapping Reinhard avant conversion sRGB (avec repli Gouraud si aucune probe n'est disponible).
+
+Validation (build MSYS2 complet `58d26a1` + C4) :
+- Natif `scratch/run_native_test.ps1 6` : **703/703** assertions C++23 (`EngineTest`), `LIGHT_TABLE_1 decoded=1 probes=874 dynamic=0`, code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **709/709**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+
 ## 14 novembre — Chantier C3 : normal maps BC5
 
 [Galerie autonome C3](preuves_avancement/2026-11-14/preuves_avancement.html) : capture framebuffer réelle inspectée, PNG embarqué vérifié octet pour octet.

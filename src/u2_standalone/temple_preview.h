@@ -40,6 +40,8 @@ public:
             !u2_cpp_PackageMgr_GetNativeLevelOffset("menu-temple",&offset) ||
             offset.translation != std::array<float,3>{} ||
             !u2_cpp_PackageMgr_GetNativeGeometryPreview("menu-temple",&meshes)) return false;
+        U2NativeLightTable lights;
+        const bool have_probes=u2_cpp_PackageMgr_GetLightTable("menu-temple",&lights) && !lights.probes.empty();
         std::array<float,16> projection;
         if (!u2_native_BuildCenteredPerspective({1080.0f/1920.0f,1.3032253980636597f,0.24f,5000},&projection)) return false;
         const auto &q=camera.orientation_xyzw;
@@ -154,6 +156,12 @@ public:
                 const auto &n=mesh.normals[v];
                 if(!preview_light_intensity({n[0],n[1],n[2]},toward_light,&brightness[v])) { normals_valid=false;break; }
             }
+            std::vector<PreviewDepthImage::SH> vertex_sh;
+            if(have_probes && normals_valid) {
+                vertex_sh.reserve(mesh.positions.size());
+                for(const auto &position : mesh.positions)
+                    vertex_sh.push_back(PreviewDepthImage::probe_coefficients(lights,{position[0],position[1],position[2]}));
+            }
             if(normals_valid) lit_vertices+=brightness.size();
             else {
                 std::fill(brightness.begin(),brightness.end(),1);
@@ -184,6 +192,11 @@ public:
                     if(color_map || normal_map) for(size_t c=0;c<3;++c) uv[c]=mesh.texcoords[triangle[c]];
                     PreviewDepthImage::NormalLighting lighting;
                     lighting.toward_light=toward_light;
+                    lighting.probes_available=!vertex_sh.empty();
+                    if(normals_valid) for(size_t c=0;c<3;++c) {
+                        for(size_t axis=0;axis<3;++axis) lighting.normals[c][axis]=mesh.normals[triangle[c]][axis];
+                        if(lighting.probes_available) lighting.sh[c]=vertex_sh[triangle[c]];
+                    }
                     const U2NativeTexturePixels *triangle_normal=nullptr;
                     if(normal_map && normals_valid) {
                         std::array<PreviewDepthImage::Vec3,3> positions{};
@@ -231,7 +244,8 @@ public:
             meshes.size(),total,visible,triangles,visible_edges,camera.name.c_str());
         std::printf("[U2 Native Preview] solid covered-pixels=%zu depth-passing-samples=%zu cache-ms=%llu (CPU depth image; static reference view)\n",
             m_covered_pixels,depth_writes,static_cast<unsigned long long>(SDL_GetTicks()-started));
-        std::printf("[U2 Native Preview] lighting normals=%zu/%zu ambient=0.22 diffuse=0.78 (viewer preset; per-pixel normal maps with Gouraud fallback)\n",lit_vertices,total);
+        std::printf("[U2 Native Preview] SH probes=%zu K=4 inverse-distance per vertex; RGB L2 per pixel; Reinhard (viewer convention)\n",lights.probes.size());
+        std::printf("[U2 Native Preview] fallback lighting normals=%zu/%zu ambient=0.22 diffuse=0.78 (viewer preset; per-pixel normal maps with Gouraud fallback)\n",lit_vertices,total);
         std::printf("[U2 Native Preview] textured meshes=%zu depth-passing-samples=%zu (column base color only; no original material, mip selection or anisotropy)\n",textured_meshes,textured_writes);
         return true;
     }

@@ -117,3 +117,56 @@ bool u2_native_ReadCameraDefinitions(std::vector<U2NativeCameraDefinition> *out,
         return true;
     } catch (const std::bad_alloc &) { return false; }
 }
+
+// LIGHT_TABLE_1 wire format: 240-byte records, decoded by field rather than
+// aliasing the serialized bytes as host structs. Publish only a complete table.
+bool u2_native_ReadLightTable(U2NativeLightTable *out, const uint8_t *page,
+                              size_t page_size, size_t metadata_offset) {
+    if (!out || !page || metadata_offset > page_size || page_size-metadata_offset < 0x70) return false;
+    auto le32=[](const uint8_t *p) {
+        return uint32_t(p[0]) | (uint32_t(p[1])<<8) | (uint32_t(p[2])<<16) | (uint32_t(p[3])<<24);
+    };
+    auto le64=[](const uint8_t *p) {
+        uint64_t value=0;
+        for(unsigned i=0;i<8;++i) value|=uint64_t(p[i])<<(8*i);
+        return value;
+    };
+    const auto *meta=page+metadata_offset;
+    constexpr char type[]="LIGHT_TABLE_1";
+    const uint64_t type_offset=le64(meta+8);
+    if(type_offset>page_size || sizeof(type)>page_size-type_offset ||
+       std::memcmp(page+type_offset,type,sizeof(type)) || le32(meta+0x14)!=0x00012345) return false;
+    const uintptr_t base=reinterpret_cast<uintptr_t>(page);
+    auto in_page=[&](uint64_t address,size_t bytes,size_t *offset) {
+        if(address<base || address-base>page_size || bytes>page_size-(address-base)) return false;
+        *offset=size_t(address-base);return true;
+    };
+    U2NativeLightTable result;
+    const uint64_t dynamic=le64(meta+0x20);
+    size_t dynamic_offset=0;
+    if(dynamic) {
+        if(!in_page(dynamic,1,&dynamic_offset)) return false;
+        // The table's leading byte stores the dynamic-light count.
+        result.dynamic_light_count=page[dynamic_offset];
+    }
+    const uint32_t count=le32(meta+0x3C);
+    const uint64_t pointer=le64(meta+0x68);
+    size_t records=0;
+    if(pointer && !in_page(pointer,0,&records)) return false;
+    if(count && (!pointer || count>(page_size-records)/240)) return false;
+    try {
+        result.probes.resize(count);
+        for(size_t i=0;i<count;++i) {
+            auto &probe=result.probes[i];
+            for(size_t j=0;j<60;++j) {
+                const float value=std::bit_cast<float>(le32(page+records+i*240+j*4));
+                if(!std::isfinite(value)) return false;
+                if(j<3) probe.position[j]=value;
+                else if(j<30) probe.sh_direct[j-3]=value;
+                else if(j<57) probe.sh_indirect[j-30]=value;
+                else probe.sky_visibility[j-57]=value;
+            }
+        }
+        result.decoded=true;*out=std::move(result);return true;
+    } catch(const std::bad_alloc &) { return false; }
+}

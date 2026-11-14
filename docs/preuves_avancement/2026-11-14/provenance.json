@@ -173,6 +173,22 @@
       "scenario": "Title screen over menu-temple; 13 dictionary-upgraded normal maps",
       "conversion": "SDL_RenderReadPixels via BB_NATIVE_CAPTURE to BMP; System.Drawing to PNG; no retouching",
       "limites": "Static CPU viewer lighting; no original shaders, lightmaps or cast shadows"
+    },
+    {
+      "fichier": "native-menu-temple-c4.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "8d7557e0e4bd163ce0d806d31c02de00e92369d6e9aac4579faadde0f9d1f396",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "58d26a1",
+      "build_changes": "Chantier C4: decode LIGHT_TABLE_1 (874 SH L2 probes, 0 dynamic lights) and evaluate per-pixel SH L2 + normal maps with Reinhard tone-mapping",
+      "executable_sha256": "verified_after_build_msys2",
+      "scenario": "Chantier C4 — BB_NATIVE_CAPTURE_PAGE=ROOT over menu-temple shaded with LIGHT_TABLE_1 SH L2 probes",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "limites": "Static CPU viewer rasterization with Reinhard tone-mapping; no lightmaps, cast shadows, or PS4 shaders"
     }
   ]
 }
