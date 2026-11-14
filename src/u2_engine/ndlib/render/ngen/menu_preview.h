@@ -36,6 +36,8 @@ struct U2NativeMenuPageLayout {
     U2NativeMenuRect logo_rect, page_box_rect, title_rect, content_rect;
     float row_height{0}, row_step{0}, font_height{0}, selected_font_height{0};
     float shadow_offset{0}, prompts_y{0}, prompts_right_x{0}, copyright_y{0};
+    float box_fade_top{24.0f}, box_fade_bottom{40.0f}, box_alpha{0.65f};
+    float title_scale{1.25f}, copyright_bottom_y{642.0f}, copyright_scale{0.65f}, control_shadow_offset{4.0f};
 };
 // Host layout only: verified virtual frame/anchors, viewer text sizing and note reserve.
 bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2NativeMenuPageLayout *out);

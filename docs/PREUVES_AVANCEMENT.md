@@ -5,6 +5,23 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier A3) : constantes exactes `MenuDrawer::DrawBox`, titre `1.25×` blanc pur et ombres `eboot.elf`
+
+[Galerie autonome Chantiers A2 &amp; A3](preuves_avancement/2026-11-14/preuves_avancement.html) (**4** captures framebuffer 1920×1080 embarquées).
+
+![Écran-titre natif Chantier A3 avec copyright ancré à 642 et ombre proportionnelle](preuves_avancement/2026-11-14/native-menu-root-a3.png)
+
+![Sous-menu PAGE_PROFILE Chantier A3 avec dégradé noir pur SDL_RenderGeometry sans bordure beige](preuves_avancement/2026-11-14/native-menu-profile-a3.png)
+
+Remplacement des approximations du viewer par les constantes extraites de `out/big2/eboot.elf` :
+- **Panneau `MenuDrawer::DrawBox`** (`0x005B8710`, `0x00E61D18–0x00E61D54`) : rendu `SDL_RenderGeometry` noir pur `(0, 0, 0)` avec fondu haut `24.0f`, corps alpha `0.65f`, fondu bas `40.0f` et suppression de la bordure rectangle beige.
+- **Titre & Copyright** (`0x005A4B3F`, `0x005A4250`) : titre blanc pur `(255, 255, 255, 255)` à l'échelle `1.25×`, copyright échelle `0.65f` ancré à `bottom = 642.0f` (720p).
+- **Ombres portées** (`0x0059DA46`, `0x0057A9B7`) : `shadow_offset = 3.0f` (`4.0f` sur contrôles) et `shadow_alpha = 1.0f`.
+
+Validation (build basé sur `d8f9b35`, `out/uncharted2-native.exe` SHA-256 `a0533eb5...`) :
+- Natif `scratch/run_native_test.ps1 6` : **653/653** assertions C++23 (`EngineTest`), code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **659/659**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+
 ## 14 novembre (Chantier A2) : géométrie `1280×720` `MenuPage`, masquage du logo hors titre et panneau `DrawBox`
 
 [Galerie autonome Chantier A2](preuves_avancement/2026-11-14/preuves_avancement.html) (**2** captures framebuffer 1920×1080 embarquées).

@@ -1,42 +1,54 @@
 {
   "date_du_dossier": "2026-11-14",
   "fuseau": "Europe/Paris",
-  "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
-  "executable_sha256": "fb1f6feb076d9c468afb9fc4b0d84afefe4d443baf93618bd26d206a48e151a7",
+  "build_base_commit": "d8f9b35",
+  "executable_sha256": "a0533eb5122c5b06e5ba0f4e635c4e05c9f0dd295b8a55b554312708c5c24035",
   "captures": [
     {
       "fichier": "native-menu-root.png",
       "type": "native_framebuffer",
-      "dimensions": [
-        1920,
-        1080
-      ],
+      "dimensions": [1920, 1080],
       "sha256": "b82b0b8ae16d57e15b90aa48dbf0b3443f6cc11270750c0faec342e497a12b0a",
       "capture_date": "2026-11-14",
       "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
-      "build_changes": "Chantier A2: virtual 1280x720 MenuPage layout (u2_native_ComputeMenuPageLayout), verified 1024x256 logo rect at (128,25), centered controls and wrapped legal text",
-      "executable_sha256": "fb1f6feb076d9c468afb9fc4b0d84afefe4d443baf93618bd26d206a48e151a7",
-      "scenario": "BB_NATIVE_CAPTURE_PAGE=ROOT — PAGE_ROOT_MAIN (0x37656388) over menu-temple preview",
-      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
-      "limites": "Metriques d'ombres, couleurs et fond de panneau restent des approximations du viewer ; bb-probe.exe a echoue sur error 487 (reservation memoire Windows ASLR 0x1000000000)",
-      "legende": "Ecran-titre natif en repere virtuel 1280x720 mis a l'echelle 1920x1080 : logo 1024x256 (128,25), invite Appuyer sur [Croix bleue] pour commencer centree, mentions legales enveloppees en bas."
+      "scenario": "Chantier A2 — BB_NATIVE_CAPTURE_PAGE=ROOT",
+      "legende": "Archive A2 — Ecran-titre natif 1280x720 avant suppression des approximations."
     },
     {
       "fichier": "native-menu-profile.png",
       "type": "native_framebuffer",
-      "dimensions": [
-        1920,
-        1080
-      ],
+      "dimensions": [1920, 1080],
       "sha256": "80224a8c7abecce5eea688006c87a8833326b21e340be588cf20e6d75117c050",
       "capture_date": "2026-11-14",
       "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
-      "build_changes": "Chantier A2: title logo hidden off PAGE_ROOT_MAIN (0x005A611E), centered 1280x720 dark translucent MenuDrawer::DrawBox panel, title separator and prompts anchored below bottom-right corner",
-      "executable_sha256": "fb1f6feb076d9c468afb9fc4b0d84afefe4d443baf93618bd26d206a48e151a7",
-      "scenario": "BB_NATIVE_CAPTURE_PAGE=PROFILE — PAGE_PROFILE (DEMARRER) over menu-temple preview",
+      "scenario": "Chantier A2 — BB_NATIVE_CAPTURE_PAGE=PROFILE",
+      "legende": "Archive A2 — Sous-menu PAGE_PROFILE avec panneau bleu-gris et bordure temporaire."
+    },
+    {
+      "fichier": "native-menu-root-a3.png",
+      "type": "native_framebuffer",
+      "dimensions": [1920, 1080],
+      "sha256": "2afd386fd08023c93b87b9b6c4fbcb194211d9fd33b59fc82bae12b07c35d45f",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "d8f9b35",
+      "build_changes": "Chantier A3: exact eboot.elf copyright anchor (y<=642 in 720p, scale 0.65), shadow_alpha=1.0, shadow_offset=3.0/4.0, proportional copyright shadow",
+      "executable_sha256": "a0533eb5122c5b06e5ba0f4e635c4e05c9f0dd295b8a55b554312708c5c24035",
+      "scenario": "Chantier A3 — BB_NATIVE_CAPTURE_PAGE=ROOT over menu-temple preview",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
-      "limites": "Couleur/opacite exacte du panneau et polices/tailles de rendu restent des conventions du viewer ; sous-pages dynamiques non portees.",
-      "legende": "Sous-menu PAGE_PROFILE sans grand logo, panneau semi-transparent centre en 1280x720 avec titre DEMARRER, separateur, entree doree Continuer, espaceur et invites [X] SELECTIONNER / [O] RETOUR sous le coin inferieur droit."
+      "legende": "Ecran-titre natif Chantier A3 : logo 1024x256 (128,25), invite centree, mentions legales echelle 0.65 ancrees a y=642 (720p) avec ombre proportionnelle."
+    },
+    {
+      "fichier": "native-menu-profile-a3.png",
+      "type": "native_framebuffer",
+      "dimensions": [1920, 1080],
+      "sha256": "ce3c1cf1bd22c1483526d1f61198065a6e5a89aa71dee27719dcbfc5966327ce",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "d8f9b35",
+      "build_changes": "Chantier A3: MenuDrawer::DrawBox pure black SDL_RenderGeometry vertical gradient (fade top 24px, body alpha 0.65, fade bottom 40px, no beige border), pure white 1.25x title",
+      "executable_sha256": "a0533eb5122c5b06e5ba0f4e635c4e05c9f0dd295b8a55b554312708c5c24035",
+      "scenario": "Chantier A3 — BB_NATIVE_CAPTURE_PAGE=PROFILE over menu-temple preview",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Sous-menu PAGE_PROFILE Chantier A3 : degrade noir pur SDL_RenderGeometry sans bordure beige, titre DEMARRER blanc pur 1.25x, invites [X]/[O] sous le coin inferieur droit."
     }
   ]
 }

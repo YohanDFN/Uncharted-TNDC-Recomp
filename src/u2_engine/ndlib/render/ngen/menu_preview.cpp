@@ -21,7 +21,8 @@ bool u2_native_ComputeMenuPageLayout(const U2NativeMenuPagePreview &page, U2Nati
     result.row_height = result.row_step;
     result.font_height = std::min(20.0f, result.row_step * 0.75f);
     result.selected_font_height = std::min(21.0f, result.row_step * 0.8f);
-    result.shadow_offset = 1.5f;
+    result.shadow_offset = 3.0f;
+    result.copyright_bottom_y = 642.0f;
     const float controls_height = rows * result.row_step;
     if(result.show_logo) {
         result.content_rect = {80.0f, std::min(469.5f, 649.5f - controls_height * 0.5f) - controls_height * 0.5f,

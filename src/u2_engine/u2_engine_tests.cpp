@@ -2969,6 +2969,14 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                        profile_layout.prompts_y==profile_layout.page_box_rect.y+profile_layout.page_box_rect.h+15.0f &&
                        profile_layout.prompts_right_x==profile_layout.page_box_rect.x+profile_layout.page_box_rect.w,
                        "Profile centers its panel, separates title/content/notes and anchors prompts below it");
+        U2_TEST_ASSERT(profile_layout.box_fade_top==24.0f && profile_layout.box_fade_bottom==40.0f &&
+                       profile_layout.box_alpha==0.65f,
+                       "Menu panel uses the DrawBox fade extents and central alpha");
+        U2_TEST_ASSERT(profile_layout.title_scale==1.25f && root_layout.copyright_bottom_y==642.0f &&
+                       root_layout.copyright_scale==0.65f,
+                       "Menu title and copyright use the verified scales and bottom anchor");
+        U2_TEST_ASSERT(profile_layout.shadow_offset==3.0f && profile_layout.control_shadow_offset==4.0f,
+                       "Menu text and controls use the verified 720p shadow offsets");
         auto unboxed_page=profile_page;
         for(uint32_t flag : {0x1000u,0x80000u}) {
             unboxed_page.page_flags=flag;

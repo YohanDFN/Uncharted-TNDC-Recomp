@@ -12,7 +12,7 @@
 #include "ndlib/render/ngen/menu_preview.h"
 
 namespace u2::standalone {
-// Host state and verified virtual anchors; text metrics, colors and hits are viewer conventions.
+// Host state and verified menu anchors/styles; text fitting and hits are viewer conventions.
 class TitlePreview {
 public:
     TitlePreview()=default;
@@ -97,11 +97,19 @@ public:
                !SDL_GetRenderDrawColor(renderer,&previous_color.r,&previous_color.g,&previous_color.b,&previous_color.a)) return;
             SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
             const auto box=project(m_page_layout.page_box_rect);
-            SDL_SetRenderDrawColor(renderer,12,15,20,195);
-            SDL_RenderFillRect(renderer,&box);
-            SDL_SetRenderDrawColor(renderer,170,165,145,150);
-            SDL_RenderRect(renderer,&box);
+            // DrawBox (0x005B8710): black panel with vertical alpha fades.
+            const float levels[]{box.y-m_page_layout.box_fade_top*sy,box.y,
+                                 box.y+box.h,box.y+box.h+m_page_layout.box_fade_bottom*sy};
+            const float alphas[]{0.0f,m_page_layout.box_alpha,m_page_layout.box_alpha,0.0f};
+            SDL_Vertex vertices[8]{};
+            for(int level=0;level<4;++level) {
+                vertices[2*level]={{box.x,levels[level]},SDL_FColor{0,0,0,alphas[level]},{0,0}};
+                vertices[2*level+1]={{box.x+box.w,levels[level]},SDL_FColor{0,0,0,alphas[level]},{0,0}};
+            }
+            const int indices[]{0,1,2,1,3,2,2,3,4,3,5,4,4,5,6,5,7,6};
+            SDL_RenderGeometry(renderer,nullptr,vertices,8,indices,18);
             if(m_page_layout.has_title) {
+                SDL_SetRenderDrawColor(renderer,255,255,255,90);
                 const auto title=project(m_page_layout.title_rect);
                 SDL_RenderLine(renderer,title.x,title.y+title.h,title.x+title.w,title.y+title.h);
             }
@@ -110,7 +118,7 @@ public:
         }
         for(const auto &item : m_text) {
             m_font.draw(renderer,item.layout,item.x+item.shadow_offset*sx,item.y+item.shadow_offset*sy,
-                {0,0,0,Uint8((int(item.color.a)*195)/255)},true);
+                {0,0,0,item.color.a},true);
             m_font.draw(renderer,item.layout,item.x,item.y,item.color);
         }
     }
@@ -179,21 +187,24 @@ private:
                 quad.x*=sx;quad.width*=sx;quad.y*=sy;quad.height*=sy;
             }
         };
-        auto add=[&](std::string_view value,const U2NativeMenuRect &rect,float height,SDL_Color color) {
+        auto add=[&](std::string_view value,const U2NativeMenuRect &rect,float height,SDL_Color color,
+                     float shadow_offset=-1.0f) {
             Text item;
-            height=std::min(height,rect.h-2*geometry.shadow_offset);
+            if(shadow_offset<0.0f) shadow_offset=geometry.shadow_offset;
+            height=std::min(height,rect.h-2*shadow_offset);
             if(!layout(value,height,&item.layout)) return false;
-            if(item.layout.advance>rect.w-2*geometry.shadow_offset) {
-                height*=(rect.w-2*geometry.shadow_offset)/item.layout.advance;
+            if(item.layout.advance>rect.w-2*shadow_offset) {
+                height*=(rect.w-2*shadow_offset)/item.layout.advance;
                 if(!layout(value,height,&item.layout)) return false;
             }
             item.x=(rect.x+(rect.w-item.layout.advance)*0.5f)*sx;
             item.y=(rect.y+(rect.h-height)*0.5f)*sy;
-            item.color=color;item.shadow_offset=geometry.shadow_offset;
+            item.color=color;item.shadow_offset=shadow_offset;
             project_text(item.layout);m_text.push_back(std::move(item));return true;
         };
         bool ok=true,selectable=false;
-        if(geometry.has_title) ok=add(page->title,geometry.title_rect,22,{230,218,175,248});
+        if(geometry.has_title) ok=add(page->title,geometry.title_rect,
+            std::min(geometry.font_height*geometry.title_scale,geometry.title_rect.h),{255,255,255,255});
         for(size_t i=0;i<page->controls.size();++i) {
             const auto &ctrl=page->controls[i];
             if(ctrl.is_spacer() || ctrl.label.empty()) continue;
@@ -201,7 +212,8 @@ private:
             const bool selected=i==current_cursor();
             const bool added=add(m_state.display_control_label(ctrl),row,
                 selected ? geometry.selected_font_height : geometry.font_height,
-                ctrl.is_selectable() ? (selected ? gold : SDL_Color{236,236,232,238}) : muted);
+                ctrl.is_selectable() ? (selected ? gold : SDL_Color{236,236,232,238}) : muted,
+                geometry.control_shadow_offset);
             ok=ok && added;
             if(ctrl.is_selectable()) {
                 selectable=true;
@@ -209,7 +221,10 @@ private:
             }
         }
         if(geometry.show_logo) {
-            // Wrap with actual font metrics, then fit all legal lines in the 560..660 band.
+            // Wrap with actual font metrics; anchor the legal block above y=642 in 720p.
+            const float copyright_height=geometry.font_height*geometry.copyright_scale;
+            const float copyright_shadow=geometry.shadow_offset*(copyright_height/42.0f);
+            const float step=copyright_height+4.0f;
             std::vector<std::string> lines;
             std::string line;
             for(size_t at=0;at<page->subtitle.size();) {
@@ -220,17 +235,17 @@ private:
                 const std::string word=page->subtitle.substr(at,next-at);
                 const std::string candidate=line.empty() ? word : line+" "+word;
                 U2NativeFontText measured;
-                if(!layout(candidate,15,&measured)) { ok=false;break; }
-                if(!line.empty() && measured.advance>content.w) {
+                if(!layout(candidate,copyright_height,&measured)) { ok=false;break; }
+                if(!line.empty() && measured.advance>content.w-2*copyright_shadow) {
                     lines.push_back(std::move(line));line=word;
                 } else line=candidate;
                 at=next;
             }
             if(!line.empty()) lines.push_back(std::move(line));
-            const float step=std::min(20.0f,100.0f/float(std::max(size_t{1},lines.size())));
+            const float y_start=geometry.copyright_bottom_y-float(lines.size())*step;
             for(size_t i=0;i<lines.size();++i)
-                ok=add(lines[i],{content.x,geometry.copyright_y+float(i)*step,content.w,step},
-                       std::min(15.0f,step*0.75f),{218,218,218,238}) && ok;
+                ok=add(lines[i],{content.x,y_start+float(i)*step,content.w,step},
+                       copyright_height,{255,255,255,238},copyright_shadow) && ok;
         } else {
             const float note_y=content.y+content.h+12.0f;
             if(!selectable) ok=add("Liste dynamique non portee",{content.x,note_y,content.w,20},16,muted) && ok;

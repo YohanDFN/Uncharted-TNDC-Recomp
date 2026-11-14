@@ -1,18 +1,18 @@
 # Suivi courant
 
-- **Cible actuelle** : Chantier A2 validé (natif + hybride `bb-probe.exe`) — géométrie 2D `1280×720` de `MenuPage` (`u2_native_ComputeMenuPageLayout`), masquage du logo hors `PAGE_ROOT_MAIN`, panneau centré `MenuDrawer::DrawBox` et invites `|X|` / `|C|` ancrées sous le panneau.
+- **Cible actuelle** : Chantier A3 validé (natif + hybride `bb-probe.exe`) — constantes exactes `MenuDrawer::DrawBox` (`SDL_RenderGeometry` noir pur avec fondus `24.0f`/`40.0f` et alpha `0.65f`), titre blanc pur `1.25×`, copyright `0.65×` ancré à `642.0f` et ombres `3.0f`/`4.0f` alpha `1.0f`.
 - **État validé** :
-  - `src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}`, `src/u2_standalone/title_preview.h` et `src/u2_engine/u2_engine_tests.cpp` compilés via `scratch/build_msys2.ps1` (`out/uncharted2-native.exe` SHA-256 `fb1f6feb...`).
-  - Natif `scratch/run_native_test.ps1 6` : **650/650** assertions `EngineTest` passées, sortie `0`.
-  - Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`) : SelfTest **886**, full-body **831**, EngineTest **656/656**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
-  - Captures visuelles réelles inspectées (`docs/preuves_avancement/2026-11-14/native-menu-root.png` et `native-menu-profile.png`), galerie HTML autonome et `provenance.json` générés, `docs/PREUVES_AVANCEMENT.md` mis à jour.
+  - `src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}`, `src/u2_standalone/title_preview.h` et `src/u2_engine/u2_engine_tests.cpp` compilés (`out/uncharted2-native.exe` SHA-256 `a0533eb5...`).
+  - Natif `scratch/run_native_test.ps1 6` : **653/653** assertions `EngineTest` passées, sortie `0`.
+  - Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`) : SelfTest **886**, full-body **831**, EngineTest **659/659**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+  - Captures visuelles réelles inspectées (`native-menu-root-a3.png` et `native-menu-profile-a3.png`), galerie HTML autonome et `provenance.json` mis à jour.
 - **Preuves clés** :
-  - `MenuHost::Draw` (`0x005D130D–0x005D1370`) : repère virtuel `1280×720`.
-  - `MenuDrawer::BuildIcon` (`0x005BC6B6`) & `MenuPage::DrawSinglePage` (`0x005A611E`) : logo `1024×256` en `(128, 25)` uniquement sur `PAGE_ROOT_MAIN` (`0x37656388`), sauté sur `PAGE_PROFILE` et sous-pages.
-  - `MenuPage::ComputeLayout` (`0x005A2670`), `MenuDrawer::DrawBox` (`0x005B8710`) & `MenuPage::DrawPrompts` (`0x005A50F2`).
+  - `MenuDrawer::DrawBox` (`0x005B8710`, `0x00E61D18–0x00E61D54`) : noir pur `(0,0,0)` avec fondus `24.0f` / `40.0f`, alpha `0.65f`, sans bordure rectangle.
+  - `MenuPage::Draw` (`0x005A4B3F`, `0x005A4250`) : titre blanc `1.25×` (`0x8736FC45`), copyright `0.65×` ancré à `642.0f`.
+  - `0x0059DA46` / `0x0057A9B7` : ombres `3.0f` / `4.0f`, alpha `1.0f`.
 - **Incertitude / Limite** :
-  - Les couleurs/opacités exactes du panneau `DrawBox`, des ombres et des sous-pages dynamiques non portées restent des approximations du viewer.
+  - Les sous-pages dynamiques non portées (`PAGE_CONTROLS`, `LIST_MEDALS`, etc.) et la palette exacte par entrée de `menu.bin` (`MenuStyle`) restent à étendre si besoin.
 - **Prochaine expérience** :
-  - Étape suivante du menu fidèle ou rendu temple (`textures/matériaux`/`shaders` ou `U2NativeMenu` transitions/animations).
+  - Prochaine étape au choix : rendu du temple (matériaux/shaders) ou transitions animées/sous-pages dynamiques du menu.
 - **Travail non enregistré** :
   - `.agents/`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`, sous-module `gpu/third_party/fsr-vulkan` (à préserver, ne jamais committer).
