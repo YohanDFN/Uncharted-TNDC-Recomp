@@ -4,9 +4,11 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
 #include <cstddef>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -115,6 +117,15 @@ public:
             native_log("[U2 Native] Previewing real temple opaque surfaces with depth from the start camera.\n");
             if (m_renderer) SDL_SetRenderLogicalPresentation(m_renderer,1920,1080,SDL_LOGICAL_PRESENTATION_LETTERBOX);
             if(!m_title_preview.load(m_renderer)) native_log("[U2 Native Title] original logo unavailable; keeping geometry preview.\n");
+            const char *capture_page=std::getenv("BB_NATIVE_CAPTURE_PAGE");
+            if(capture_page && m_title_preview.ready()) {
+                const std::string_view preset(capture_page);
+                if(preset=="PROFILE") {
+                    m_title_preview.press_select();
+                    const auto *page=m_title_preview.current_page();
+                    native_log(std::string("[native-title] capture preset page=")+(page ? page->name : "none")+"\n");
+                } else if(preset=="ROOT" || preset=="PAGE_ROOT_MAIN") m_title_preview.reset_to_root();
+            }
         } else {
             native_log("[U2 Native] Temple position preview unavailable; see resource diagnostics.\n");
         }

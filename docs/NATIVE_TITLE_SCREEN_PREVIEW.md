@@ -340,3 +340,92 @@ d'Ariane et surbrillance restent des conventions du viewer.
 Prochaine expérience : selon priorité, porter la persistance/UI des sous-pages
 d'options (`PAGE_INGAME_OPTIONS` -> contrôles/affichage/audio) ou relier
 l'action différée `Continuer / Jouer` au pipeline de chargement de niveau natif.
+
+## Chantier A : habillage fidèle `MenuDrawer` et icônes `symbol3.fnt` (14 novembre 2026)
+
+Hypothèse : en décodant la police d'icônes RGBA32 `symbol3.fnt` (`packed=0`) en
+complément de `main.fnt`, en substituant les balises `|...|` prouvées dans
+`Font::DrawText`, en lisant les métadonnées de mise en page de `menu.bin`
+(`+0x20/+0x28` sous-titre légal, `+0x34` `page_flags`, `+0x40/+0x44` coordonnées)
+et en retirant les panneaux/bandeaux/chevrons/fil d'Ariane de diagnostic dans
+`title_preview.h`, l'écran-titre (`PAGE_ROOT_MAIN`) et les sous-menus (`PAGE_PROFILE`,
+etc.) retrouveront la présentation épurée du jeu PS4.
+Critère : `symbol3.fnt` + `symbol3_00.tga` chargés sans exécuter de code PS4,
+balises `|ENTER|`/`|X|`/`|C|`/`|BACK|` rendues avec leurs couleurs natives
+PlayStation (Croix bleue / Rond rouge), mentions `MENU_LEGAL_COPYRIGHT`
+(`0xC313D6F2`) rendues sur `PAGE_ROOT_MAIN` sans invites standard, sous-pages
+flottantes avec sélection dorée et invites `|X| SÉLECTIONNER` / `|C| RETOUR`,
+tests unitaires Étape 21 et captures réelles `ROOT` + `PROFILE` validés sans
+régression.
+
+### Preuves binaires et architecture implémentées
+
+- Extension de `src/u2_engine/ndlib/render/ngen/font_preview.{h,cpp}` :
+  - `u2_native_ReadSymbolFontPreview` et `u2_native_LoadSymbolFontPreview` :
+    lecture de `/app0/u2data/data/fonts/ps4/symbol3.fnt` (BMFont `packed=0`,
+    `lineHeight=40`, `base=33`, `32` glyphes `chnl=15`, sans `kernings`) et de
+    `/app0/u2data/data/fonts/ps4/symbol3_00.tga` (`512×512` BGRA32 non compressé,
+    `tga[17]=0x08` origine bas-gauche retournée vers `RGBA32` origine haute).
+  - `u2_native_LayoutFontTextWithSymbols` : substitution multi-atlas des balises
+    `|ENTER|` / `|X|` (`id=5` Croix bleue), `|C|` / `|BACK|` (`id=2` Rond rouge),
+    `|S|` (`id=3` Carré rose) et `|T|` (`id=4` Triangle vert), conforme à
+    `Font::DrawText` (`0x00CCB270–0x00CCB450` dans `out/big2/eboot.elf`), tout
+    en préservant `preserve_color=true` sur les quads `atlas_index=1`.
+- Extension de `src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}` :
+  - Décodage de `subtitle_string_name` (`+0x20`), `subtitle_string_id` (`+0x28`
+    -> `MENU_LEGAL_COPYRIGHT` `0xC313D6F2` résolu dans `core.psarc:3.common`),
+    `page_flags` (`+0x34`, dont `0x5001` sur `PAGE_ROOT_MAIN` avec bit `0x1`
+    testé en `0x005A4F75` pour masquer les invites standard) et `layout_x` /
+    `layout_y` (`+0x40` / `+0x44`, dont `(40, 34)` sur `PAGE_PROFILE` et
+    `PAGE_NEWPROFILE`).
+- Refonte visuelle de `src/u2_standalone/{bitmap_font_preview,title_preview,engine_context}.h` :
+  - Chargement double atlas `main.fnt` + `symbol3.fnt` et helper
+    `draw_with_shadow` (ombre portée teintée noir même sous les icônes).
+  - Retrait intégral des éléments de debug : panneau sombre, bande inférieure,
+    voile rectangulaire, fil d'Ariane, bandeau statut sauvegarde, chevrons `> <`
+    et libellés `[ENTREE/X]` / `[F1]`.
+  - Distinction nette `PAGE_ROOT_MAIN` (logo, `"Appuyer sur [X] pour commencer"`,
+    texte légal enveloppé par largeur mesurée, aucune invite) vs sous-pages
+    (liste flottante pilotée par `layout_y`, or `240, 200, 40` sur l'item actif,
+    blanc chaud / gris doux, invites `|X| SÉLECTIONNER` et `|C| RETOUR` en bas à
+    droite selon `can_go_back()`).
+  - Présélection déterministe pour capture via `BB_NATIVE_CAPTURE_PAGE` (`ROOT` /
+    `PROFILE`) dans `engine_context.h`.
+- Étape 21 dans `src/u2_engine/u2_engine_tests.cpp` : tests synthétiques (origine
+  bas/haut, rejets atomiques, `+0x20..+0x44`) et vérification sur vrais assets
+  que le glyphe `id=2` est à dominante rouge (`R > B`), `id=5` à dominante
+  bleue (`B > R`), que les invites localisées produisent le quad icône exact et
+  que `menu.bin` expose `0x5001` / `0xC313D6F2` / `(40, 34)`.
+
+### Validation et résultat
+
+- `git diff --check` propre et build MSYS2 réussi.
+- Natif (`scratch/run_native_test.ps1 6`) : **643/643** assertions C++23,
+  sandbox full-body **831**, code **0**, chargement loggué de `symbol3.fnt`
+  (`32` glyphes, `512×512 RGBA32`).
+- Hybride (`scratch/run_test.ps1 6`, `user/last_run.log`) : SelfTest **886**,
+  full-body **831**, EngineTest **649/649**, **889** détours installés, zéro
+  crash, Guest fault ni nouvelle assertion jusqu'à `STOPPED_AFTER_TIMEOUT`.
+- Captures SDL `1920×1080` du build basé sur `23bba9a` (`out/uncharted2-native.exe`
+  SHA-256 `70ccfffbfb1200d41696f252bf5d3aa567e7647d65aa00bd3d1b8744eee9854a`),
+  inspectées visuellement :
+  - [04-menu-fidele-ecran-titre-symbol3.png](preuves_avancement/2026-11-13/04-menu-fidele-ecran-titre-symbol3.png)
+    (`1 940 310` octets, SHA-256 `12474b47ff6795494b3344175a1a62a854eb09572ce98b28cd3793b6dbca27c2`,
+    `BB_NATIVE_CAPTURE_PAGE=ROOT`).
+  - [05-menu-fidele-page-profil-symbol3.png](preuves_avancement/2026-11-13/05-menu-fidele-page-profil-symbol3.png)
+    (`1 918 767` octets, SHA-256 `d19d5dbd681be6c7b7dd6f1aa23225e1917f9383a9891638b0aa29e629d78d06`,
+    `BB_NATIVE_CAPTURE_PAGE=PROFILE` ; `Bonus` `cursor=6` doré suite au survol initial
+    du pointeur sur l'écran secondaire au moment de la capture).
+- [Galerie HTML autonome](preuves_avancement/2026-11-13/preuves_avancement.html)
+  (**7** PNG embarqués vérifiés octet par octet contre le disque) et
+  [provenance.json](preuves_avancement/2026-11-13/provenance.json).
+
+Limites : le placement au pixel près sur la surface SDL, l'ombrage des textes et
+l'architecture des shaders/éclairages 3D du temple restent des approximations de
+prévisualisation ; les actions gameplay (`Nouvelle partie`, `Continuer / Jouer`,
+`Charger partie`, `Commencer chapitre`), les sous-pages d'options et les listes
+dynamiques restent différées.
+
+Prochaine expérience : porter l'interaction et les valeurs de configuration des
+sous-pages d'options (`PAGE_CONTROLS`, `PAGE_VIDEO`, `PAGE_AUDIO`) ou relier le
+bouton `Continuer / Jouer` au pipeline de chargement de niveau natif.

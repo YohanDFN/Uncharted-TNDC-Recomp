@@ -18,8 +18,12 @@ struct U2NativeMenuControlPreview {
 };
 struct U2NativeMenuPagePreview {
     uint32_t id{0}, title_string_id{0};
+    uint32_t subtitle_string_id{0}, page_flags{0};
+    int32_t layout_x{0}, layout_y{0};
     std::string name, title_string_name, title;
+    std::string subtitle_string_name, subtitle;
     std::vector<U2NativeMenuControlPreview> controls;
+    bool hides_standard_prompts() const { return (page_flags & 0x1u) != 0u; }
 };
 struct U2NativePostStartMenuPreview {
     U2NativeMenuPagePreview root_main, profile, new_profile;
@@ -70,11 +74,13 @@ public:
     const U2NativeMenuPagePreview *find_page(uint32_t page_id) const;
     const U2NativeMenuPagePreview *current_page() const;
     size_t stack_depth() const { return m_stack.size(); }
+    bool can_go_back() const { return m_stack.size() > 1; }
     const std::vector<U2NativeMenuStackEntry> &stack() const { return m_stack; }
     size_t current_cursor() const { return m_stack.empty() ? 0 : m_stack.back().cursor; }
     U2NativeMenuTransitionState transition_state() const { return m_transition_state; }
     const U2NativeSavedataStatus &savedata_status() const { return m_save; }
     const std::string &last_status_note() const { return m_last_status_note; }
+    const std::string &status_message() const { return m_last_status_note; }
     std::string display_control_label(const U2NativeMenuControlPreview &ctrl) const;
     bool set_cursor(size_t index);
     bool move_cursor(int delta);

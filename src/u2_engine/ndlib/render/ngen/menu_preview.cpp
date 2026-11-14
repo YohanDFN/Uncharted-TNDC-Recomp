@@ -120,6 +120,13 @@ bool u2_native_ReadPostStartMenuPreview(U2NativePostStartMenuPreview *out,
             if(title_name && !cstring(menu_bin, menu_size, title_name, 0x60, 256, page->title_string_name)) return false;
             page->title_string_id = uint32_t(le(p + 0x18, 4));
             if(page->title_string_id && !resolve(table, page->title_string_id, page->title)) return false;
+            const uint64_t subtitle_name = le(p + 0x20, 8);
+            if(subtitle_name && !cstring(menu_bin, menu_size, subtitle_name, 0x60, 256, page->subtitle_string_name)) return false;
+            page->subtitle_string_id = uint32_t(le(p + 0x28, 4));
+            if(page->subtitle_string_id && !resolve(table, page->subtitle_string_id, page->subtitle)) return false;
+            page->page_flags = uint32_t(le(p + 0x34, 4));
+            page->layout_x = int32_t(uint32_t(le(p + 0x40, 4)));
+            page->layout_y = int32_t(uint32_t(le(p + 0x44, 4)));
             const uint64_t header = le(p + 0x38, 8);
             if(header < 0x60 || header > menu_size - 16) return false;
             const uint64_t controls = le(menu_bin + size_t(header), 8);

@@ -11,14 +11,17 @@ struct U2NativeFontGlyph {
 };
 struct U2NativeFontPreview {
     int line_height{0},baseline{0},atlas_width{0},atlas_height{0};
+    bool is_packed{true};
     std::map<uint32_t,U2NativeFontGlyph> glyphs;
     std::map<uint64_t,int> kernings;
-    // Four white RGBA mask planes stacked vertically: B, G, R, A.
+    // Packed: four white RGBA mask planes (B, G, R, A); unpacked: color RGBA.
     U2NativeTexturePixels atlas;
 };
 struct U2NativeFontQuad {
     float x{0},y{0},width{0},height{0};
     int source_x{0},source_y{0},source_width{0},source_height{0};
+    uint8_t atlas_index{0};
+    bool preserve_color{false};
 };
 struct U2NativeFontText {
     float advance{0};
@@ -34,3 +37,10 @@ bool u2_native_LoadMainFontPreview(U2NativeFontPreview *out);
 // pixel_height scales the declared lineHeight, not each glyph's ink bounds.
 bool u2_native_LayoutFontText(const U2NativeFontPreview &font,std::string_view text,
                               float pixel_height,U2NativeFontText *out);
+
+bool u2_native_ReadSymbolFontPreview(U2NativeFontPreview *out,std::string_view description,
+                                     const uint8_t *tga,size_t tga_bytes);
+bool u2_native_LoadSymbolFontPreview(U2NativeFontPreview *out);
+bool u2_native_LayoutFontTextWithSymbols(const U2NativeFontPreview &main_font,
+                                         const U2NativeFontPreview *symbol_font,std::string_view text,
+                                         float pixel_height,U2NativeFontText *out);

@@ -5,10 +5,30 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
-## 14 novembre : machine à états interactive `MenuHost` (pile de pages, sauvegardes `SAVEDATA` et navigation live)
+## 14 novembre (Chantier A) : habillage fidèle `MenuDrawer` et icônes `symbol3.fnt`
 
 [Galerie autonome mise à jour](preuves_avancement/2026-11-13/preuves_avancement.html)
-(référence hybride, premier aperçu natif, capture `main.fnt`, listes post-X et menu interactif live — **5** images embarquées).
+(référence hybride, premier aperçu natif, `main.fnt`, listes post-X, machine à états live, écran-titre épuré et `PAGE_PROFILE` fidèle avec `symbol3.fnt` — **7** images embarquées).
+
+![Écran-titre natif épuré avec icône Croix bleue symbol3.fnt et mentions MENU_LEGAL_COPYRIGHT](preuves_avancement/2026-11-13/04-menu-fidele-ecran-titre-symbol3.png)
+
+![Sous-menu PAGE_PROFILE flottant avec sélection dorée et invites X/O symbol3.fnt](preuves_avancement/2026-11-13/05-menu-fidele-page-profil-symbol3.png)
+
+L'analyse binaire de `out/big2/eboot.elf` et des assets d'interface achève le retrait de l'habillage de diagnostic dans le viewer natif :
+- Décodage natif de la police d'icônes PlayStation `u2data/data/fonts/ps4/symbol3.fnt` + `symbol3_00.tga` (slot 2 de `g_apFonts` `0x0144E640` chargé en `0x003F6E81`, **32** glyphes `chnl=15` `packed=0`, TGA 512×512 BGRA32 origine bas-gauche `tga[17]=0x08`) via `src/u2_engine/ndlib/render/ngen/font_preview.{h,cpp}` et `src/u2_standalone/bitmap_font_preview.h`.
+- Substitution des balises `|ENTER|` / `|X|` (glyphe `5`, Croix bleue), `|C|` / `|BACK|` (glyphe `2`, Rond rouge), `|S|` (`3`) et `|T|` (`4`) prouvée dans `Font::DrawText` (`0x00CCB270–0x00CCB450`).
+- Décodage dans `menu_preview.{h,cpp}` des champs `+0x20/+0x28` (`MENU_LEGAL_COPYRIGHT` `0xC313D6F2` sur `PAGE_ROOT_MAIN`), `+0x34` (`page_flags` bit `0x1` testé en `0x005A4F75` pour masquer les invites standard) et `+0x40/+0x44` (`layout_x`, `layout_y`).
+- Rendu `MenuDrawer` dans `src/u2_standalone/title_preview.h` sans panneau noir, ni bandeau bas, ni fil d'Ariane, ni chevrons `> <`, ni encadré doré : `PAGE_ROOT_MAIN` affiche le logo, `"Appuyer sur [Croix bleue] pour commencer"` et les mentions légales enveloppées ; les sous-pages flottent avec ombres portées, sélection dorée (`240, 200, 40`) et invites `|X| SÉLECTIONNER` / `|C| RETOUR` en bas à droite.
+
+Validation (build basé sur `23bba9a`, `out/uncharted2-native.exe` SHA-256 `70ccfffb...`) :
+- Natif `scratch/run_native_test.ps1 6` : **643/643** assertions C++23 (dont Étape 21), full-body **831**, code **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **649/649**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+- Captures SDL 1920×1080 inspectées visuellement (`04-menu-fidele-ecran-titre-symbol3.png` `1 940 310` o SHA-256 `12474b47...` avec `BB_NATIVE_CAPTURE_PAGE=ROOT` ; `05-menu-fidele-page-profil-symbol3.png` `1 918 767` o SHA-256 `d19d5dbd...` avec `BB_NATIVE_CAPTURE_PAGE=PROFILE`, où `Bonus` est doré par survol pointeur initial sur l'écran secondaire). Voir [preuves et limites](NATIVE_TITLE_SCREEN_PREVIEW.md).
+
+## 14 novembre : machine à états interactive `MenuHost` (pile de pages, sauvegardes `SAVEDATA` et navigation live)
+
+[Galerie autonome précédente](preuves_avancement/2026-11-13/preuves_avancement.html)
+(machine à états live interactive ajoutée).
 
 ![Machine à états interactive MenuHost sur PAGE_PROFILE avec curseur actif](preuves_avancement/2026-11-13/03-menu-interactif-pile-pages.png)
 

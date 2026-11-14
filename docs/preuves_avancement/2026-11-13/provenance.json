@@ -77,29 +77,54 @@
       "scenario": "Live Win32 PostMessage sequence (VK_RETURN -> PAGE_PROFILE, VK_DOWN x2 -> cursor=3 Nouvelle partie skipping spacer 2) captured at >=1800ms on menu-temple + logo + main.fnt, followed by VK_DOWN x2 -> Options -> VK_RETURN PAGE_INGAME_OPTIONS -> VK_BACK -> VK_F1 toggle",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (>=1800ms); Python zlib BMP to PNG; no retouching",
       "legende": "Live interactive MenuHost state machine capture on PAGE_PROFILE (cursor=3 Nouvelle partie, active SAVEDATA02P profile + SAVEDATA020 campaign detected). Breadcrumb bar, card colors, and highlight bar remain viewer conventions."
+    },
+    {
+      "fichier": "04-menu-fidele-ecran-titre-symbol3.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "12474b47ff6795494b3344175a1a62a854eb09572ce98b28cd3793b6dbca27c2",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "23bba9a49e64b89cd5a16405dcb0e997bc03b2ac",
+      "build_changes": "Chantier A: symbol3.fnt unpacked RGBA32 atlas decoding (bottom-origin TGA), Font::DrawText pipe-tag substitution (|ENTER|, |X|, |C|, |BACK|, |S|, |T|), menu.bin subtitle/page_flags/layout_x/layout_y parsing, clean MenuDrawer visual styling without debug boxes or ASCII chevrons, and Step 21 unit tests",
+      "executable_sha256": "70ccfffbfb1200d41696f252bf5d3aa567e7647d65aa00bd3d1b8744eee9854a",
+      "scenario": "BB_NATIVE_CAPTURE_PAGE=ROOT on menu-temple + logo + main.fnt + symbol3.fnt: clean PAGE_ROOT_MAIN title screen with native blue Cross icon and wrapped MENU_LEGAL_COPYRIGHT (0xC313D6F2)",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (>=1800ms); Python zlib BMP to PNG; no retouching",
+      "legende": "Clean native title screen (PAGE_ROOT_MAIN): original logo, 'Appuyer sur [symbol3 blue Cross] pour commencer' and 2-line wrapped MENU_LEGAL_COPYRIGHT without dark box, breadcrumb or bottom bar."
+    },
+    {
+      "fichier": "05-menu-fidele-page-profil-symbol3.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "d19d5dbd681be6c7b7dd6f1aa23225e1917f9383a9891638b0aa29e629d78d06",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "23bba9a49e64b89cd5a16405dcb0e997bc03b2ac",
+      "build_changes": "Chantier A: symbol3.fnt unpacked RGBA32 atlas decoding, MenuDrawer floating page typography, menu.bin layout_y & page_flags prompt control, and bottom-right PlayStation button prompts",
+      "executable_sha256": "70ccfffbfb1200d41696f252bf5d3aa567e7647d65aa00bd3d1b8744eee9854a",
+      "scenario": "BB_NATIVE_CAPTURE_PAGE=PROFILE on menu-temple + logo + main.fnt + symbol3.fnt: floating PAGE_PROFILE list with drop shadows, active gold typography (Bonus cursor=6 hovered by secondary-display pointer at capture), and bottom-right symbol3 Cross/Circle prompts",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (>=1800ms); Python zlib BMP to PNG; no retouching",
+      "legende": "Clean floating PAGE_PROFILE menu using MenuDrawer colors (gold active item Bonus at cursor=6, white selectable items, no debug box/chevrons/breadcrumb) and genuine symbol3.fnt blue Cross / red Circle prompts at bottom-right."
     }
   ],
   "validation": {
-    "native_assertions": "606/606",
+    "native_assertions": "643/643",
     "native_seconds": 6,
     "native_exit": 0,
-    "hybrid_assertions": "612/612",
+    "hybrid_assertions": "649/649",
     "hybrid_seconds": 6,
     "hybrid_exit": "STOPPED_AFTER_TIMEOUT",
     "selftest": 886,
-    "full_body": 831,
-    "interactive_sequence_exit": 0,
-    "toggle_seconds": 6,
-    "toggle_observed": [
-      "hidden",
-      "visible"
-    ],
-    "toggle_exit": 0
+    "full_body": 831
   },
   "limits": [
-    "main.fnt proven in eboot.elf slot 1 (0x0144E640 / 0x003F6D0C; MenuDrawer -1 resolved via 0x01450D18 -> 1)",
-    "gameplay actions (NewGame, LoadGame, Continue/Play, GameplayOptions, ChapterStart) and unloaded leaf subpages/dynamic lists (e.g. PAGE_CONTROLS, LIST_MEDALS) are explicitly deferred without launching levels or faking state",
-    "card layout, breadcrumb bar, colors, highlight bar, text shadow, logo vertical flip and shade remain preview conventions",
+    "main.fnt proven in eboot.elf slot 1 (0x0144E640 / 0x003F6D0C) and symbol3.fnt proven in slot 2 (0x0144E640 / 0x003F6E81) with Font::DrawText pipe-tag substitution (0x00CCB270..0x00CCB450)",
+    "exact 3D shader/foliage/lighting pipeline in temple scene, dynamic animations, and gameplay/leaf settings actions (NewGame, LoadGame, Continue/Play, GameplayOptions, ChapterStart, PAGE_CONTROLS, LIST_MEDALS) remain pending or deferred",
+    "precise pixel spacing, font scale ratios and logo vertical flip on the SDL preview surface remain viewer approximations guided by menu.bin layout_y and reference screenshots",
     "fresh original framebuffer capture attempts unsuccessful; prior validated reference reused"
   ]
 }

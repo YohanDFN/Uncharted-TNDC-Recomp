@@ -2915,6 +2915,29 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects page name outside permitted string region atomically");
         bad_menu = menu;put_le(bad_menu, 0x80 + 0x70 + 0x10, uint64_t(-1), 8);
         U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects invalid optional title name atomically");
+        bad_menu = menu;put_le(bad_menu, 0x80 + 0x20, uint64_t(-1), 8);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu) && parsed_menu.root_main.subtitle_string_name.empty(),
+                       "PostStartMenu rejects invalid subtitle string offsets atomically");
+        bad_menu = menu;put_le(bad_menu, 0x80 + 0x28, 0xFFFFFFFFu, 4);
+        U2_TEST_ASSERT(rejects_menu_bytes(bad_menu) && parsed_menu.root_main.subtitle_string_id==0 &&
+                       parsed_menu.root_main.subtitle.empty(),
+                       "PostStartMenu rejects unresolved subtitle localization IDs atomically");
+        auto presentation = menu;
+        const size_t subtitle_offset=append_string(presentation,"MENU_SYNTHETIC_SUBTITLE");
+        put_le(presentation,0x80+0x20,subtitle_offset,8);
+        put_le(presentation,0x80+0x28,0x317D0541u,4);
+        put_le(presentation,0x80+0x34,0x5001u,4);
+        put_le(presentation,0x80+0x40,uint32_t(-40),4);
+        put_le(presentation,0x80+0x44,34,4);
+        U2NativePostStartMenuPreview presentation_menu;
+        U2_TEST_ASSERT(u2_native_ReadPostStartMenuPreview(&presentation_menu,presentation.data(),presentation.size(),
+                                                        common.data(),common.size()) &&
+                       presentation_menu.root_main.subtitle_string_name=="MENU_SYNTHETIC_SUBTITLE" &&
+                       presentation_menu.root_main.subtitle_string_id==0x317D0541u &&
+                       presentation_menu.root_main.subtitle==strings.at(0x317D0541u) &&
+                       presentation_menu.root_main.hides_standard_prompts() &&
+                       presentation_menu.root_main.layout_x==-40 && presentation_menu.root_main.layout_y==34,
+                       "PostStartMenu decodes subtitle, prompt flags and signed presentation coordinates");
         bad_menu = menu;put_le(bad_menu, 0x80 + 0x70 + 0x38, uint64_t(-1), 8);
         U2_TEST_ASSERT(rejects_menu_bytes(bad_menu), "PostStartMenu rejects invalid controls header atomically");
         bad_menu = menu;put_le(bad_menu, profile_header + 8, menu.size() + 1, 8);
@@ -3172,6 +3195,185 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
                                "Step20 real target descriptors and non-selectable medals list match binary evidence");
                 exercise(real);
             }
+        }
+    }
+
+    // 21. MenuDrawer symbol atlas, inline controller glyphs and page presentation data.
+    {
+        const std::string description =
+            "common lineHeight=2 base=1 scaleW=2 scaleH=2 pages=1 packed=0\n"
+            "page id=0 file=\"symbol3_00.tga\"\nchars count=4\n"
+            "char id=2 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=15\n"
+            "char id=3 x=0 y=1 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=15\n"
+            "char id=4 x=1 y=1 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=15\n"
+            "char id=5 x=1 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0 chnl=15\n";
+        std::vector<uint8_t> tga(18 + 16, 0);
+        tga[2]=2;tga[12]=2;tga[14]=2;tga[16]=32;tga[17]=0x08;
+        const uint8_t bottom_origin_pixels[]{
+            0,255,0,255, 255,255,255,255,
+            0,0,255,255, 255,0,0,255
+        };
+        std::memcpy(tga.data()+18,bottom_origin_pixels,sizeof(bottom_origin_pixels));
+        U2NativeFontPreview sym;
+        const bool decoded=u2_native_ReadSymbolFontPreview(&sym,description,tga.data(),tga.size());
+        const std::vector<uint32_t> expected{0xFF0000FFu,0xFFFF0000u,0xFF00FF00u,0xFFFFFFFFu};
+        U2_TEST_ASSERT(decoded && !sym.is_packed && sym.atlas.width==2 && sym.atlas.height==2 &&
+                       sym.atlas.rgba==expected && sym.glyphs.size()==4 && sym.kernings.empty(),
+                       "Step21 bottom-origin BGRA symbol atlas becomes top-origin colored RGBA without kerning section");
+        auto top=tga;top[17]=0x28;
+        std::memcpy(top.data()+18,tga.data()+26,8);
+        std::memcpy(top.data()+26,tga.data()+18,8);
+        U2NativeFontPreview top_sym;
+        U2_TEST_ASSERT(u2_native_ReadSymbolFontPreview(&top_sym,description,top.data(),top.size()) &&
+                       top_sym.atlas.rgba==expected,
+                       "Step21 top-origin and bottom-origin TGA decode to identical red circle and blue cross pixels");
+        const auto saved_pixels=sym.atlas.rgba;
+        auto rejects=[&](std::string_view desc,const uint8_t *data,size_t bytes) {
+            return !u2_native_ReadSymbolFontPreview(&sym,desc,data,bytes) && sym.atlas.rgba==saved_pixels &&
+                   sym.glyphs.size()==4 && !sym.is_packed && sym.line_height==2;
+        };
+        auto replace=[&](std::string_view from,std::string_view to) {
+            auto text=description;text.replace(text.find(from),from.size(),to);return text;
+        };
+        U2_TEST_ASSERT(!u2_native_ReadSymbolFontPreview(nullptr,description,tga.data(),tga.size()) &&
+                       !u2_native_LoadSymbolFontPreview(nullptr) && rejects(description,nullptr,tga.size()) &&
+                       rejects(description,tga.data(),17) && rejects(description,tga.data(),tga.size()-1) &&
+                       rejects("",tga.data(),tga.size()) && rejects(std::string(256*1024+1,'A'),tga.data(),tga.size()) &&
+                       rejects(replace("packed=0","packed=1"),tga.data(),tga.size()) &&
+                       rejects(replace("pages=1","pages=2"),tga.data(),tga.size()) &&
+                       rejects(replace("chnl=15","chnl=1"),tga.data(),tga.size()) &&
+                       rejects(replace("symbol3_00.tga","symbol3_00.png"),tga.data(),tga.size()) &&
+                       rejects(replace("chars count=4","chars count=0"),tga.data(),tga.size()) &&
+                       rejects(replace("chars count=4","chars count=5"),tga.data(),tga.size()),
+                       "Step21 symbol parser rejects null, truncated, oversized and inconsistent descriptions atomically");
+        for(size_t field : {size_t(0),size_t(1),size_t(2),size_t(16),size_t(17)}) {
+            auto bad=tga;bad[field]=field==17 ? 0x18 : 1;
+            U2_TEST_ASSERT(rejects(description,bad.data(),bad.size()),
+                           "Step21 symbol parser rejects unsupported TGA headers atomically");
+        }
+        for(int dimension : {0,2049}) {
+            auto bad=tga;bad[12]=uint8_t(dimension);bad[13]=uint8_t(dimension>>8);
+            U2_TEST_ASSERT(rejects(description,bad.data(),bad.size()),
+                           "Step21 symbol parser bounds atlas dimensions atomically");
+        }
+        auto oversized=tga;oversized[12]=0;oversized[13]=8;oversized[14]=0;oversized[15]=8;
+        U2_TEST_ASSERT(rejects(description,oversized.data(),oversized.size()),
+                       "Step21 symbol parser rejects pixel counts above one megapixel");
+
+        U2NativeFontPreview main;
+        main.line_height=20;main.atlas_height=2;
+        for(unsigned id=32;id<127;++id) {
+            U2NativeFontGlyph g;g.width=1;g.height=2;g.advance=10;g.channel=1;
+            main.glyphs.emplace(id,g);
+        }
+        main.kernings.emplace((uint64_t('A')<<32)|'B',-2);
+        U2NativeFontText layout;
+        for(const char *token : {"|ENTER|","|X|","|C|","|BACK|","|S|","|T|"}) {
+            const bool laid=u2_native_LayoutFontTextWithSymbols(main,&sym,token,20.0f,&layout);
+            const int expected_x=std::string_view(token)=="|ENTER|" || std::string_view(token)=="|X|" ||
+                                 std::string_view(token)=="|T|" ? 1 : 0;
+            U2_TEST_ASSERT(laid && layout.quads.size()==1 && layout.quads[0].atlas_index==1 &&
+                           layout.quads[0].preserve_color && layout.quads[0].source_x==expected_x &&
+                           std::fabs(layout.advance-11.5f)<1e-4f &&
+                           std::fabs(layout.quads[0].y-4.25f)<1e-4f,
+                           "Step21 inline controller tokens select colored symbol quads with centered scaled ink");
+        }
+        U2_TEST_ASSERT(u2_native_LayoutFontTextWithSymbols(main,nullptr,"|X|",20.0f,&layout) &&
+                       layout.quads.size()==3 && layout.quads[0].atlas_index==0 && !layout.quads[0].preserve_color &&
+                       std::fabs(layout.advance-30.0f)<1e-4f,
+                       "Step21 null symbol font falls back to ordinary main-font text");
+        U2_TEST_ASSERT(u2_native_LayoutFontTextWithSymbols(main,&sym,"|UNKNOWN|",20.0f,&layout) &&
+                       layout.quads.size()==9 && layout.quads[0].atlas_index==0 &&
+                       u2_native_LayoutFontTextWithSymbols(main,&sym,"|X",20.0f,&layout) && layout.quads.size()==2,
+                       "Step21 unknown and unclosed tokens remain literal main-font text");
+        U2_TEST_ASSERT(u2_native_LayoutFontTextWithSymbols(main,&sym,"AB|X|AB",20.0f,&layout) &&
+                       layout.quads.size()==5 && std::fabs(layout.advance-47.5f)<1e-4f &&
+                       layout.quads[0].atlas_index==0 && !layout.quads[0].preserve_color,
+                       "Step21 inline symbols preserve main-font kerning and break adjacent kerning pairs");
+        U2_TEST_ASSERT(u2_native_LayoutFontTextWithSymbols(main,&sym,"A|X|B",20.0f,&layout) &&
+                       layout.quads.size()==3 && std::fabs(layout.advance-31.5f)<1e-4f,
+                       "Step21 inline symbol resets the main-font kerning predecessor");
+        auto packed=sym;packed.is_packed=true;packed.glyphs[5].channel=4;
+        U2_TEST_ASSERT(u2_native_LayoutFontTextWithSymbols(main,&packed,"|X|",20.0f,&layout) &&
+                       layout.quads.size()==1 && layout.quads[0].atlas_index==1 && !layout.quads[0].preserve_color &&
+                       layout.quads[0].source_y==4,
+                       "Step21 packed symbol fonts use their channel plane and allow tinting");
+        const auto saved_quads=layout.quads;
+        const float saved_advance=layout.advance;
+        auto rejects_layout=[&](std::string_view text,float height) {
+            return !u2_native_LayoutFontTextWithSymbols(main,&sym,text,height,&layout) &&
+                   layout.advance==saved_advance && layout.quads.size()==saved_quads.size() && !saved_quads.empty() &&
+                   layout.quads[0].source_y==saved_quads[0].source_y && !layout.quads[0].preserve_color;
+        };
+        U2_TEST_ASSERT(!u2_native_LayoutFontTextWithSymbols(main,&sym,"A",20,nullptr) &&
+                       rejects_layout("A\xFF",20) && rejects_layout("\xC0\xAF",20) &&
+                       rejects_layout("\xE2\x82",20) && rejects_layout("\xED\xA0\x80",20) &&
+                       rejects_layout("\xF4\x90\x80\x80",20) && rejects_layout("A\xC2\xA9",20) &&
+                       rejects_layout(std::string(8193,'A'),20) && rejects_layout("A",0) &&
+                       rejects_layout("A",-1) && rejects_layout("A",513) &&
+                       rejects_layout("A",std::nanf("")) && rejects_layout("A",HUGE_VALF),
+                       "Step21 symbol layout rejects malformed UTF-8, missing glyphs, excess length and invalid heights atomically");
+        U2_TEST_ASSERT(u2_native_LayoutFontTextWithSymbols(main,&sym,std::string(8192,'A'),20,&layout) &&
+                       layout.quads.size()==8192,
+                       "Step21 symbol layout accepts its exact 8192-byte text boundary");
+
+        bool assets=true;
+        for(const char *path : {"/app0/u2data/data/fonts/ps4/symbol3.fnt",
+                               "/app0/u2data/data/fonts/ps4/symbol3_00.tga",
+                               "/app0/u2data/data/fonts/ps4/main.fnt",
+                               "/app0/u2data/build/main/dc1/ps4/menu.bin",
+                               "/app0/u2data/build/main/core.psarc"}) {
+            const int fd=int(runtime_file_open(path,0,0));
+            if(fd>=0) runtime_file_close(fd);else assets=false;
+        }
+        if(assets) {
+            U2NativeFontPreview real_sym,real_main;
+            U2NativePostStartMenuPreview real_menu;
+            const bool loaded_sym=u2_native_LoadSymbolFontPreview(&real_sym);
+            U2_TEST_ASSERT(loaded_sym && !real_sym.is_packed && real_sym.line_height==40 && real_sym.baseline==33 &&
+                           real_sym.atlas_width==512 && real_sym.atlas_height==512 && real_sym.glyphs.size()==32 &&
+                           real_sym.kernings.empty(),
+                           "Step21 real symbol3 font has 32 unpacked glyphs and verified metrics");
+            for(uint32_t id : {2u,5u}) {
+                const auto it=real_sym.glyphs.find(id);
+                const bool valid=loaded_sym && it!=real_sym.glyphs.end() && it->second.x==(id==2 ? 0 : 192) &&
+                                 it->second.y==75 && it->second.width==64 && it->second.height==64 && it->second.advance==60;
+                U2_TEST_ASSERT(valid,"Step21 real circle and cross rectangles match verified font records");
+                if(valid && real_sym.atlas.width==512 && real_sym.atlas.height==512 && real_sym.atlas.rgba.size()==512*512) {
+                    uint64_t red=0,blue=0,opaque=0;
+                    const auto &g=it->second;
+                    for(int y=g.y;y<g.y+g.height;++y) for(int x=g.x;x<g.x+g.width;++x) {
+                        const uint32_t pixel=real_sym.atlas.rgba[size_t(y)*512+size_t(x)];
+                        if((pixel>>24)>=128) { red+=pixel&255;blue+=(pixel>>16)&255;++opaque; }
+                    }
+                    U2_TEST_ASSERT(opaque>0 && (id==2 ? red>blue : blue>red),
+                                   "Step21 real circle is red and cross is blue, proving BGRA conversion and vertical origin");
+                } else U2_TEST_ASSERT(false,"Step21 real symbol atlas has bounded 512x512 decoded pixels");
+            }
+            const bool loaded_main=u2_native_LoadMainFontPreview(&real_main);
+            const bool loaded_menu=u2_native_LoadPostStartMenuPreview(&real_menu);
+            U2_TEST_ASSERT(loaded_main && loaded_menu,"Step21 real main font and menu assets load for inline prompts");
+            if(loaded_main && loaded_menu && loaded_sym) {
+                for(const std::string &text : {std::string("Appuyer sur |ENTER| pour commencer"),
+                                              "|X| "+real_menu.select_label,"|C| "+real_menu.back_label}) {
+                    U2NativeFontText prompt;
+                    const bool laid=u2_native_LayoutFontTextWithSymbols(real_main,&real_sym,text,32,&prompt);
+                    size_t icons=0;bool correct=true;
+                    for(const auto &q : prompt.quads) if(q.atlas_index==1) {
+                        ++icons;correct=correct && q.preserve_color && q.source_y==75 &&
+                            q.source_x==(text.starts_with("|C|") ? 0 : 192);
+                    }
+                    U2_TEST_ASSERT(laid && icons==1 && correct,
+                                   "Step21 real localized prompts contain exactly one correctly colored cross or circle quad");
+                }
+            }
+            U2_TEST_ASSERT(loaded_menu && real_menu.root_main.page_flags==0x5001u &&
+                           real_menu.root_main.hides_standard_prompts() &&
+                           real_menu.root_main.subtitle_string_name=="MENU_LEGAL_COPYRIGHT" &&
+                           real_menu.root_main.subtitle_string_id==0xC313D6F2u && !real_menu.root_main.subtitle.empty() &&
+                           real_menu.profile.page_flags==0x20u && !real_menu.profile.hides_standard_prompts() &&
+                           real_menu.profile.layout_x==40 && real_menu.profile.layout_y==34,
+                           "Step21 real menu subtitle, prompt flags and profile layout match verified menu.bin fields");
         }
     }
 

@@ -203,3 +203,25 @@ SHA-256: `9d90748c43ed7d18bae723bc0df5426b02de82e01446d68a323d79661d24262a`
 - **Travail non enregistré** : aucun fichier de l'itération en attente après commit ; éléments environnementaux préservés (`.agents/`, sous-module `gpu/third_party/fsr-vulkan`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`).
 
 <!-- End of archived handoff -->
+
+
+---
+
+## 2026-11-14T12:32:45.640617+00:00
+
+SHA-256: `a1928b4b24f2b95b5817e752bbf876fed61c92a1e8343104c1019286148888c8`
+
+# État courant
+
+- **Branche** : `dev-native` (sur `01ddd0a` + machine à états interactive `MenuHost`).
+- **Cible** : Menu principal natif dynamique conforme à `MenuHost` (`0x005CB990`) en C++23 sans exécution de code PS4.
+- **État validé** :
+  - `menu_preview.{h,cpp}` décode `target_page_name` (`+0x48`) / `target_page_id` (`+0x50`) dans `dc1/ps4/menu.bin`, charge `PAGE_INGAME_OPTIONS` (`0xB793B4B2`), `PAGE_BONUSES` (`0x22D667C0`), `PAGE_CHAPTERS` (`0xBE2C8B4B`) et `PAGE_MULTIMEDALS` (`0xACE1A9D5`), lit l'état profil/campagne hôte dans `SAVEDATA02P/USR-DATA` et `SAVEDATA020/USR-DATA` (`0xCD..0xD6` inclus), et exécute `U2NativeMenuStateMachine` (pile de pages, curseur par page, saut des séparateurs et `type != 2`, report explicite des actions gameplay et feuilles non portées).
+  - `title_preview.h` / `engine_context.h` ouvrent sur `PAGE_ROOT_MAIN` (`0x37656388`) avec navigation clavier (`Haut`/`Bas`/`W`/`S`, `Entrée`/`X`/`Espace` lorsque visible, `Retour arrière`/`Échap` si `depth > 1`, bascule `F1`) et souris, plus capture différée `BB_NATIVE_CAPTURE` (`>= 1800 ms`).
+  - Natif `scratch/run_native_test.ps1 6` (`606/606` dont Étape 20, sortie `0`) ; séquence interactive automatisée Win32 + capture live `docs/preuves_avancement/2026-11-13/03-menu-interactif-pile-pages.png` (1920×1080, inspectée visuellement et embarquée 5/5 dans `preuves_avancement.html`, sortie `0`) ; hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log` : SelfTest `886`, full-body `831`, `612/612`, zéro crash ni Guest fault jusqu'à `STOPPED_AFTER_TIMEOUT`).
+- **Preuves** : `docs/NATIVE_TITLE_SCREEN_PREVIEW.md`, `docs/PREUVES_AVANCEMENT.md`, `docs/preuves_avancement/2026-11-13/{provenance.json,preuves_avancement.html,03-menu-interactif-pile-pages.png}`.
+- **Incertitude** : chargement effectif des niveaux/sauvegardes depuis les boutons gameplay différés (`Nouvelle partie`, `Continuer / Jouer`, `Charger partie`, `Commencer chapitre`) et persistance/UI des sous-pages d'options (`PAGE_CONTROLS`, `PAGE_VIDEO`, `PAGE_AUDIO`) et des listes dynamiques (`LIST_MEDALS`).
+- **Prochaine expérience** : relier soit les sous-pages d'options (`PAGE_INGAME_OPTIONS`), soit l'action différée `Continuer / Jouer` au pipeline de chargement de niveau natif.
+- **Travail non enregistré** : éléments environnementaux préservés uniquement (`.agents/`, sous-module `gpu/third_party/fsr-vulkan`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`).
+
+<!-- End of archived handoff -->

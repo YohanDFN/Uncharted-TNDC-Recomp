@@ -56,17 +56,29 @@ bool next_utf8(std::string_view text,size_t &at,uint32_t &value) {
     }
     return value>=minimum && value<=0x10FFFF && !(value>=0xD800 && value<=0xDFFF);
 }
+bool read_file(const char *path,size_t budget,std::vector<uint8_t> &bytes) {
+    const int fd=int(runtime_file_open(path,0,0));if(fd<0) return false;
+    struct Close { int fd;~Close() { runtime_file_close(fd); } } close{fd};
+    const int64_t size=runtime_file_lseek(fd,0,2);
+    if(size<=0 || uint64_t(size)>budget) return false;
+    bytes.resize(size_t(size));
+    return runtime_file_pread(fd,bytes.data(),bytes.size(),0)==size;
 }
-
-bool u2_native_ReadMainFontPreview(U2NativeFontPreview *out,std::string_view description,
-                                   const uint8_t *tga,size_t bytes) {
+bool glyph_plane(unsigned channel,int &plane) {
+    if(channel==1) plane=0;else if(channel==2) plane=1;
+    else if(channel==4) plane=2;else if(channel==8) plane=3;
+    else return false;
+    return true;
+}
+bool read_font(U2NativeFontPreview *out,std::string_view description,
+                                   const uint8_t *tga,size_t bytes,bool packed) {
     if(!out || description.empty() || description.size()>256*1024 || !tga || bytes<18 || bytes>4*1024*1024) return false;
-    if(tga[0]!=0 || tga[1]!=0 || tga[2]!=2 || tga[16]!=32 || (tga[17]&0xF0)!=0x20) return false;
+    if(tga[0]!=0 || tga[1]!=0 || tga[2]!=2 || tga[16]!=32 || (packed ? (tga[17]&0xF0)!=0x20 : (tga[17]&0xD0)!=0)) return false;
     const int width=int(tga[12])|(int(tga[13])<<8),height=int(tga[14])|(int(tga[15])<<8);
     if(!width || !height || width>2048 || height>2048 || size_t(width)*height>1024*1024 ||
        size_t(width)*height>(bytes-18)/4) return false;
     try {
-        U2NativeFontPreview font;
+        U2NativeFontPreview font; font.is_packed=packed;
         bool common=false,page=false,chars=false,kernings=false;
         int declared_chars=0,declared_pairs=0;
         while(!description.empty()) {
@@ -82,16 +94,16 @@ bool u2_native_ReadMainFontPreview(U2NativeFontPreview *out,std::string_view des
             Fields f;if(!fields(line.substr(split),f)) return false;
             if(kind=="info") continue;
             if(kind=="common") {
-                int pages=0,packed=0;
+                int pages=0,packed_value=0;
                 if(common || !number(f,"lineHeight",font.line_height) || !number(f,"base",font.baseline) ||
                    !number(f,"scaleW",font.atlas_width) || !number(f,"scaleH",font.atlas_height) ||
-                   !number(f,"pages",pages) || !number(f,"packed",packed) || pages!=1 || packed!=1 ||
+                   !number(f,"pages",pages) || !number(f,"packed",packed_value) || pages!=1 || packed_value!=int(packed) ||
                    font.line_height<=0 || font.line_height>4096 || font.baseline<0 || font.baseline>font.line_height ||
                    font.atlas_width!=width || font.atlas_height!=height) return false;
                 common=true;
             } else if(kind=="page") {
                 int id=0;const auto file=f.find("file");
-                if(page || !number(f,"id",id) || id!=0 || file==f.end() || file->second!="main_00.tga") return false;
+                if(page || !number(f,"id",id) || id!=0 || file==f.end() || file->second!=(packed ? "main_00.tga" : "symbol3_00.tga")) return false;
                 page=true;
             } else if(kind=="chars") {
                 if(chars || !number(f,"count",declared_chars) || declared_chars<=0 || declared_chars>1024) return false;
@@ -101,7 +113,7 @@ bool u2_native_ReadMainFontPreview(U2NativeFontPreview *out,std::string_view des
                 if(font.glyphs.size()>=1024 || !number(f,"id",id) || !codepoint(id) || !number(f,"x",g.x) || !number(f,"y",g.y) ||
                    !number(f,"width",g.width) || !number(f,"height",g.height) || !number(f,"xoffset",g.x_offset) ||
                    !number(f,"yoffset",g.y_offset) || !number(f,"xadvance",g.advance) || !number(f,"page",pi) || !number(f,"chnl",channel) ||
-                   pi!=0 || (channel!=1 && channel!=2 && channel!=4 && channel!=8) ||
+                   pi!=0 || (packed ? (channel!=1 && channel!=2 && channel!=4 && channel!=8) : channel!=15) ||
                    g.x<0 || g.y<0 || g.width<0 || g.height<0 || g.x>width || g.y>height ||
                    g.width>width-g.x || g.height>height-g.y || g.x_offset < -4096 || g.x_offset>4096 ||
                    g.y_offset < -4096 || g.y_offset>4096 || g.advance<0 || g.advance>4096) return false;
@@ -123,41 +135,83 @@ bool u2_native_ReadMainFontPreview(U2NativeFontPreview *out,std::string_view des
             (void)amount;
             if(!font.glyphs.contains(uint32_t(pair>>32)) || !font.glyphs.contains(uint32_t(pair))) return false;
         }
-        font.atlas.width=uint32_t(width);font.atlas.height=uint32_t(height*4);
-        font.atlas.rgba.resize(size_t(width)*height*4);
-        for(size_t plane=0;plane<4;++plane) for(size_t pixel=0;pixel<size_t(width)*height;++pixel)
-            font.atlas.rgba[plane*size_t(width)*height+pixel]=0xFFFFFFu|(uint32_t(tga[18+pixel*4+plane])<<24);
+        font.atlas.width=uint32_t(width);font.atlas.height=uint32_t(height*(packed ? 4 : 1));
+        font.atlas.rgba.resize(size_t(font.atlas.width)*font.atlas.height);
+        if(packed) {
+            for(size_t plane=0;plane<4;++plane) for(size_t pixel=0;pixel<size_t(width)*height;++pixel)
+                font.atlas.rgba[plane*size_t(width)*height+pixel]=0xFFFFFFu|(uint32_t(tga[18+pixel*4+plane])<<24);
+        } else {
+            const bool top_origin=(tga[17]&0x20)!=0;
+            for(int y=0;y<height;++y) for(int x=0;x<width;++x) {
+                const int src_y=top_origin ? y : height-1-y;
+                const uint8_t *pixel=tga+18+(size_t(src_y)*width+x)*4;
+                font.atlas.rgba[size_t(y)*width+x]=uint32_t(pixel[2])|(uint32_t(pixel[1])<<8)|
+                    (uint32_t(pixel[0])<<16)|(uint32_t(pixel[3])<<24);
+            }
+        }
         *out=std::move(font);return true;
     } catch(const std::bad_alloc &) { return false; }
 }
 
-bool u2_native_LoadMainFontPreview(U2NativeFontPreview *out) {
+bool load_font(U2NativeFontPreview *out,const char *description_path,const char *tga_path,bool packed) {
     if(!out) return false;
     try {
-        auto read=[](const char *path,size_t budget,std::vector<uint8_t> &bytes) {
-            const int fd=int(runtime_file_open(path,0,0));if(fd<0) return false;
-            struct Close { int fd;~Close() { runtime_file_close(fd); } } close{fd};
-            const int64_t size=runtime_file_lseek(fd,0,2);
-            if(size<=0 || uint64_t(size)>budget) return false;
-            bytes.resize(size_t(size));
-            return runtime_file_pread(fd,bytes.data(),bytes.size(),0)==size;
-        };
         std::vector<uint8_t> description,tga;
-        if(!read("/app0/u2data/data/fonts/ps4/main.fnt",256*1024,description) ||
-           !read("/app0/u2data/data/fonts/ps4/main_00.tga",4*1024*1024,tga)) return false;
-        return u2_native_ReadMainFontPreview(out,{reinterpret_cast<const char*>(description.data()),description.size()},tga.data(),tga.size());
+        if(!read_file(description_path,256*1024,description) || !read_file(tga_path,4*1024*1024,tga)) return false;
+        return read_font(out,{reinterpret_cast<const char*>(description.data()),description.size()},tga.data(),tga.size(),packed);
     } catch(const std::bad_alloc &) { return false; }
+}
+}
+
+bool u2_native_ReadMainFontPreview(U2NativeFontPreview *out,std::string_view description,
+                                   const uint8_t *tga,size_t bytes) {
+    return read_font(out,description,tga,bytes,true);
+}
+bool u2_native_ReadSymbolFontPreview(U2NativeFontPreview *out,std::string_view description,
+                                     const uint8_t *tga,size_t bytes) {
+    return read_font(out,description,tga,bytes,false);
+}
+bool u2_native_LoadMainFontPreview(U2NativeFontPreview *out) {
+    return load_font(out,"/app0/u2data/data/fonts/ps4/main.fnt","/app0/u2data/data/fonts/ps4/main_00.tga",true);
+}
+bool u2_native_LoadSymbolFontPreview(U2NativeFontPreview *out) {
+    return load_font(out,"/app0/u2data/data/fonts/ps4/symbol3.fnt","/app0/u2data/data/fonts/ps4/symbol3_00.tga",false);
 }
 
 bool u2_native_LayoutFontText(const U2NativeFontPreview &font,std::string_view text,
                               float pixel_height,U2NativeFontText *out) {
-    if(!out || font.line_height<=0 || font.line_height>4096 || text.size()>8192 ||
+    return u2_native_LayoutFontTextWithSymbols(font,nullptr,text,pixel_height,out);
+}
+
+bool u2_native_LayoutFontTextWithSymbols(const U2NativeFontPreview &font,
+                                         const U2NativeFontPreview *symbol_font,std::string_view text,
+                                         float pixel_height,U2NativeFontText *out) {
+    if(!out || (symbol_font && (symbol_font->line_height<=0 || symbol_font->line_height>4096)) || font.line_height<=0 || font.line_height>4096 || text.size()>8192 ||
        !std::isfinite(pixel_height) || pixel_height<=0 || pixel_height>512) return false;
     try {
         U2NativeFontText result;result.quads.reserve(text.size());
         const float scale=pixel_height/float(font.line_height);
         bool has_previous=false;uint32_t previous=0;
         for(size_t at=0;at<text.size();) {
+            if(symbol_font && text[at]=='|') {
+                const size_t end=text.substr(at+1,32).find('|');
+                if(end!=std::string_view::npos) {
+                    const size_t close=at+1+end;
+                    const auto token=text.substr(at+1,close-at-1);
+                    const uint32_t symbol_id=(token=="ENTER" || token=="X") ? 5 :
+                        (token=="C" || token=="BACK") ? 2 : token=="S" ? 3 : token=="T" ? 4 : 0;
+                    const auto it=symbol_font->glyphs.find(symbol_id);
+                    if(symbol_id && it!=symbol_font->glyphs.end()) {
+                        const auto &g=it->second;int plane=0;
+                        if(symbol_font->is_packed && !glyph_plane(g.channel,plane)) return false;
+                        const float sym_scale=(pixel_height*1.15f)/float(symbol_font->line_height);
+                        const float sym_w=g.width*sym_scale,sym_h=g.height*sym_scale;
+                        result.quads.push_back({result.advance+g.x_offset*sym_scale,(pixel_height-sym_h)*0.5f,
+                            sym_w,sym_h,g.x,g.y+plane*symbol_font->atlas_height,g.width,g.height,1,!symbol_font->is_packed});
+                        result.advance+=g.advance*sym_scale;has_previous=false;at=close+1;continue;
+                    }
+                }
+            }
             uint32_t id=0;if(!next_utf8(text,at,id)) return false;
             const auto it=font.glyphs.find(id);if(it==font.glyphs.end()) return false;
             if(has_previous) {
@@ -166,8 +220,7 @@ bool u2_native_LayoutFontText(const U2NativeFontPreview &font,std::string_view t
             }
             const auto &g=it->second;
             int plane=0;
-            if(g.channel==2) plane=1;else if(g.channel==4) plane=2;else if(g.channel==8) plane=3;
-            else if(g.channel!=1) return false;
+            if(!glyph_plane(g.channel,plane)) return false;
             if(g.width && g.height) result.quads.push_back({result.advance+g.x_offset*scale,g.y_offset*scale,
                 g.width*scale,g.height*scale,g.x,g.y+plane*font.atlas_height,g.width,g.height});
             result.advance+=g.advance*scale;previous=id;has_previous=true;
