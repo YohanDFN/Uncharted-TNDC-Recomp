@@ -1,6 +1,7 @@
 #include "menu_preview.h"
 #include "u2_engine.h"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <cstdio>
 #include <new>
@@ -297,7 +298,8 @@ bool U2NativeMenuStateMachine::init(const U2NativePostStartMenuPreview *menu, co
     if(!menu || !menu->root_main.id) return false;
     std::vector<U2NativeMenuStackEntry> initial{{&menu->root_main, menu->root_main.id, first_selectable(menu->root_main)}};
     m_stack = std::move(initial);m_menu = menu;m_save = save;
-    m_transition_state = U2NativeMenuTransitionState::Reset;m_last_status_note.clear();return true;
+    m_transition_state = U2NativeMenuTransitionState::Reset;m_last_status_note.clear();
+    reset_page_animation(true);return true;
 }
 const U2NativeMenuPagePreview *U2NativeMenuStateMachine::find_page(uint32_t id) const {
     if(!m_menu || !id) return nullptr;
@@ -364,7 +366,7 @@ U2NativeMenuTransitionResult U2NativeMenuStateMachine::transition_to_page(uint32
             m_transition_state = U2NativeMenuTransitionState::Push;action = U2NativeMenuActionKind::TransitionPush;
         }
     }
-    m_last_status_note.clear();return {true, action, from, id, ""};
+    m_last_status_note.clear();reset_page_animation(true);return {true, action, from, id, ""};
 }
 U2NativeMenuTransitionResult U2NativeMenuStateMachine::press_select() {
     const uint32_t id = current_page() ? current_page()->id : 0;
@@ -404,8 +406,78 @@ U2NativeMenuTransitionResult U2NativeMenuStateMachine::press_back() {
     const uint32_t from = current_page() ? current_page()->id : 0;
     if(m_stack.size() <= 1) return {false, U2NativeMenuActionKind::None, from, from, ""};
     m_stack.pop_back();m_transition_state = U2NativeMenuTransitionState::Pop;m_last_status_note.clear();
+    reset_page_animation(true);
     return {true, U2NativeMenuActionKind::TransitionPop, from, current_page()->id, ""};
 }
 U2NativeMenuTransitionResult U2NativeMenuStateMachine::reset_to_root() {
     return transition_to_page(m_menu ? m_menu->root_main.id : 0, true);
+}
+
+float u2_native_EvalMenuEase(U2NativeMenuEaseMode mode, float t) {
+    const float clamped = std::clamp(t, 0.0f, 1.0f);
+    switch(mode) {
+    case U2NativeMenuEaseMode::Cosine: {
+        constexpr float kPi = 3.14159265358979323846f;
+        return 0.5f * std::cos(kPi * clamped + kPi) + 0.5f;
+    }
+    case U2NativeMenuEaseMode::QuadIn: return clamped * clamped;
+    case U2NativeMenuEaseMode::QuadOut: return 1.0f - (1.0f - clamped) * (1.0f - clamped);
+    case U2NativeMenuEaseMode::Linear: return clamped;
+    case U2NativeMenuEaseMode::Smoothstep: return clamped * clamped * (3.0f - 2.0f * clamped);
+    case U2NativeMenuEaseMode::Scaled02: return std::clamp(t / kU2NativeMenuTransitionDurationSec, 0.0f, 1.0f);
+    }
+    return clamped;
+}
+
+U2NativeMenuColor u2_native_ApplyTextStyleColorTransform(U2NativeMenuColor color) {
+    const float lum = (color.r + color.g + color.b) / 3.0f;
+    auto xform = [lum](float c) {
+        const float boosted = std::clamp(lum + (c - lum) * 1.5f, 0.0f, 1.0f);
+        return std::pow(boosted, 0.9f);
+    };
+    return {xform(color.r), xform(color.g), xform(color.b), std::clamp(color.a, 0.0f, 1.0f)};
+}
+
+U2NativeMenuColor u2_native_InterpolateMenuColor(U2NativeMenuColor unselected, U2NativeMenuColor selected,
+                                                 float t, U2NativeMenuEaseMode mode) {
+    const float w = u2_native_EvalMenuEase(mode, t);
+    auto lerp = [w](float a, float b) { return a + (b - a) * w; };
+    return {lerp(unselected.r, selected.r), lerp(unselected.g, selected.g),
+            lerp(unselected.b, selected.b), lerp(unselected.a, selected.a)};
+}
+
+void U2NativeMenuStateMachine::reset_page_animation(bool snap_focus) {
+    m_page_fade = 0.0f;
+    const auto *page = current_page();
+    m_control_focus.assign(page ? page->controls.size() : 0, 0.0f);
+    if(snap_focus && page && current_cursor() < m_control_focus.size() && page->controls[current_cursor()].is_selectable())
+        m_control_focus[current_cursor()] = 1.0f;
+}
+
+void U2NativeMenuStateMachine::tick(float dt_sec) {
+    if(!(dt_sec > 0.0f)) return;
+    const float step = dt_sec / kU2NativeMenuTransitionDurationSec;
+    m_page_fade = std::min(1.0f, m_page_fade + step);
+    const auto *page = current_page();
+    if(!page) return;
+    if(m_control_focus.size() != page->controls.size()) m_control_focus.assign(page->controls.size(), 0.0f);
+    const size_t cursor = current_cursor();
+    for(size_t i = 0; i < page->controls.size(); ++i) {
+        const bool active = (i == cursor) && page->controls[i].is_selectable();
+        m_control_focus[i] = active ? std::min(1.0f, m_control_focus[i] + step)
+                                    : std::max(0.0f, m_control_focus[i] - step);
+    }
+}
+
+void U2NativeMenuStateMachine::snap_animations() {
+    m_page_fade = 1.0f;
+    const auto *page = current_page();
+    if(!page) { m_control_focus.clear(); return; }
+    m_control_focus.assign(page->controls.size(), 0.0f);
+    const size_t cursor = current_cursor();
+    if(cursor < m_control_focus.size() && page->controls[cursor].is_selectable()) m_control_focus[cursor] = 1.0f;
+}
+
+float U2NativeMenuStateMachine::control_focus(size_t index) const {
+    return index < m_control_focus.size() ? m_control_focus[index] : 0.0f;
 }

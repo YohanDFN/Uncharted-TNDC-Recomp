@@ -1,18 +1,14 @@
-# Suivi courant
+# Etat du travail courant
 
-- **Cible actuelle** : Chantier A3 validé (natif + hybride `bb-probe.exe`) — constantes exactes `MenuDrawer::DrawBox` (`SDL_RenderGeometry` noir pur avec fondus `24.0f`/`40.0f` et alpha `0.65f`), titre blanc pur `1.25×`, copyright `0.65×` ancré à `642.0f` et ombres `3.0f`/`4.0f` alpha `1.0f`.
-- **État validé** :
-  - `src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}`, `src/u2_standalone/title_preview.h` et `src/u2_engine/u2_engine_tests.cpp` compilés (`out/uncharted2-native.exe` SHA-256 `a0533eb5...`).
-  - Natif `scratch/run_native_test.ps1 6` : **653/653** assertions `EngineTest` passées, sortie `0`.
-  - Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`) : SelfTest **886**, full-body **831**, EngineTest **659/659**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
-  - Captures visuelles réelles inspectées (`native-menu-root-a3.png` et `native-menu-profile-a3.png`), galerie HTML autonome et `provenance.json` mis à jour.
-- **Preuves clés** :
-  - `MenuDrawer::DrawBox` (`0x005B8710`, `0x00E61D18–0x00E61D54`) : noir pur `(0,0,0)` avec fondus `24.0f` / `40.0f`, alpha `0.65f`, sans bordure rectangle.
-  - `MenuPage::Draw` (`0x005A4B3F`, `0x005A4250`) : titre blanc `1.25×` (`0x8736FC45`), copyright `0.65×` ancré à `642.0f`.
-  - `0x0059DA46` / `0x0057A9B7` : ombres `3.0f` / `4.0f`, alpha `1.0f`.
-- **Incertitude / Limite** :
-  - Les sous-pages dynamiques non portées (`PAGE_CONTROLS`, `LIST_MEDALS`, etc.) et la palette exacte par entrée de `menu.bin` (`MenuStyle`) restent à étendre si besoin.
-- **Prochaine expérience** :
-  - Prochaine étape au choix : rendu du temple (matériaux/shaders) ou transitions animées/sous-pages dynamiques du menu.
-- **Travail non enregistré** :
-  - `.agents/`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`, sous-module `gpu/third_party/fsr-vulkan` (à préserver, ne jamais committer).
+- **Cible active** : Menu titre natif et rendu du temple (`dev-native`) — **Chantier A4 terminé** (`MenuStyle`, palette `0x005796B0`, courbes d'easing `0x005C3C00` et transitions fluides `0.2s`).
+- **Etat valide** :
+  - `PowerShell -ExecutionPolicy Bypass -File scratch/build_msys2.ps1` : OK (`bb-probe.exe` et `uncharted2-native.exe`).
+  - `PowerShell -ExecutionPolicy Bypass -File scratch/run_native_test.ps1 6` : **667/667** assertions C++23 (`EngineTest`), code de sortie **0**.
+  - `PowerShell -ExecutionPolicy Bypass -File scratch/run_test.ps1 6` (`bb-probe.exe`) : SelfTest **886**, full-body **831**, EngineTest **673/673**, `STOPPED_AFTER_TIMEOUT`, aucun crash ni Guest fault.
+  - Preuves visuelles `BB_NATIVE_CAPTURE` (`ROOT` & `PROFILE`) inspectées et archivées dans [preuves_avancement.html](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/docs/preuves_avancement/2026-11-14/preuves_avancement.html) et [PREUVES_AVANCEMENT.md](file:///c:/Users/Yohan/Desktop/uncharted_pc-0.3.3/docs/PREUVES_AVANCEMENT.md).
+- **Incertitude / limite** :
+  - Les polices d'interface et la mise en page du menu utilisent encore le rendu SDL 2D (`title_preview.h`) plutôt que le pipeline de rendu 3D/UI complet ; les sous-menus dynamiques (`PAGE_CONTROLS`, listes dynamiques) et le chargement de niveau après sélection restent différés.
+- **Prochaine experience** :
+  - Poursuivre le port natif sur le rendu du temple (`menu-temple` : shaders/samplers/textures complètes) ou sur le câblage d'une action différée (options / chapitres) selon la priorité utilisateur.
+- **Travail non enregistre** :
+  - Fichiers non suivis préservés : `.agents/`, `scratch/diag_baseline_3d5dded/`, `docs/preuves_avancement/2026-11-12/temple-samplers-capture.txt`, sous-module `gpu/third_party/fsr-vulkan`.

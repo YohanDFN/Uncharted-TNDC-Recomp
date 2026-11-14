@@ -5,6 +5,23 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre (Chantier A4) : palette `MenuStyle` (`0x005796B0`), courbes d'easing `0..5` et transitions fluides `0.2s`
+
+[Galerie autonome Chantiers A2, A3 &amp; A4](preuves_avancement/2026-11-14/preuves_avancement.html) (**6** captures framebuffer 1920×1080 embarquées).
+
+![Écran-titre natif Chantier A4 avec couleur MenuStyle 0x00E32FE0 et fondu d'entrée 0.2s](preuves_avancement/2026-11-14/native-menu-root-a4.png)
+
+![Sous-menu PAGE_PROFILE Chantier A4 avec sélection sable-doré 0x00E32FE0 et entrées inactives parchemin 0x00E330B0](preuves_avancement/2026-11-14/native-menu-profile-a4.png)
+
+Remplacement des couleurs hardcodées du viewer (`gold` / `muted`) et des sauts instantanés par le modèle `MenuStyle` extrait de `out/big2/eboot.elf` :
+- **Palette `MenuStyle` (`0x005796B0`)** : entrées inactives en parchemin doux `0x00E330B0` (`sRGB 0.7725, 0.7608, 0.7098, 0.80`) et sélection en sable-doré `0x00E32FE0` (`sRGB 0.8196, 0.6941, 0.5412, 1.0`), ainsi que les couleurs par défaut `0x00E33210..20` et la transformation `GetTextStyleById` (`0x00579EC0`).
+- **6 courbes d'easing (`0x005C3C00`)** : `Cosine`, `QuadIn`, `QuadOut`, `Linear`, `Smoothstep` et `Scaled02` (`0.2 s` = `0x00E61FA0`).
+- **Transitions fluides `tick(dt_sec)`** : fondu d'entrée de page (`Smoothstep` sur `0.2 s`) et interpolation du focus par contrôle (`Cosine` sur `0.2 s`) pilotés par `SDL_GetTicks()` dans `engine_context.h`.
+
+Validation (build basé sur `27079bb` + A4, `out/uncharted2-native.exe` SHA-256 `011e3f0b...`) :
+- Natif `scratch/run_native_test.ps1 6` : **667/667** assertions C++23 (`EngineTest`), code de sortie **0**.
+- Hybride `scratch/run_test.ps1 6` (`bb-probe.exe`, `user/last_run.log`) : SelfTest **886**, full-body **831**, EngineTest **673/673**, `STOPPED_AFTER_TIMEOUT` sans crash ni Guest fault.
+
 ## 14 novembre (Chantier A3) : constantes exactes `MenuDrawer::DrawBox`, titre `1.25×` blanc pur et ombres `eboot.elf`
 
 [Galerie autonome Chantiers A2 &amp; A3](preuves_avancement/2026-11-14/preuves_avancement.html) (**4** captures framebuffer 1920×1080 embarquées).

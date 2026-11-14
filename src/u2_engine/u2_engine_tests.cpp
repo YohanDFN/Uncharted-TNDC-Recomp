@@ -3233,6 +3233,39 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
             U2_TEST_ASSERT(state.press_select().handled && state.reset_to_root().action==U2NativeMenuActionKind::TransitionReset &&
                            state.stack_depth()==1 && state.current_cursor()==0 && state.last_status_note().empty(),
                            "MenuHost reset clears the stack, cursor and deferred status");
+            auto nearf=[](float a,float b) { return std::fabs(a-b)<0.002f; };
+            U2_TEST_ASSERT(nearf(u2_native_EvalMenuEase(U2NativeMenuEaseMode::Cosine,0.5f),0.5f) &&
+                           nearf(u2_native_EvalMenuEase(U2NativeMenuEaseMode::QuadIn,0.5f),0.25f) &&
+                           nearf(u2_native_EvalMenuEase(U2NativeMenuEaseMode::QuadOut,0.5f),0.75f) &&
+                           nearf(u2_native_EvalMenuEase(U2NativeMenuEaseMode::Linear,0.5f),0.5f) &&
+                           nearf(u2_native_EvalMenuEase(U2NativeMenuEaseMode::Smoothstep,0.25f),0.15625f) &&
+                           nearf(u2_native_EvalMenuEase(U2NativeMenuEaseMode::Scaled02,0.1f),0.5f) &&
+                           nearf(u2_native_EvalMenuEase(U2NativeMenuEaseMode::Scaled02,0.2f),1.0f),
+                           "MenuStyle easing modes 0..5 match eboot.elf 0x005C3C00");
+            const auto base_u=u2_native_MenuDefaultUnselectedColor();
+            const auto base_s=u2_native_MenuDefaultSelectedColor();
+            const auto xform_u=u2_native_ApplyTextStyleColorTransform(base_u);
+            const auto xform_s=u2_native_ApplyTextStyleColorTransform(base_s);
+            const auto mid_c=u2_native_InterpolateMenuColor(base_u,base_s,0.5f,U2NativeMenuEaseMode::Linear);
+            U2_TEST_ASSERT(nearf(xform_u.a,base_u.a) && nearf(xform_s.a,base_s.a) &&
+                           xform_u.g>xform_u.r && xform_s.g>xform_u.g &&
+                           nearf(mid_c.r,(base_u.r+base_s.r)*0.5f) && nearf(mid_c.a,(base_u.a+base_s.a)*0.5f),
+                           "MenuStyle color transform and interpolation match 0x00579EC0 and 0x00E33210..20");
+            U2_TEST_ASSERT(nearf(state.page_fade(),0.0f) && nearf(state.control_focus(0),1.0f),
+                           "MenuHost page transition resets fade to 0 and snaps initial cursor focus");
+            state.tick(0.1f);
+            U2_TEST_ASSERT(nearf(state.page_fade(),0.5f),
+                           "MenuHost tick(0.1s) advances page fade halfway over 0.2s");
+            U2_TEST_ASSERT(state.press_select().handled && state.move_cursor(1) &&
+                           nearf(state.control_focus(0),1.0f) && nearf(state.control_focus(1),0.0f),
+                           "MenuHost cursor move preserves focus for smooth interpolation");
+            state.tick(0.1f);
+            U2_TEST_ASSERT(nearf(state.control_focus(0),0.5f) && nearf(state.control_focus(1),0.5f),
+                           "MenuHost tick(0.1s) smoothly cross-fades previous and active control focus");
+            state.snap_animations();
+            U2_TEST_ASSERT(nearf(state.page_fade(),1.0f) && nearf(state.control_focus(0),0.0f) &&
+                           nearf(state.control_focus(1),1.0f),
+                           "MenuHost snap_animations settles fade and active focus");
         };
         if(decoded) exercise(parsed);
         // Match Step19 availability checks and close every probe before the loader runs.

@@ -1,13 +1,16 @@
 {
   "date_du_dossier": "2026-11-14",
   "fuseau": "Europe/Paris",
-  "build_base_commit": "d8f9b35",
-  "executable_sha256": "a0533eb5122c5b06e5ba0f4e635c4e05c9f0dd295b8a55b554312708c5c24035",
+  "build_base_commit": "27079bb",
+  "executable_sha256": "011e3f0b15cf86ae46a78451d0a1367c5e4d0b3e317bcb946fe91e5fea0c503a",
   "captures": [
     {
       "fichier": "native-menu-root.png",
       "type": "native_framebuffer",
-      "dimensions": [1920, 1080],
+      "dimensions": [
+        1920,
+        1080
+      ],
       "sha256": "b82b0b8ae16d57e15b90aa48dbf0b3443f6cc11270750c0faec342e497a12b0a",
       "capture_date": "2026-11-14",
       "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
@@ -17,7 +20,10 @@
     {
       "fichier": "native-menu-profile.png",
       "type": "native_framebuffer",
-      "dimensions": [1920, 1080],
+      "dimensions": [
+        1920,
+        1080
+      ],
       "sha256": "80224a8c7abecce5eea688006c87a8833326b21e340be588cf20e6d75117c050",
       "capture_date": "2026-11-14",
       "build_base_commit": "395a205a03e0376aedbbea4edcb587086b012d07",
@@ -27,7 +33,10 @@
     {
       "fichier": "native-menu-root-a3.png",
       "type": "native_framebuffer",
-      "dimensions": [1920, 1080],
+      "dimensions": [
+        1920,
+        1080
+      ],
       "sha256": "2afd386fd08023c93b87b9b6c4fbcb194211d9fd33b59fc82bae12b07c35d45f",
       "capture_date": "2026-11-14",
       "build_base_commit": "d8f9b35",
@@ -40,7 +49,10 @@
     {
       "fichier": "native-menu-profile-a3.png",
       "type": "native_framebuffer",
-      "dimensions": [1920, 1080],
+      "dimensions": [
+        1920,
+        1080
+      ],
       "sha256": "ce3c1cf1bd22c1483526d1f61198065a6e5a89aa71dee27719dcbfc5966327ce",
       "capture_date": "2026-11-14",
       "build_base_commit": "d8f9b35",
@@ -49,6 +61,38 @@
       "scenario": "Chantier A3 — BB_NATIVE_CAPTURE_PAGE=PROFILE over menu-temple preview",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
       "legende": "Sous-menu PAGE_PROFILE Chantier A3 : degrade noir pur SDL_RenderGeometry sans bordure beige, titre DEMARRER blanc pur 1.25x, invites [X]/[O] sous le coin inferieur droit."
+    },
+    {
+      "fichier": "native-menu-root-a4.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "6586e5583a523d121dd3bb88db543774f1d582c62542e8bee954c22fc05ae9f2",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "27079bb",
+      "build_changes": "Chantier A4: MenuStyle palette (0x005796B0 / 0x00E32FE0-0x00E330B0), 6 easing curves (0x005C3C00), 0.2s smooth page fade & cursor focus tick(dt)",
+      "executable_sha256": "011e3f0b15cf86ae46a78451d0a1367c5e4d0b3e317bcb946fe91e5fea0c503a",
+      "scenario": "Chantier A4 — BB_NATIVE_CAPTURE_PAGE=ROOT over menu-temple preview",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Ecran-titre natif Chantier A4 : invite centree en couleur MenuStyle selectionnee (0x00E32FE0) avec fondu d'entree 0.2s pilote par tick(dt)."
+    },
+    {
+      "fichier": "native-menu-profile-a4.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "60a7120a353bf88b8207e9a63170fddfeb963732b10e4718efefe52a682eba52",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "27079bb",
+      "build_changes": "Chantier A4: MenuStyle interpolation (0x00E330B0 -> 0x00E32FE0, Cosine ease) and 0.2s Smoothstep page fade",
+      "executable_sha256": "011e3f0b15cf86ae46a78451d0a1367c5e4d0b3e317bcb946fe91e5fea0c503a",
+      "scenario": "Chantier A4 — BB_NATIVE_CAPTURE_PAGE=PROFILE over menu-temple preview",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP; System.Drawing BMP to PNG; no retouching",
+      "legende": "Sous-menu PAGE_PROFILE Chantier A4 : selection sable-dore (0x00E32FE0) et entrees inactives parchemin (0x00E330B0) interpolees par MenuStyle."
     }
   ]
 }

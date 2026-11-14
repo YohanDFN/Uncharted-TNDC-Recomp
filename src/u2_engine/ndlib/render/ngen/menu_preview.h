@@ -83,6 +83,42 @@ struct U2NativeMenuTransitionResult {
     uint32_t to_page_id{0};
     std::string status_note;
 };
+// MenuStyle ease modes from out/big2/eboot.elf (0x005C3C00).
+enum class U2NativeMenuEaseMode : uint32_t {
+    Cosine = 0,
+    QuadIn = 1,
+    QuadOut = 2,
+    Linear = 3,
+    Smoothstep = 4,
+    Scaled02 = 5,
+};
+struct U2NativeMenuColor {
+    float r{1.0f}, g{1.0f}, b{1.0f}, a{1.0f};
+};
+inline constexpr float kU2NativeMenuTransitionDurationSec = 0.2f; // 0x00E61FA0
+inline constexpr U2NativeMenuColor u2_native_MenuDefaultUnselectedColor() {
+    // 0x00E33210: RGBA(96, 112, 96, 176)
+    return {96.0f / 255.0f, 112.0f / 255.0f, 96.0f / 255.0f, 176.0f / 255.0f};
+}
+inline constexpr U2NativeMenuColor u2_native_MenuDefaultSelectedColor() {
+    // 0x00E33220: RGBA(128, 144, 128, 224)
+    return {128.0f / 255.0f, 144.0f / 255.0f, 128.0f / 255.0f, 224.0f / 255.0f};
+}
+inline constexpr U2NativeMenuColor u2_native_MenuStyleUnselectedColor() {
+    // 0x005796B0 / 0x00E330B0: soft parchment sRGB(0.7725, 0.7608, 0.7098, 0.80)
+    return {0.7725f, 0.7608f, 0.7098f, 0.80f};
+}
+inline constexpr U2NativeMenuColor u2_native_MenuStyleSelectedColor() {
+    // 0x005796B0 / 0x00E32FE0: warm sand-gold sRGB(0.8196, 0.6941, 0.5412, 1.0)
+    return {0.8196f, 0.6941f, 0.5412f, 1.0f};
+}
+// Evaluate MenuStyle easing curve (0x005C3C00) for t in [0, 1].
+float u2_native_EvalMenuEase(U2NativeMenuEaseMode mode, float t);
+// Apply GetTextStyleById (0x00579EC0) saturation/gamma curve to RGB.
+U2NativeMenuColor u2_native_ApplyTextStyleColorTransform(U2NativeMenuColor color);
+// Interpolate two MenuStyle colors using the given ease mode and progress t.
+U2NativeMenuColor u2_native_InterpolateMenuColor(U2NativeMenuColor unselected, U2NativeMenuColor selected,
+                                                 float t, U2NativeMenuEaseMode mode);
 // menu must outlive this host state machine and remain at the same address.
 class U2NativeMenuStateMachine {
 public:
@@ -100,15 +136,23 @@ public:
     std::string display_control_label(const U2NativeMenuControlPreview &ctrl) const;
     bool set_cursor(size_t index);
     bool move_cursor(int delta);
+    // Advance page fade and per-control focus interpolation by dt_sec.
+    void tick(float dt_sec);
+    void snap_animations();
+    float page_fade() const { return m_page_fade; }
+    float control_focus(size_t index) const;
     const U2NativeMenuControlPreview *selected_control() const;
     U2NativeMenuTransitionResult transition_to_page(uint32_t target_page_id, bool reset_stack);
     U2NativeMenuTransitionResult press_select();
     U2NativeMenuTransitionResult press_back();
     U2NativeMenuTransitionResult reset_to_root();
 private:
+    void reset_page_animation(bool snap_focus);
     const U2NativePostStartMenuPreview *m_menu{nullptr};
     U2NativeSavedataStatus m_save;
     std::vector<U2NativeMenuStackEntry> m_stack;
     U2NativeMenuTransitionState m_transition_state{U2NativeMenuTransitionState::Idle};
     std::string m_last_status_note;
+    float m_page_fade{1.0f};
+    std::vector<float> m_control_focus;
 };

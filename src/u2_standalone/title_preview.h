@@ -78,15 +78,18 @@ public:
         if(!hover_at(x,y,w,h)) return false;
         return press_select().handled;
     }
+    void update(float dt_sec) { m_state.tick(dt_sec); }
     void draw(SDL_Renderer *renderer) {
         if(!m_logo) return;
         int w=0,h=0;
         if(!SDL_GetCurrentRenderOutputSize(renderer,&w,&h) || !resize_layout(w,h)) return;
         const float sx=float(m_width)/1280.0f,sy=float(m_height)/720.0f;
+        const float page_fade=u2_native_EvalMenuEase(U2NativeMenuEaseMode::Smoothstep,m_state.page_fade());
         auto project=[&](const U2NativeMenuRect &rect) {
             return SDL_FRect{rect.x*sx,rect.y*sy,rect.w*sx,rect.h*sy};
         };
         if(m_page_layout.show_logo) {
+            SDL_SetTextureAlphaModFloat(m_logo,page_fade);
             const auto logo=project(m_page_layout.logo_rect);
             SDL_RenderTextureRotated(renderer,m_logo,nullptr,&logo,0,nullptr,SDL_FLIP_VERTICAL);
         }
@@ -98,9 +101,10 @@ public:
             SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
             const auto box=project(m_page_layout.page_box_rect);
             // DrawBox (0x005B8710): black panel with vertical alpha fades.
+            const float box_alpha=m_page_layout.box_alpha*page_fade;
             const float levels[]{box.y-m_page_layout.box_fade_top*sy,box.y,
                                  box.y+box.h,box.y+box.h+m_page_layout.box_fade_bottom*sy};
-            const float alphas[]{0.0f,m_page_layout.box_alpha,m_page_layout.box_alpha,0.0f};
+            const float alphas[]{0.0f,box_alpha,box_alpha,0.0f};
             SDL_Vertex vertices[8]{};
             for(int level=0;level<4;++level) {
                 vertices[2*level]={{box.x,levels[level]},SDL_FColor{0,0,0,alphas[level]},{0,0}};
@@ -109,7 +113,7 @@ public:
             const int indices[]{0,1,2,1,3,2,2,3,4,3,5,4,4,5,6,5,7,6};
             SDL_RenderGeometry(renderer,nullptr,vertices,8,indices,18);
             if(m_page_layout.has_title) {
-                SDL_SetRenderDrawColor(renderer,255,255,255,90);
+                SDL_SetRenderDrawColor(renderer,255,255,255,Uint8(90.0f*page_fade));
                 const auto title=project(m_page_layout.title_rect);
                 SDL_RenderLine(renderer,title.x,title.y+title.h,title.x+title.w,title.y+title.h);
             }
@@ -117,13 +121,26 @@ public:
             SDL_SetRenderDrawBlendMode(renderer,previous_blend);
         }
         for(const auto &item : m_text) {
+            SDL_Color color=item.color;
+            if(item.control_index>=0) {
+                const float focus=m_state.control_focus(size_t(item.control_index));
+                color=to_sdl_color(u2_native_InterpolateMenuColor(
+                    u2_native_MenuStyleUnselectedColor(),u2_native_MenuStyleSelectedColor(),
+                    focus,U2NativeMenuEaseMode::Cosine),page_fade);
+            } else {
+                color.a=Uint8(float(color.a)*page_fade+0.5f);
+            }
             m_font.draw(renderer,item.layout,item.x+item.shadow_offset*sx,item.y+item.shadow_offset*sy,
-                {0,0,0,item.color.a},true);
-            m_font.draw(renderer,item.layout,item.x,item.y,item.color);
+                {0,0,0,color.a},true);
+            m_font.draw(renderer,item.layout,item.x,item.y,color);
         }
     }
 private:
-    struct Text { U2NativeFontText layout; float x{0},y{0}; SDL_Color color{255,255,255,255}; float shadow_offset{2.0f}; };
+    static SDL_Color to_sdl_color(U2NativeMenuColor c,float alpha_scale=1.0f) {
+        auto ch=[](float v) -> Uint8 { return Uint8(std::clamp(v,0.0f,1.0f)*255.0f+0.5f); };
+        return SDL_Color{ch(c.r),ch(c.g),ch(c.b),ch(c.a*alpha_scale)};
+    }
+    struct Text { U2NativeFontText layout; float x{0},y{0}; SDL_Color color{255,255,255,255}; float shadow_offset{2.0f}; int control_index{-1}; };
     struct Hit { SDL_FRect rect; size_t index; };
     // Keep supported UTF-8 glyphs and controller tokens from the original strings.
     std::string font_text(std::string_view value) const {
@@ -177,7 +194,8 @@ private:
         const float sx=float(m_width)/1280.0f,sy=float(m_height)/720.0f;
         const auto &geometry=m_page_layout;
         const auto &content=geometry.content_rect;
-        const SDL_Color gold{240,200,40,255},muted{165,170,180,205};
+        const SDL_Color muted=to_sdl_color(u2_native_MenuStyleUnselectedColor());
+        const SDL_Color accent=to_sdl_color(u2_native_MenuStyleSelectedColor());
         auto layout=[&](std::string_view value,float height,U2NativeFontText *out) {
             return u2_native_LayoutFontTextWithSymbols(m_font.data(),m_font.symbol_data(),font_text(value),height,out);
         };
@@ -188,7 +206,7 @@ private:
             }
         };
         auto add=[&](std::string_view value,const U2NativeMenuRect &rect,float height,SDL_Color color,
-                     float shadow_offset=-1.0f) {
+                     float shadow_offset=-1.0f,int control_index=-1) {
             Text item;
             if(shadow_offset<0.0f) shadow_offset=geometry.shadow_offset;
             height=std::min(height,rect.h-2*shadow_offset);
@@ -199,7 +217,7 @@ private:
             }
             item.x=(rect.x+(rect.w-item.layout.advance)*0.5f)*sx;
             item.y=(rect.y+(rect.h-height)*0.5f)*sy;
-            item.color=color;item.shadow_offset=shadow_offset;
+            item.color=color;item.shadow_offset=shadow_offset;item.control_index=control_index;
             project_text(item.layout);m_text.push_back(std::move(item));return true;
         };
         bool ok=true,selectable=false;
@@ -212,8 +230,8 @@ private:
             const bool selected=i==current_cursor();
             const bool added=add(m_state.display_control_label(ctrl),row,
                 selected ? geometry.selected_font_height : geometry.font_height,
-                ctrl.is_selectable() ? (selected ? gold : SDL_Color{236,236,232,238}) : muted,
-                geometry.control_shadow_offset);
+                ctrl.is_selectable() ? (selected ? accent : muted) : muted,
+                geometry.control_shadow_offset,ctrl.is_selectable() ? int(i) : -1);
             ok=ok && added;
             if(ctrl.is_selectable()) {
                 selectable=true;
@@ -250,7 +268,7 @@ private:
             const float note_y=content.y+content.h+12.0f;
             if(!selectable) ok=add("Liste dynamique non portee",{content.x,note_y,content.w,20},16,muted) && ok;
             if(!m_state.last_status_note().empty())
-                ok=add(m_state.last_status_note(),{content.x,note_y+24,content.w,20},15,{240,200,40,235}) && ok;
+                ok=add(m_state.last_status_note(),{content.x,note_y+24,content.w,20},15,accent) && ok;
         }
         if(geometry.show_prompts) {
             const std::string select="|X| "+m_menu.select_label,back="|C| "+m_menu.back_label;

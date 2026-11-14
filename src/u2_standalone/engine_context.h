@@ -776,10 +776,16 @@ private:
     }
 
     void render_frame() {
+        const uint64_t now_ticks=SDL_GetTicks();
+        const float dt_sec=m_last_frame_ticks ? std::clamp(float(now_ticks-m_last_frame_ticks)*0.001f,0.0f,0.05f) : 0.0f;
+        m_last_frame_ticks=now_ticks;
         if (m_temple_preview.ready()) {
             const bool title=m_title_visible && m_title_preview.ready();
             m_temple_preview.draw(m_renderer,!title);
-            if(title) m_title_preview.draw(m_renderer);
+            if(title) {
+                m_title_preview.update(dt_sec);
+                m_title_preview.draw(m_renderer);
+            }
             if (!m_capture_attempted && SDL_GetTicks() - m_run_start_ticks >= 1800) {
                 m_capture_attempted=true;
                 const char *path=std::getenv("BB_NATIVE_CAPTURE");
@@ -824,6 +830,7 @@ private:
 
     TemplePreview m_temple_preview;
     TitlePreview m_title_preview;
+    uint64_t m_last_frame_ticks{0};
     bool m_title_visible{true};
     bool m_capture_attempted{false};
     uint64_t m_run_start_ticks{0};
