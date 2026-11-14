@@ -5,6 +5,46 @@ Historique des **12, 13 et 14 novembre 2026**, fuseau Europe/Paris.
 [Ouvrir le document HTML autonome](preuves_avancement/2026-11-12/preuves_avancement.html).
 Les sept images sont intégrées dans ce fichier HTML, consultable hors ligne.
 
+## 14 novembre : machine à états interactive `MenuHost` (pile de pages, sauvegardes `SAVEDATA` et navigation live)
+
+[Galerie autonome mise à jour](preuves_avancement/2026-11-13/preuves_avancement.html)
+(référence hybride, premier aperçu natif, capture `main.fnt`, listes post-X et menu interactif live — **5** images embarquées).
+
+![Machine à états interactive MenuHost sur PAGE_PROFILE avec curseur actif](preuves_avancement/2026-11-13/03-menu-interactif-pile-pages.png)
+
+La machine à états hôte `U2NativeMenuStateMachine` (`src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}`)
+reproduit le modèle `MenuHost` de `out/big2/eboot.elf` (`0x005CB990 TransitionToPage`,
+`0x005C88CE` Sélection, `0x005C8D90` Retour) sur les pages vérifiées de
+`dc1/ps4/menu.bin` et `core.psarc:text1/ps4/3.common` :
+- Détection de présence profil et campagne sur `SAVEDATA02P/USR-DATA` et
+  `SAVEDATA020/USR-DATA` (somme des octets `0xCD..0xD6` inclus, orientant
+  `PAGE_ROOT_MAIN` `0x37656388` vers `PAGE_PROFILE` `0x82D5C00B` vs
+  `PAGE_NEWPROFILE` `0x11FEFB39` et résolvant `BUTTON_CONTINUE` `0x161522F1`
+  entre `"Continuer"` et `"Jouer"`).
+- Décodage des cibles de navigation (`+0x48` `target_page_name`, `+0x50`
+  `target_page_id`) et chargement des sous-pages `PAGE_INGAME_OPTIONS`
+  (`0xB793B4B2`), `PAGE_BONUSES` (`0x22D667C0`), `PAGE_CHAPTERS` (`0xBE2C8B4B`)
+  et `PAGE_MULTIMEDALS` (`0xACE1A9D5`).
+- Pile de pages avec conservation du curseur par page et saut automatique des
+  séparateurs et éléments non `type == 2` (`Entrée`/`X`/`Espace`, flèches/`ZQS`D,
+  `Retour arrière`/`Échap`, survol/clic souris et bascule `F1`). Les actions
+  gameplay (`Nouvelle partie`, `Charger partie`, `Continuer / Jouer`, `Options
+  de jeu`, `Commencer chapitre`) et les feuilles/listes dynamiques non portées
+  (`PAGE_CONTROLS`, `LIST_MEDALS`, etc.) restent explicitement différées sans
+  simulation. Disposition du panneau, fil d'Ariane, couleurs et bandeau de
+  surbrillance restent des conventions du viewer.
+
+Validation (build basé sur `01ddd0a`, `out/uncharted2-native.exe` SHA-256
+`967d194e...`) : natif **606/606** (dont Étape 20), sortie **0** après six
+secondes ; séquence interactive automatisée Win32 (`Entrée` -> `PAGE_PROFILE`,
+`Bas`×2 -> `cursor=3` « Nouvelle partie » en sautant le séparateur 2, capture
+réelle `>= 1800 ms`, puis `Options` -> `PAGE_INGAME_OPTIONS` -> `Retour` ->
+`F1` `hidden`/`visible`), sortie **0** ; hybride `scratch/run_test.ps1 6`
+(`bb-probe.exe`, `user/last_run.log`) **612/612**, SelfTest **886**, full-body
+**831**, zéro crash ni Guest fault jusqu'à `STOPPED_AFTER_TIMEOUT`. Capture SDL
+1920×1080 inspectée visuellement (PNG `1 453 587` octets, SHA-256 `24376828...`).
+Voir [preuves et limites](NATIVE_TITLE_SCREEN_PREVIEW.md).
+
 ## 14 novembre : listes du menu après X vérifiées dans `menu.bin` + `core.psarc:3.common`
 
 [Galerie autonome mise à jour](preuves_avancement/2026-11-13/preuves_avancement.html)

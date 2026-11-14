@@ -129,7 +129,8 @@ public:
         native_log(m_temple_preview.ready()
             ? "[U2 Native] Native loop active: temple geometry preview.\n"
             : "[U2 Native] Native loop active: prototype menu.\n");
-        uint64_t start_ticks = SDL_GetTicks();
+        m_run_start_ticks = SDL_GetTicks();
+        const uint64_t start_ticks = m_run_start_ticks;
         int last_remaining = -1;
         bool running = true;
         SDL_Event ev;
@@ -137,12 +138,45 @@ public:
         while (running) {
             while (SDL_PollEvent(&ev)) {
                 if (m_temple_preview.ready()) {
+                    if(ev.type==SDL_EVENT_QUIT) { running=false;continue; }
                     if(ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_F1 && !ev.key.repeat && m_title_preview.ready()) {
-                        m_title_visible=!m_title_visible;m_capture_attempted=false;
-                        native_log(m_title_visible ? "[U2 Native Title] visible\n" : "[U2 Native Title] hidden\n");
+                        m_title_visible=!m_title_visible;
+                        native_log(std::string("[native-title] visibility=")+(m_title_visible ? "visible\n" : "hidden\n"));
+                        continue;
                     }
-                    if (ev.type==SDL_EVENT_QUIT || (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_ESCAPE)) running=false;
-                    if (ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_SPACE && !ev.key.repeat) {
+                    if(m_title_visible && m_title_preview.ready()) {
+                        auto log_page=[&](const char *action) {
+                            const auto *page=m_title_preview.current_page();
+                            native_log(std::string("[native-title] ")+action+" -> page="+(page ? page->name : "none")+
+                                " depth="+std::to_string(m_title_preview.stack_depth())+"\n");
+                        };
+                        if(ev.type==SDL_EVENT_KEY_DOWN) {
+                            const auto key=ev.key.key;
+                            if(key==SDLK_UP || key==SDLK_W || key==SDLK_DOWN || key==SDLK_S) {
+                                if(m_title_preview.move_cursor(key==SDLK_UP || key==SDLK_W ? -1 : 1))
+                                    native_log("[native-title] cursor="+std::to_string(m_title_preview.current_cursor())+"\n");
+                            } else if(!ev.key.repeat && (key==SDLK_RETURN || key==SDLK_KP_ENTER || key==SDLK_SPACE)) {
+                                m_title_preview.press_select();log_page("select");
+                            } else if(!ev.key.repeat && (key==SDLK_BACKSPACE || (key==SDLK_ESCAPE && m_title_preview.stack_depth()>1))) {
+                                m_title_preview.press_back();log_page("back");
+                            } else if(key==SDLK_ESCAPE) running=false;
+                        } else if(ev.type==SDL_EVENT_MOUSE_MOTION ||
+                                  (ev.type==SDL_EVENT_MOUSE_BUTTON_DOWN && ev.button.button==SDL_BUTTON_LEFT)) {
+                            // SDL converts window pixels through high-DPI, letterbox, viewport and scale.
+                            // CurrentRenderOutputSize uses that same logical presentation (1920x1080).
+                            SDL_Event converted=ev;
+                            int rw=0,rh=0;
+                            if(SDL_ConvertEventToRenderCoordinates(m_renderer,&converted) &&
+                               SDL_GetCurrentRenderOutputSize(m_renderer,&rw,&rh)) {
+                                if(ev.type==SDL_EVENT_MOUSE_MOTION)
+                                    m_title_preview.hover_at(converted.motion.x,converted.motion.y,rw,rh);
+                                else if(m_title_preview.click_at(converted.button.x,converted.button.y,rw,rh)) log_page("select");
+                            }
+                        }
+                        continue;
+                    }
+                    if(ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_ESCAPE) running=false;
+                    if(ev.type==SDL_EVENT_KEY_DOWN && ev.key.key==SDLK_SPACE && !ev.key.repeat) {
                         m_temple_preview.toggle_mode();m_capture_attempted=false;
                     }
                     continue;
@@ -735,7 +769,7 @@ private:
             const bool title=m_title_visible && m_title_preview.ready();
             m_temple_preview.draw(m_renderer,!title);
             if(title) m_title_preview.draw(m_renderer);
-            if (!m_capture_attempted) {
+            if (!m_capture_attempted && SDL_GetTicks() - m_run_start_ticks >= 1800) {
                 m_capture_attempted=true;
                 const char *path=std::getenv("BB_NATIVE_CAPTURE");
                 if (path && *path) {
@@ -781,6 +815,7 @@ private:
     TitlePreview m_title_preview;
     bool m_title_visible{true};
     bool m_capture_attempted{false};
+    uint64_t m_run_start_ticks{0};
     int m_menu_selected_item{0};
     std::string m_last_action_msg{""};
     uint64_t m_last_action_time{0};

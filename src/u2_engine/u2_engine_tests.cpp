@@ -2962,6 +2962,219 @@ extern "C" int u2_run_engine_unit_tests(uint8_t *real_image) {
         }
     }
 
+    // 20. Host MenuHost stack, verified subpage descriptors and local savedata slots.
+    {
+        uint8_t slot[0xD7]{};
+        uint32_t sum=123;
+        U2_TEST_ASSERT(!u2_native_HasActiveSavedataSlot(nullptr,sizeof(slot),&sum) && sum==123 &&
+                       !u2_native_HasActiveSavedataSlot(slot,sizeof(slot)-1,&sum) && sum==123,
+                       "Savedata rejects NULL and short buffers without writing the sum");
+        slot[0xCC]=255;
+        U2_TEST_ASSERT(!u2_native_HasActiveSavedataSlot(slot,sizeof(slot),&sum) && sum==0,
+                       "Savedata ignores bytes outside the ten slot flags");
+        slot[0xCD]=1;slot[0xD6]=255;
+        U2_TEST_ASSERT(u2_native_HasActiveSavedataSlot(slot,sizeof(slot),&sum) && sum==256 &&
+                       u2_native_HasActiveSavedataSlot(slot,sizeof(slot)),
+                       "Savedata sums both inclusive boundaries with an optional output");
+        for(size_t i=0;i<10;++i) slot[0xCD+i]=uint8_t(i+1);
+        U2_TEST_ASSERT(u2_native_HasActiveSavedataSlot(slot,sizeof(slot),&sum) && sum==55,
+                       "Savedata includes every byte of the ten-flag range");
+        U2_TEST_ASSERT(!u2_native_DetectSavedataStatus(nullptr), "Savedata detection rejects NULL output");
+
+        auto put=[](std::vector<uint8_t> &bytes,size_t at,uint64_t value,size_t n,bool big=false) {
+            for(size_t i=0;i<n;++i) bytes[at+i]=uint8_t(value>>(8*(big ? n-1-i : i)));
+        };
+        auto text=[](std::vector<uint8_t> &bytes,const char *value) {
+            const size_t offset=bytes.size();
+            while(*value) bytes.push_back(uint8_t(*value++));
+            bytes.push_back(0);return offset;
+        };
+        const std::map<uint32_t,const char *> labels{
+            {0x68730362u,"SELECTIONNER"},{0xD9791B19u,"RETOUR"},{0xFD8B6749u,"Menu titre"},
+            {0xA947CC78u,"Jouer"},{0x9D39D946u,"Continuer"},
+            {1,"Demarrer"},{2,"Nouvelle partie"},{3,"Charger partie"},{4,"Options"},
+            {5,"Bonus"},{6,"Chapitres"},{7,"Medailles"},{8,"Jeu"},{9,"Commandes"},
+            {10,"Affichage"},{11,"Audio"},{12,"Cinematiques"},{13,"Recompenses"},
+            {14,"Tresors"},{15,"Statistiques"},{16,"Difficulte"},{17,"Mode de jeu"},
+            {18,"Commencer chapitre "},{19," "},{20,"OPTIONS"},{21,"BONUS"},{22,"CHAPITRES"},
+            {23,"MEDAILLES EN MULTIJOUEUR"}
+        };
+        const size_t pool=4+labels.size()*8;
+        std::vector<uint8_t> common(pool,0);put(common,0,labels.size(),4,true);
+        size_t row=0;
+        for(const auto &[id,value] : labels) {
+            put(common,4+row*8,id,4,true);
+            const size_t offset=text(common,value);put(common,8+row*8,offset-pool,4,true);++row;
+        }
+        struct Control {
+            uint32_t id,type,label,target;
+            const char *target_name;
+        };
+        struct Page {
+            uint32_t id;const char *name;uint32_t title;
+            std::vector<Control> controls;
+        };
+        // Synthetic descriptor fixture; only the verified IDs/targets drive transitions.
+        const std::vector<Page> pages{
+            {0x37656388u,"PAGE_ROOT_MAIN",0,{{0x2BBBB5C5u,2,1,0,""}}},
+            {0x82D5C00Bu,"PAGE_PROFILE",1,{
+                {0x161522F1u,2,0,0,""},{0x96B65D82u,2,6,0xBE2C8B4Bu,"PAGE_CHAPTERS"},
+                {0,1,0,0,""},{0xB861A261u,2,2,0,""},{0xF7A5B490u,2,3,0,""},
+                {0xFA872AA5u,2,4,0,""},{0x1F083A57u,2,5,0x22D667C0u,"PAGE_BONUSES"}}},
+            {0x11FEFB39u,"PAGE_NEWPROFILE",0,{
+                {0xB861A261u,2,2,0,""},{0xF7A5B490u,2,3,0,""},{0xFA872AA5u,2,4,0,""},
+                {0x12B796C6u,2,7,0xACE1A9D5u,"PAGE_MULTIMEDALS"}}},
+            {0xB793B4B2u,"PAGE_INGAME_OPTIONS",20,{
+                {0xC79A65B5u,2,8,0,""},{1,2,9,0x5C717AADu,"PAGE_CONTROLS"},
+                {2,2,10,0x4CDF9353u,""},{3,2,11,0x89892D1Cu,""}}},
+            {0x22D667C0u,"PAGE_BONUSES",21,{
+                {1,2,12,0,""},{2,2,13,0,""},{3,2,14,0,""},{4,2,7,0,""},{5,2,15,0,""}}},
+            {0xBE2C8B4Bu,"PAGE_CHAPTERS",22,{
+                {1,6,16,0,""},{2,7,17,0,""},{3,8,0,0,""},{4,6,0,0,""},
+                {0,1,0,0,""},{0x131BA09Bu,2,18,0,""}}},
+            {0xACE1A9D5u,"PAGE_MULTIMEDALS",23,{{0x5B89E5C8u,7,19,0,""}}}
+        };
+        std::vector<uint8_t> menu(0x80+pages.size()*0x70,0);
+        put(menu,0x50,pages.size(),8);put(menu,0x58,0x80,8);
+        size_t target_record=0;
+        for(size_t i=0;i<pages.size();++i) {
+            const auto &page=pages[i];const size_t p=0x80+i*0x70;
+            const size_t name=text(menu,page.name);put(menu,p,name,8);
+            put(menu,p+8,page.id,4);put(menu,p+0x18,page.title,4);
+            const size_t header=menu.size(),start=header+16;
+            menu.resize(start+page.controls.size()*0x70,0);
+            put(menu,p+0x38,header,8);put(menu,header,page.controls.size(),8);put(menu,header+8,start,8);
+            for(size_t j=0;j<page.controls.size();++j) {
+                const auto &ctrl=page.controls[j];const size_t c=start+j*0x70;
+                put(menu,c+8,ctrl.id,4);put(menu,c+0x10,ctrl.type,4);put(menu,c+0x28,ctrl.label,4);
+                if(ctrl.id==0x161522F1u) put(menu,c+0x30,16,4);
+                if(*ctrl.target_name) { const size_t offset=text(menu,ctrl.target_name);put(menu,c+0x48,offset,8); }
+                put(menu,c+0x50,ctrl.target,4);
+                if(i==1 && j==1) target_record=c;
+            }
+        }
+        U2NativePostStartMenuPreview parsed;
+        const bool decoded=u2_native_ReadPostStartMenuPreview(&parsed,menu.data(),menu.size(),common.data(),common.size());
+        U2_TEST_ASSERT(decoded && parsed.ingame_options.id==0xB793B4B2u && parsed.ingame_options.controls.size()==4 &&
+                       parsed.bonuses.id==0x22D667C0u && parsed.bonuses.controls.size()==5 &&
+                       parsed.chapters.id==0xBE2C8B4Bu && parsed.chapters.controls.size()==6 &&
+                       parsed.multimedals.id==0xACE1A9D5u && parsed.multimedals.controls.size()==1,
+                       "Step20 fixture decodes all four optional subpages");
+        U2_TEST_ASSERT(decoded && parsed.profile.controls.size()==7 &&
+                       parsed.profile.controls[1].target_page_id==0xBE2C8B4Bu &&
+                       parsed.profile.controls[1].target_page_name=="PAGE_CHAPTERS",
+                       "Step20 decodes target name at +0x48 and target ID at +0x50");
+        auto bad=menu;put(bad,target_record+0x48,uint64_t(-1),8);
+        U2_TEST_ASSERT(!u2_native_ReadPostStartMenuPreview(&parsed,bad.data(),bad.size(),common.data(),common.size()) &&
+                       parsed.root_main.id==0x37656388u && parsed.chapters.id==0xBE2C8B4Bu,
+                       "Step20 invalid target string offset preserves the decoded menu");
+        for(size_t i=3;i<pages.size();++i) {
+            bad=menu;put(bad,0x80+i*0x70,0,8);
+            U2_TEST_ASSERT(!u2_native_ReadPostStartMenuPreview(&parsed,bad.data(),bad.size(),common.data(),common.size()) &&
+                           parsed.ingame_options.id==0xB793B4B2u,
+                           "Step20 known optional page IDs require their exact names atomically");
+        }
+        auto exercise=[](const U2NativePostStartMenuPreview &value) {
+            U2NativeMenuStateMachine state;
+            U2NativeSavedataStatus save;
+            U2_TEST_ASSERT(state.init(&value,save) && state.stack_depth()==1 && state.current_page()==&value.root_main &&
+                           state.transition_state()==U2NativeMenuTransitionState::Reset,
+                           "MenuHost initializes the root with Reset and depth one");
+            U2NativePostStartMenuPreview empty_menu;
+            U2_TEST_ASSERT(!state.init(nullptr,save) && !state.init(&empty_menu,save) && state.current_page()==&value.root_main &&
+                           state.find_page(0)==nullptr && state.find_page(value.chapters.id)==&value.chapters &&
+                           !state.savedata_status().has_profile && state.stack().front().page_id==value.root_main.id,
+                           "MenuHost failed initialization preserves state and lookups reject missing pages");
+            auto select_id=[&](uint32_t id) {
+                const auto *page=state.current_page();
+                if(!page) return false;
+                for(size_t i=0;i<page->controls.size();++i) if(page->controls[i].id==id) return state.set_cursor(i);
+                return false;
+            };
+            U2_TEST_ASSERT(state.press_select().handled && state.current_page()==&value.new_profile && state.stack_depth()==2 &&
+                           state.display_control_label(value.profile.controls[0])==value.play_label,
+                           "MenuHost absent profile opens NEWPROFILE and campaign action displays Jouer");
+            U2_TEST_ASSERT(select_id(0x12B796C6u), "MenuHost selects the multiplayer medals button");
+            const size_t medals_cursor=state.current_cursor();
+            U2_TEST_ASSERT(state.press_select().action==U2NativeMenuActionKind::TransitionPush &&
+                           state.current_page()==&value.multimedals && state.stack_depth()==3 &&
+                           !state.move_cursor(1) && !state.move_cursor(-1) && !state.set_cursor(0) &&
+                           !state.selected_control() && !state.press_select().handled,
+                           "MenuHost medals list has no D-Pad selection or selectable control");
+            U2_TEST_ASSERT(state.press_back().handled && state.current_page()==&value.new_profile &&
+                           state.current_cursor()==medals_cursor && state.stack_depth()==2,
+                           "MenuHost back restores NEWPROFILE and its saved cursor");
+            save.has_profile=true;save.has_campaign_save=true;
+            U2_TEST_ASSERT(state.init(&value,save) && state.press_select().handled && state.current_page()==&value.profile &&
+                           state.display_control_label(value.profile.controls[0])==value.continue_label,
+                           "MenuHost active profile opens PROFILE and campaign action displays Continuer");
+            U2_TEST_ASSERT(state.set_cursor(1) && state.move_cursor(1) && state.current_cursor()==3 &&
+                           state.move_cursor(-1) && state.current_cursor()==1 && !state.set_cursor(2) && !state.move_cursor(0),
+                           "MenuHost skips the profile spacer in both directions");
+            U2_TEST_ASSERT(state.set_cursor(0) && state.move_cursor(-1) && state.current_cursor()==6 &&
+                           state.move_cursor(1) && state.current_cursor()==0,
+                           "MenuHost cursor wraps across both ends");
+            U2_TEST_ASSERT(select_id(0xFA872AA5u) && state.press_select().handled && state.current_page()==&value.ingame_options,
+                           "MenuHost OPTIONS dispatch pushes PAGE_INGAME_OPTIONS");
+            U2_TEST_ASSERT(select_id(0xC79A65B5u) && state.press_select().action==U2NativeMenuActionKind::DeferredGameplayOptions &&
+                           state.stack_depth()==3 && !state.last_status_note().empty(),
+                           "MenuHost gameplay options are explicitly deferred without changing the stack");
+            U2_TEST_ASSERT(state.set_cursor(1) && state.press_select().handled && state.stack_depth()==3 &&
+                           state.last_status_note().find("Sous-menu non porte : PAGE_CONTROLS")==0,
+                           "MenuHost missing target subpage reports a bounded deferred status");
+            U2_TEST_ASSERT(state.press_back().handled && select_id(0x1F083A57u) && state.press_select().handled &&
+                           state.current_page()==&value.bonuses, "MenuHost follows the verified BONUS target");
+            U2_TEST_ASSERT(state.press_back().handled && select_id(0x96B65D82u) && state.press_select().handled &&
+                           state.current_page()==&value.chapters && state.current_cursor()==5 && state.selected_control() &&
+                           state.selected_control()->id==0x131BA09Bu,
+                           "MenuHost chapter cursor skips all headers and the spacer to index five");
+            U2_TEST_ASSERT(state.press_select().action==U2NativeMenuActionKind::DeferredContinueOrPlay && state.stack_depth()==3,
+                           "MenuHost chapter start is deferred without pretending to load gameplay");
+            U2_TEST_ASSERT(state.transition_to_page(value.profile.id,false).action==U2NativeMenuActionKind::TransitionPop &&
+                           state.stack_depth()==2 && state.current_cursor()==1,
+                           "MenuHost transition to a stacked page pops and preserves its cursor");
+            U2_TEST_ASSERT(!state.transition_to_page(0xFFFFFFFFu,false).handled && state.stack_depth()==2 &&
+                           state.current_page()==&value.profile, "MenuHost unknown target leaves the stack unchanged");
+            U2_TEST_ASSERT(select_id(0xB861A261u) && state.press_select().action==U2NativeMenuActionKind::DeferredNewGame &&
+                           select_id(0xF7A5B490u) && state.press_select().action==U2NativeMenuActionKind::DeferredLoadGame &&
+                           select_id(0x161522F1u) && state.press_select().action==U2NativeMenuActionKind::DeferredContinueOrPlay,
+                           "MenuHost gameplay actions report their specific deferred kinds");
+            U2_TEST_ASSERT(state.press_back().handled && state.current_page()==&value.root_main && state.stack_depth()==1 &&
+                           !state.press_back().handled && state.stack_depth()==1,
+                           "MenuHost back stops at the root");
+            U2_TEST_ASSERT(state.press_select().handled && state.reset_to_root().action==U2NativeMenuActionKind::TransitionReset &&
+                           state.stack_depth()==1 && state.current_cursor()==0 && state.last_status_note().empty(),
+                           "MenuHost reset clears the stack, cursor and deferred status");
+        };
+        if(decoded) exercise(parsed);
+        // Match Step19 availability checks and close every probe before the loader runs.
+        const int menu_fd=int(runtime_file_open("/app0/u2data/build/main/dc1/ps4/menu.bin",0,0));
+        const int core_fd=int(runtime_file_open("/app0/u2data/build/main/core.psarc",0,0));
+        const int font_fd=int(runtime_file_open("/app0/u2data/data/fonts/ps4/main.fnt",0,0));
+        if(menu_fd>=0) runtime_file_close(menu_fd);
+        if(core_fd>=0) runtime_file_close(core_fd);
+        if(font_fd>=0) runtime_file_close(font_fd);
+        if(menu_fd>=0 && core_fd>=0 && font_fd>=0) {
+            U2NativePostStartMenuPreview real;
+            const bool loaded=u2_native_LoadPostStartMenuPreview(&real);
+            U2_TEST_ASSERT(loaded && real.ingame_options.id==0xB793B4B2u && real.ingame_options.controls.size()==4 &&
+                           real.bonuses.id==0x22D667C0u && real.bonuses.controls.size()==5 &&
+                           real.chapters.id==0xBE2C8B4Bu && real.chapters.controls.size()==6 &&
+                           real.multimedals.id==0xACE1A9D5u && real.multimedals.controls.size()==1,
+                           "Step20 real assets load all four verified subpages and control counts");
+            if(loaded && real.profile.controls.size()==7 && real.ingame_options.controls.size()==4 &&
+               real.chapters.controls.size()==6 && real.multimedals.controls.size()==1) {
+                U2_TEST_ASSERT(real.profile.controls[1].target_page_id==0xBE2C8B4Bu &&
+                               real.profile.controls[1].target_page_name=="PAGE_CHAPTERS" &&
+                               real.ingame_options.controls[1].target_page_id==0x5C717AADu &&
+                               real.ingame_options.controls[1].target_page_name=="PAGE_CONTROLS" &&
+                               real.multimedals.controls[0].type==7 && !real.multimedals.controls[0].is_selectable(),
+                               "Step20 real target descriptors and non-selectable medals list match binary evidence");
+                exercise(real);
+            }
+        }
+    }
+
     g_u2_image_base = saved_base;
     std::printf("[U2 EngineTest] PASSED: %d/%d functional C++23 engine assertions verified via ELF trampolines!\n",
                 s_passed_assertions, s_passed_assertions + s_failed_assertions);

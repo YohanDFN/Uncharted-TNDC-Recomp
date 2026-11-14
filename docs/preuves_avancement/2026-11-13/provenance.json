@@ -61,17 +61,34 @@
       "scenario": "menu-temple preview + BC1/BC4 logo + verified post-X pages PAGE_PROFILE (0x82D5C00B, title DÉMARRER, 7 controls incl. spacer & ds 16/0 Continuer/Jouer) and PAGE_NEWPROFILE (0x11FEFB39, 4 controls) rendered with main.fnt",
       "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (4s); Python zlib BMP to PNG; no retouching",
       "legende": "Verified post-X menu lists parsed from dc1/ps4/menu.bin and raw core.psarc:text1/ps4/3.common, rendered with slot 1 font main.fnt. Two-column card layout, colors, and static display without transitions are viewer conventions."
+    },
+    {
+      "fichier": "03-menu-interactif-pile-pages.png",
+      "type": "native_framebuffer",
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "sha256": "2437682857a92bf05f33ea0ed796ea1304ec66d2e0245ac0df6157da352784d5",
+      "capture_date": "2026-11-14",
+      "build_base_commit": "01ddd0ad75f7e662967e386919e14b947db8ddcf",
+      "build_changes": "interactive MenuHost page-stack state machine, SAVEDATA02P/SAVEDATA020 USR-DATA slot detection (0xCD..0xD6), target_page_id/name parsing for PAGE_INGAME_OPTIONS/PAGE_BONUSES/PAGE_CHAPTERS/PAGE_MULTIMEDALS, keyboard/mouse navigation, delayed BB_NATIVE_CAPTURE, and Step 20 unit tests",
+      "executable_sha256": "967d194e2c3d82d8e1cf3dad59f9d02cac1a5253f62dc3c95bd6b798b3d461dd",
+      "scenario": "Live Win32 PostMessage sequence (VK_RETURN -> PAGE_PROFILE, VK_DOWN x2 -> cursor=3 Nouvelle partie skipping spacer 2) captured at >=1800ms on menu-temple + logo + main.fnt, followed by VK_DOWN x2 -> Options -> VK_RETURN PAGE_INGAME_OPTIONS -> VK_BACK -> VK_F1 toggle",
+      "conversion": "BB_NATIVE_CAPTURE SDL_RenderReadPixels to BMP (>=1800ms); Python zlib BMP to PNG; no retouching",
+      "legende": "Live interactive MenuHost state machine capture on PAGE_PROFILE (cursor=3 Nouvelle partie, active SAVEDATA02P profile + SAVEDATA020 campaign detected). Breadcrumb bar, card colors, and highlight bar remain viewer conventions."
     }
   ],
   "validation": {
-    "native_assertions": "552/552",
+    "native_assertions": "606/606",
     "native_seconds": 6,
     "native_exit": 0,
-    "hybrid_assertions": "558/558",
-    "hybrid_seconds": 30,
-    "hybrid_exit": "USER_WINDOW_CLOSE_AFTER_TIMEOUT",
+    "hybrid_assertions": "612/612",
+    "hybrid_seconds": 6,
+    "hybrid_exit": "STOPPED_AFTER_TIMEOUT",
     "selftest": 886,
     "full_body": 831,
+    "interactive_sequence_exit": 0,
     "toggle_seconds": 6,
     "toggle_observed": [
       "hidden",
@@ -81,8 +98,8 @@
   },
   "limits": [
     "main.fnt proven in eboot.elf slot 1 (0x0144E640 / 0x003F6D0C; MenuDrawer -1 resolved via 0x01450D18 -> 1)",
-    "post-X branch selection (0x005CB5B7 -> 0x005CB851 PAGE_PROFILE vs 0x005CB807 PAGE_NEWPROFILE), datasource 16/0 (0x005ACAB0) live evaluation, and interactive transitions are not yet wired into live state transitions",
-    "two-column card layout, colors, drawn circle-cross/button tags, text shadow, logo vertical flip and shade remain preview conventions",
+    "gameplay actions (NewGame, LoadGame, Continue/Play, GameplayOptions, ChapterStart) and unloaded leaf subpages/dynamic lists (e.g. PAGE_CONTROLS, LIST_MEDALS) are explicitly deferred without launching levels or faking state",
+    "card layout, breadcrumb bar, colors, highlight bar, text shadow, logo vertical flip and shade remain preview conventions",
     "fresh original framebuffer capture attempts unsuccessful; prior validated reference reused"
   ]
 }

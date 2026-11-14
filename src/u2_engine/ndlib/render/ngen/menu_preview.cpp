@@ -2,6 +2,7 @@
 #include "u2_engine.h"
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 #include <new>
 #include <string_view>
 #include <utility>
@@ -107,6 +108,10 @@ bool u2_native_ReadPostStartMenuPreview(U2NativePostStartMenuPreview *out,
             if(id == 0x37656388u) { page = &result.root_main; name = "PAGE_ROOT_MAIN"; }
             else if(id == 0x82D5C00Bu) { page = &result.profile; name = "PAGE_PROFILE"; }
             else if(id == 0x11FEFB39u) { page = &result.new_profile; name = "PAGE_NEWPROFILE"; }
+            else if(id == 0xB793B4B2u) { page = &result.ingame_options; name = "PAGE_INGAME_OPTIONS"; }
+            else if(id == 0x22D667C0u) { page = &result.bonuses; name = "PAGE_BONUSES"; }
+            else if(id == 0xBE2C8B4Bu) { page = &result.chapters; name = "PAGE_CHAPTERS"; }
+            else if(id == 0xACE1A9D5u) { page = &result.multimedals; name = "PAGE_MULTIMEDALS"; }
             else continue;
             if(page->id != 0) return false;
             page->id = id;
@@ -133,6 +138,9 @@ bool u2_native_ReadPostStartMenuPreview(U2NativePostStartMenuPreview *out,
                 control.string_id = uint32_t(le(c + 0x28, 4));
                 control.datasource_type = uint32_t(le(c + 0x30, 4));
                 control.datasource_index = uint32_t(le(c + 0x34, 4));
+                const uint64_t target_name = le(c + 0x48, 8);
+                if(target_name && !cstring(menu_bin, menu_size, target_name, 0x60, 256, control.target_page_name)) return false;
+                control.target_page_id = uint32_t(le(c + 0x50, 4));
                 if(control.string_id) {
                     if(!resolve(table, control.string_id, control.label)) return false;
                 } else if(control.id == 0x161522F1u && control.datasource_type == 16 && control.datasource_index == 0) {
@@ -191,6 +199,165 @@ bool u2_native_LoadPostStartMenuPreview(U2NativePostStartMenuPreview *out) {
         }
         std::vector<uint8_t> common(size_t(bytes), uint8_t{0});
         if(!archive.read(common.data(), common.size(), offset)) return false;
-        return u2_native_ReadPostStartMenuPreview(out, menu_bytes.data(), menu_bytes.size(), common.data(), common.size());
+        U2NativePostStartMenuPreview result;
+        if(!u2_native_ReadPostStartMenuPreview(&result, menu_bytes.data(), menu_bytes.size(), common.data(), common.size()) ||
+           result.ingame_options.id != 0xB793B4B2u || result.ingame_options.controls.empty() ||
+           result.bonuses.id != 0x22D667C0u || result.bonuses.controls.empty() ||
+           result.chapters.id != 0xBE2C8B4Bu || result.chapters.controls.empty() ||
+           result.multimedals.id != 0xACE1A9D5u || result.multimedals.controls.empty()) return false;
+        *out = std::move(result);return true;
     } catch(const std::bad_alloc &) { return false; }
+}
+
+bool u2_native_HasActiveSavedataSlot(const uint8_t *data, size_t size, uint32_t *out_sum) {
+    if(!data || size < 0xD7u) return false;
+    uint32_t sum = 0;
+    for(size_t i = 0xCD; i <= 0xD6; ++i) sum += data[i];
+    if(out_sum) *out_sum = sum;
+    return sum != 0;
+}
+
+bool u2_native_DetectSavedataStatus(U2NativeSavedataStatus *out) {
+    if(!out) return false;
+    U2NativeSavedataStatus result;
+    auto read_slot = [](const char *path, const char *fallback, uint32_t &sum) {
+        // Host files only; read a bounded prefix, never deserialize guest objects.
+        std::FILE *file = std::fopen(path, "rb");
+        if(!file) file = std::fopen(fallback, "rb");
+        if(!file) return false;
+        uint8_t bytes[0xD7]{};
+        const size_t count = std::fread(bytes, 1, sizeof(bytes), file);
+        const bool valid = count == sizeof(bytes) && !std::ferror(file);
+        std::fclose(file);
+        return valid && u2_native_HasActiveSavedataSlot(bytes, count, &sum);
+    };
+    result.has_profile = read_slot("user/savedata/1/CUSA02343/SAVEDATA02P/USR-DATA",
+        "../user/savedata/1/CUSA02343/SAVEDATA02P/USR-DATA", result.profile_slot_sum);
+    result.has_campaign_save = read_slot("user/savedata/1/CUSA02343/SAVEDATA020/USR-DATA",
+        "../user/savedata/1/CUSA02343/SAVEDATA020/USR-DATA", result.campaign_slot_sum);
+    *out = result;return true;
+}
+
+namespace {
+size_t first_selectable(const U2NativeMenuPagePreview &page) {
+    for(size_t i = 0; i < page.controls.size(); ++i) if(page.controls[i].is_selectable()) return i;
+    return 0;
+}
+}
+
+bool U2NativeMenuStateMachine::init(const U2NativePostStartMenuPreview *menu, const U2NativeSavedataStatus &save) {
+    if(!menu || !menu->root_main.id) return false;
+    std::vector<U2NativeMenuStackEntry> initial{{&menu->root_main, menu->root_main.id, first_selectable(menu->root_main)}};
+    m_stack = std::move(initial);m_menu = menu;m_save = save;
+    m_transition_state = U2NativeMenuTransitionState::Reset;m_last_status_note.clear();return true;
+}
+const U2NativeMenuPagePreview *U2NativeMenuStateMachine::find_page(uint32_t id) const {
+    if(!m_menu || !id) return nullptr;
+    for(const auto *page : {&m_menu->root_main, &m_menu->profile, &m_menu->new_profile,
+                           &m_menu->ingame_options, &m_menu->bonuses, &m_menu->chapters, &m_menu->multimedals}) {
+        if(page->id == id) return page;
+    }
+    return nullptr;
+}
+const U2NativeMenuPagePreview *U2NativeMenuStateMachine::current_page() const {
+    return m_stack.empty() ? nullptr : m_stack.back().page;
+}
+std::string U2NativeMenuStateMachine::display_control_label(const U2NativeMenuControlPreview &ctrl) const {
+    if(m_menu && ctrl.id == 0x161522F1u) {
+        const auto &label = m_save.has_campaign_save ? m_menu->continue_label : m_menu->play_label;
+        if(!label.empty()) return label;
+    }
+    return ctrl.label;
+}
+bool U2NativeMenuStateMachine::set_cursor(size_t index) {
+    const auto *page = current_page();
+    if(!page || index >= page->controls.size() || !page->controls[index].is_selectable()) return false;
+    m_stack.back().cursor = index;return true;
+}
+bool U2NativeMenuStateMachine::move_cursor(int delta) {
+    const auto *page = current_page();
+    if(!page || delta == 0) return false;
+    size_t count = 0;
+    for(const auto &ctrl : page->controls) if(ctrl.is_selectable()) ++count;
+    if(!count) return false;
+    // Widen before negation so INT_MIN remains defined. Reduce full revolutions.
+    const int64_t wide = delta;
+    const size_t steps = size_t(wide < 0 ? -wide : wide) % count;
+    size_t cursor = current_cursor();
+    for(size_t step = 0; step < steps; ++step) {
+        do {
+            cursor = delta > 0 ? (cursor + 1) % page->controls.size() :
+                (cursor == 0 ? page->controls.size() - 1 : cursor - 1);
+        } while(!page->controls[cursor].is_selectable());
+    }
+    return set_cursor(cursor);
+}
+const U2NativeMenuControlPreview *U2NativeMenuStateMachine::selected_control() const {
+    const auto *page = current_page();
+    return page && current_cursor() < page->controls.size() && page->controls[current_cursor()].is_selectable()
+        ? &page->controls[current_cursor()] : nullptr;
+}
+U2NativeMenuTransitionResult U2NativeMenuStateMachine::transition_to_page(uint32_t id, bool reset_stack) {
+    const uint32_t from = current_page() ? current_page()->id : 0;
+    const auto *target = find_page(id);
+    if(!target) return {false, U2NativeMenuActionKind::None, from, from, ""};
+    U2NativeMenuActionKind action;
+    if(reset_stack) {
+        std::vector<U2NativeMenuStackEntry> initial{{target, id, first_selectable(*target)}};
+        m_stack = std::move(initial);
+        m_transition_state = U2NativeMenuTransitionState::Reset;action = U2NativeMenuActionKind::TransitionReset;
+    } else {
+        const auto found = std::find_if(m_stack.begin(), m_stack.end(), [id](const auto &entry) { return entry.page_id == id; });
+        if(found != m_stack.end()) {
+            m_stack.erase(found + 1, m_stack.end());
+            m_transition_state = U2NativeMenuTransitionState::Pop;action = U2NativeMenuActionKind::TransitionPop;
+        } else {
+            m_stack.push_back({target, id, first_selectable(*target)});
+            m_transition_state = U2NativeMenuTransitionState::Push;action = U2NativeMenuActionKind::TransitionPush;
+        }
+    }
+    m_last_status_note.clear();return {true, action, from, id, ""};
+}
+U2NativeMenuTransitionResult U2NativeMenuStateMachine::press_select() {
+    const uint32_t id = current_page() ? current_page()->id : 0;
+    const auto *ctrl = selected_control();
+    if(!ctrl) return {false, U2NativeMenuActionKind::None, id, id, ""};
+    U2NativeMenuTransitionResult result{true, U2NativeMenuActionKind::None, id, id, ""};
+    if(ctrl->target_page_id) {
+        if(find_page(ctrl->target_page_id)) return transition_to_page(ctrl->target_page_id, false);
+        result.status_note = "Sous-menu non porte : " + (ctrl->target_page_name.empty() ? std::to_string(ctrl->target_page_id) : ctrl->target_page_name);
+    } else {
+        switch(ctrl->id) {
+        case 0x2BBBB5C5u: return transition_to_page(m_save.has_profile ? 0x82D5C00Bu : 0x11FEFB39u, false);
+        case 0xFA872AA5u:
+            if(find_page(0xB793B4B2u)) return transition_to_page(0xB793B4B2u, false);
+            [[fallthrough]];
+        case 0xC79A65B5u:
+            result.action = U2NativeMenuActionKind::DeferredGameplayOptions;
+            result.status_note = "Action differee : Options de jeu";break;
+        case 0xB861A261u:
+            result.action = U2NativeMenuActionKind::DeferredNewGame;
+            result.status_note = "Action differee : Nouvelle partie (chargement niveau)";break;
+        case 0xF7A5B490u:
+            result.action = U2NativeMenuActionKind::DeferredLoadGame;
+            result.status_note = "Action differee : Charger une partie";break;
+        case 0x161522F1u:
+            result.action = U2NativeMenuActionKind::DeferredContinueOrPlay;
+            result.status_note = "Action differee : Continuer / Jouer";break;
+        case 0x131BA09Bu:
+            result.action = U2NativeMenuActionKind::DeferredContinueOrPlay;
+            result.status_note = "Action differee : Commencer chapitre";break;
+        default: result.handled = false;break;
+        }
+    }
+    m_last_status_note = result.status_note;return result;
+}
+U2NativeMenuTransitionResult U2NativeMenuStateMachine::press_back() {
+    const uint32_t from = current_page() ? current_page()->id : 0;
+    if(m_stack.size() <= 1) return {false, U2NativeMenuActionKind::None, from, from, ""};
+    m_stack.pop_back();m_transition_state = U2NativeMenuTransitionState::Pop;m_last_status_note.clear();
+    return {true, U2NativeMenuActionKind::TransitionPop, from, current_page()->id, ""};
+}
+U2NativeMenuTransitionResult U2NativeMenuStateMachine::reset_to_root() {
+    return transition_to_page(m_menu ? m_menu->root_main.id : 0, true);
 }

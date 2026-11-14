@@ -255,3 +255,88 @@ Prochaine expérience : câbler la transition interactive `X` / `Entrée` depuis
 l'écran-titre (`PAGE_ROOT_MAIN`) vers la page active (`PAGE_PROFILE` ou
 `PAGE_NEWPROFILE` selon l'état profil/sauvegarde) et la navigation par curseur
 avec retour `O` / `Échap`.
+
+## Machine à états interactive `MenuHost` (pile de pages et navigation live, 14 novembre 2026)
+
+Hypothèse : en complétant le parseur hôte avec les champs cible (`+0x48` /
+`+0x50`) de `menu.bin`, les quatre sous-pages principales et la détection réelle
+des fichiers `USR-DATA` dans `SAVEDATA02P` / `SAVEDATA020`, `title_preview.h` et
+`engine_context.h` peuvent exécuter une véritable pile de pages interactive
+conforme à `MenuHost` (`0x005CB990`), sans exécuter de code PS4 ni simuler le
+lancement d'un niveau.
+Critère : transitions vérifiées (`PAGE_ROOT_MAIN` -> `PAGE_PROFILE` /
+`PAGE_NEWPROFILE` -> `PAGE_INGAME_OPTIONS` / `PAGE_BONUSES` / `PAGE_CHAPTERS` /
+`PAGE_MULTIMEDALS`), saut des séparateurs et contrôles `type != 2`, restitution
+du curseur sur `Retour`, tests unitaires Étape 20, séquence interactive
+automatisée et capture framebuffer réelle après saisie utilisateur, zéro
+régression native ou hybride.
+
+### Preuves et architecture implémentées
+
+- Extension de `src/u2_engine/ndlib/render/ngen/menu_preview.{h,cpp}` :
+  - Décodage de `target_page_name` (`+0x48`) et `target_page_id` (`+0x50`) sur
+    chaque contrôle de `menu.bin`, plus chargement validé de
+    `PAGE_INGAME_OPTIONS` (`0xB793B4B2`), `PAGE_BONUSES` (`0x22D667C0`),
+    `PAGE_CHAPTERS` (`0xBE2C8B4B`) et `PAGE_MULTIMEDALS` (`0xACE1A9D5`).
+  - `u2_native_HasActiveSavedataSlot` et `u2_native_DetectSavedataStatus` :
+    lecture hôte bornée (215 octets max) des en-têtes `SAVEDATA02P/USR-DATA` et
+    `SAVEDATA020/USR-DATA`, vérifiant la plage inclusive `[0xCD..0xD6]`
+    (`0x005CB78D`–`0x005CB851`, ici profil actif et sauvegarde campagne active)
+    pour orienter le démarrage et `BUTTON_CONTINUE` (`0x005ACAB0`).
+  - `U2NativeMenuStateMachine` : pile de pages, états de transition (`Reset=12`,
+    `Push=7`, `Pop=8`), curseur mémorisé par page, saut des séparateurs et
+    contrôles non `type == 2` (en-têtes `PAGE_CHAPTERS` `[0..3]` et liste
+    `PAGE_MULTIMEDALS` à 0 contrôle sélectionnable), et statut explicite de
+    report pour les actions gameplay et sous-pages feuilles non portées.
+- Extension de `src/u2_standalone/{title_preview.h,engine_context.h}` :
+  - Ouverture sur `PAGE_ROOT_MAIN` (`0x37656388`), rendu dynamique de la page au
+    sommet de la pile, fil d'Ariane et indicateurs de sauvegarde (filtrés sur
+    les glyphes réellement présents dans `main.fnt`, sans apostrophe ASCII).
+  - Navigation clavier (`Haut`/`Bas`/`W`/`S`, `Entrée`/`X`/`Espace` lorsque le
+    menu est visible, `Retour arrière` ou `Échap` quand `depth > 1`, `F1`
+    visibilité) et souris (`SDL_ConvertEventToRenderCoordinates` +
+    `hover_at`/`click_at`). `Espace` continue de cycler les vues Temple quand le
+    menu est masqué.
+  - Déclenchement différé de `BB_NATIVE_CAPTURE` (`>= 1800 ms`) pour capturer le
+    framebuffer réel après navigation utilisateur.
+- Étape 20 dans `src/u2_engine/u2_engine_tests.cpp` : tests unitaires sur
+  `SAVEDATA` (bornes `0xCD..0xD6`, buffers courts/NULL), parsing cible `+0x48` /
+  `+0x50` et rejets atomiques, machine à états sur profil absent puis actif +
+  campagne, pile `Options` / `Bonus` / `Chapitres` / `Médailles`, retour à la
+  racine et vérification sur vrais assets (`menu.bin` + `core.psarc:3.common`).
+
+### Validation et résultat
+
+- `git diff --check` propre et build MSYS2 réussi (`-Wall -Wextra -Werror`, `0` erreur/avertissement).
+- Natif six secondes (`scratch/run_native_test.ps1 6`) : **606/606** assertions
+  C++23, sandbox full-body **831**, code **0**, journal
+  `[native-title] state-machine initialized: page=PAGE_ROOT_MAIN (0x37656388) depth=1 profile=1 campaign=1`.
+- Séquence interactive automatisée Win32 + capture `BB_NATIVE_CAPTURE`
+  (>= 1800 ms, code **0**) : `VK_RETURN` (`PAGE_PROFILE depth=2`), `VK_DOWN`×2
+  (`cursor=1` puis `cursor=3` sautant le séparateur 2), capture 1920×1080
+  [03-menu-interactif-pile-pages.png](preuves_avancement/2026-11-13/03-menu-interactif-pile-pages.png)
+  (`1 453 587` octets, SHA-256 `2437682857a92bf05f33ea0ed796ea1304ec66d2e0245ac0df6157da352784d5`),
+  inspectée visuellement (fil d'Ariane `PAGE_ROOT_MAIN > PAGE_PROFILE`, état
+  `Profil detecte | Sauvegarde active`, `DÉMARRER`, `> Nouvelle partie <`
+  sélectionné, barre `[ENTREE/X]` / `[RET.ARR/O]` / `[F1]`), puis `VK_DOWN`×2
+  -> `Options` -> `VK_RETURN` (`PAGE_INGAME_OPTIONS depth=3`) -> `VK_BACK`
+  (`PAGE_PROFILE depth=2`) -> `VK_F1`×2 (`hidden` / `visible`).
+- Hybride (`scratch/run_test.ps1 6`, `user/last_run.log`) : SelfTest **886**,
+  full-body **831**, **612/612** assertions C++23, **889** détours installés,
+  zéro crash, Guest fault ni nouvelle assertion jusqu'à `STOPPED_AFTER_TIMEOUT`.
+- Build basé sur `01ddd0a` avec cette itération, SHA-256 `out/uncharted2-native.exe` :
+  `967d194e2c3d82d8e1cf3dad59f9d02cac1a5253f62dc3c95bd6b798b3d461dd`.
+- [Galerie HTML autonome](preuves_avancement/2026-11-13/preuves_avancement.html)
+  (5 PNG embarqués vérifiés octet par octet contre le disque) et
+  [provenance.json](preuves_avancement/2026-11-13/provenance.json).
+
+Limites : le lancement effectif d'une partie (`Nouvelle partie`, `Continuer /
+Jouer`, `Charger partie`, `Commencer chapitre`), la persistance d'options et les
+sous-pages feuilles / listes dynamiques (`PAGE_CONTROLS`, `PAGE_VIDEO`,
+`PAGE_AUDIO`, `PAGE_GAMEMOVIES`, `PAGE_STORE_SP`, `PAGE_TREASURES`,
+`PAGE_MEDALS`, `PAGE_STATS`, `LIST_MEDALS`) sont différés ; disposition, fil
+d'Ariane et surbrillance restent des conventions du viewer.
+
+Prochaine expérience : selon priorité, porter la persistance/UI des sous-pages
+d'options (`PAGE_INGAME_OPTIONS` -> contrôles/affichage/audio) ou relier
+l'action différée `Continuer / Jouer` au pipeline de chargement de niveau natif.
